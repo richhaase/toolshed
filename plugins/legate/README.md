@@ -6,16 +6,6 @@ Stateless by design. Tmux is the source of truth — window names, tags (`@legat
 
 ## Skills
 
-### commission
-
-Establish this session as the legate — your operational partner. Run `/commission` at the start of a session to activate legate mode.
-
-The legate keeps information-gathering and coordination in-session (briefings, PR triage, quick lookups) and dispatches execution work to agents (building code, code reviews, investigations). It uses judgment about what to handle directly versus farm out — but you always have the final word.
-
-```
-/commission
-```
-
 ### dispatch
 
 Launch a new Claude Code session in a tmux window with context, or send additional instructions to an existing session.
