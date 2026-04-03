@@ -36,23 +36,9 @@ You can scope installations with `--scope user` (default, all projects), `--scop
 
 ## Plugins
 
-### Legate — Tmux Session Management
+### [Legate](plugins/legate/) — Tmux Session Management
 
-Delegated authority over tmux sessions. Dispatch Claude Code agents to work in parallel, check on their status, or inspect their workspace yourself.
-
-Three skills:
-
-- **dispatch** — Launch a new Claude Code session in a tmux window with context (PR, issue, freeform task), or send additional instructions to an existing session.
-- **debrief** — Check on one or all dispatched sessions. Pulls status back into the current conversation.
-- **inspect** — Open a shell pane alongside a dispatched session so you can look around yourself.
-
-Stateless by design — tmux is the source of truth, no registry files.
-
-```
-dispatch a session for #123
-debrief that PR session
-inspect the migration task
-```
+Delegated authority over tmux sessions. Dispatch Claude Code agents to work in parallel, check on their progress, or open a shell alongside them to look around yourself. Stateless by design — tmux is the source of truth.
 
 ## License
 

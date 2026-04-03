@@ -87,7 +87,7 @@ Use the description as-is. Add relevant context from the current conversation.
 3. Launch the window and tag it for discoverability:
 
    ```bash
-   tmux new-window -n "<name>" "/tmp/legate-<name>.sh"
+   tmux new-window -d -n "<name>" "/tmp/legate-<name>.sh"
    tmux set-option -w -t "<name>" @legate-managed true
    tmux set-option -w -t "<name>" @legate-description "<short description of the task>"
    tmux set-option -w -t "<name>" @legate-source "<source identifier, e.g. gh:owner/repo#123>"
