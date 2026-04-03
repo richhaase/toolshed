@@ -42,15 +42,14 @@ status on all sessions
 
 ### inspect
 
-Open a bare shell pane alongside a dispatched session so you can poke around the workspace yourself.
+Switch focus to a dispatched session's tmux window so you can interact with the agent directly.
 
-- Splits the target session's tmux window horizontally
-- Opens a terminal in the same working directory — no Claude, just a shell
-- Inspection panes are ephemeral and don't show up in debrief sweeps
+- Resolves natural references ("the PR session") to the right window
+- Switches your tmux focus there — you're now talking to that agent
 
 ```
 inspect the migration task
-let me look at that PR session
+take me to the PR session
 ```
 
 ## How it works

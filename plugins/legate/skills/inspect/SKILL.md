@@ -1,20 +1,19 @@
 ---
 name: inspect
 description: >
-  Open a plain terminal pane alongside a dispatched session so the user can look around
-  themselves. Use when the user says "let me look at that", "open a shell for", "inspect",
-  "I want to poke around", "give me a terminal there", or wants hands-on access to a
-  session's workspace without going through the agent. Trigger this skill when the user
-  wants direct filesystem or shell access to a dispatched session's environment.
+  Switch focus to a dispatched session's tmux window so the user can interact with the
+  agent directly. Use when the user says "let me look at that", "take me there", "inspect",
+  "show me that session", "switch to the PR window", or wants to go see what a dispatched
+  agent is doing firsthand. Trigger this skill when the user wants to navigate to a
+  dispatched session, even if they phrase it casually.
 allowed-tools:
   - Bash
 ---
 
 # Inspect
 
-Open a bare shell pane inside the target session's tmux window so the user can poke around
-alongside the agent. No Claude, no extra agent — just a terminal in the right directory,
-right next to the work.
+Switch the user's tmux focus to a dispatched session's window so they can interact with
+the agent directly. That's it — just take them there.
 
 ## Resolving the target
 
@@ -33,26 +32,18 @@ right next to the work.
 
 3. Ask the user to clarify only if you genuinely can't resolve it.
 
-## Opening the pane
+## Switching focus
 
-Split the target window to open a shell pane alongside the running agent:
+Select the target window:
 
 ```bash
-CWD=$(tmux show-option -wv -t "<source-window>" @legate-cwd 2>/dev/null)
-tmux split-window -t "<source-window>" -h -c "${CWD:-$(pwd)}"
+tmux select-window -t "<name>"
 ```
 
-This opens a horizontal split in the same window where the agent is working, so the
-user can see both side by side.
-
-Tell the user the pane is open and where it's pointed.
+Tell the user which window you switched them to and what it's working on.
 
 ## Notes
 
-- If the target window no longer exists, tell the user — don't silently fail. Offer to
-  open a shell in the last known working directory if the `@legate-cwd` tag is still
-  readable from tmux.
-- Don't tag inspection panes as `@legate-managed` — they're ephemeral, user-driven,
-  and shouldn't show up in debrief sweeps.
-- If the user asks to inspect something that wasn't dispatched by legate, just open a
-  window in whatever directory makes sense. The skill doesn't need to be rigid about this.
+- If the target window no longer exists, tell the user clearly. Don't silently fail.
+- If the user asks to inspect something that wasn't dispatched by legate, do your best
+  to find the right window by name. The skill doesn't need to be rigid about this.
