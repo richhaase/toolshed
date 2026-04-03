@@ -1,0 +1,15 @@
+{
+  "name": "toolshed",
+  "owner": {
+    "name": "Rich Haase"
+  },
+  "metadata": {
+    "description": "Portable agent tooling plugins for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "legate",
+      "source": "./plugins/legate"
+    }
+  ]
+}
