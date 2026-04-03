@@ -3,8 +3,10 @@ name: debrief
 description: >
   Check on dispatched tmux sessions and pull status back into the current conversation.
   Use when the user asks to "check on", "how's it going with", "status of", "debrief",
+  "any updates from", "is that done yet", "what's happening with", "report back on",
   or otherwise wants to know what a dispatched session is doing. Can target a specific
-  session or sweep all legate-managed sessions.
+  session or sweep all legate-managed sessions. Trigger this skill whenever the user
+  asks about the state of work happening in other sessions, even casually.
 allowed-tools:
   - Bash
 ---
@@ -72,6 +74,13 @@ When the user asks for a sweep ("how's everything going", "status on all session
    ```
 
 2. Summarize each session's status concisely — one or two lines per session.
+
+## When a session is gone
+
+If `tmux capture-pane` fails or the window no longer exists, the session has ended or
+been closed. Report this clearly — "that session is gone" is a useful status. Check the
+`@legate-description` tag if it's still readable to remind the user what it was working on.
+Don't treat a missing window as an error in *your* workflow — it's just a fact to report.
 
 ## Reporting style
 

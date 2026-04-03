@@ -3,7 +3,9 @@ name: inspect
 description: >
   Open a plain terminal pane alongside a dispatched session so the user can look around
   themselves. Use when the user says "let me look at that", "open a shell for", "inspect",
-  or wants hands-on access to a session's workspace without going through the agent.
+  "I want to poke around", "give me a terminal there", or wants hands-on access to a
+  session's workspace without going through the agent. Trigger this skill when the user
+  wants direct filesystem or shell access to a dispatched session's environment.
 allowed-tools:
   - Bash
 ---
@@ -47,6 +49,9 @@ Tell the user the pane is open and where it's pointed.
 
 ## Notes
 
+- If the target window no longer exists, tell the user — don't silently fail. Offer to
+  open a shell in the last known working directory if the `@legate-cwd` tag is still
+  readable from tmux.
 - Don't tag inspection panes as `@legate-managed` — they're ephemeral, user-driven,
   and shouldn't show up in debrief sweeps.
 - If the user asks to inspect something that wasn't dispatched by legate, just open a

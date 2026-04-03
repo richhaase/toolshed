@@ -3,9 +3,12 @@ name: dispatch
 description: >
   Launch a new tmux window with a Claude Code session for a task, or send additional
   instructions to an existing dispatched session. Use when the user says "dispatch",
-  "spin up", "new session", "launch a window for", "send instructions to", or references
-  a PR, issue, or task they want worked on in a separate window. Also handles follow-up
-  orders like "tell that session to also run the tests."
+  "spin up", "new session", "launch a window for", "send instructions to", "farm this out",
+  "get someone on this", "can you handle that in a separate window", or references a PR,
+  issue, or task they want worked on in a separate window. Also handles follow-up orders
+  like "tell that session to also run the tests" or "send new instructions to the PR session."
+  Trigger this skill whenever the user wants work done in parallel or outside the current
+  conversation, even if they don't use the word "dispatch."
 allowed-tools:
   - Bash
   - Agent
@@ -84,7 +87,14 @@ Use the description as-is. Add relevant context from the current conversation.
    chmod +x /tmp/legate-<name>.sh
    ```
 
-3. Launch the window and tag it for discoverability:
+3. Check if a window with this name already exists. If it does, append a short suffix
+   (e.g., `pr-123-2`) to avoid collisions:
+
+   ```bash
+   tmux list-windows -F '#{window_name}' | grep -q "^<name>$" && name="<name>-2"
+   ```
+
+4. Launch the window and tag it for discoverability:
 
    ```bash
    tmux new-window -d -n "<name>" "/tmp/legate-<name>.sh"
@@ -94,7 +104,7 @@ Use the description as-is. Add relevant context from the current conversation.
    tmux set-option -w -t "<name>" @legate-cwd "$WORK_DIR"
    ```
 
-4. Send a kick-off prompt after Claude boots:
+5. Send a kick-off prompt after Claude boots:
 
    ```bash
    sleep 3
@@ -109,7 +119,7 @@ Use the description as-is. Add relevant context from the current conversation.
 
    Incorporate any specific instructions the user gave.
 
-5. Tell the user which window was created and what context was provided.
+6. Tell the user which window was created and what context was provided.
 
 ## Sending orders to an existing session
 
@@ -137,7 +147,9 @@ When the user wants to send additional instructions to a running session:
 
 ## Context brief format
 
-Keep it under 30 lines. The new agent has full codebase access — just orient it.
+Keep it under 30 lines. The new agent has full codebase access and can read files
+itself — the brief just needs to orient it on *what* to do and *why*, not provide all
+the details. A bloated brief wastes system prompt space and buries the signal.
 
 ```markdown
 # Task: <title>
@@ -153,6 +165,11 @@ Keep it under 30 lines. The new agent has full codebase access — just orient i
 ## Key files (if known)
 <Files mentioned in review comments or relevant to the task>
 ```
+
+## Conventions
+
+For the full tag contract and naming conventions shared across all legate skills, see
+`references/conventions.md`.
 
 ## Naming convention
 
