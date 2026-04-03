@@ -1,13 +1,15 @@
 ---
 name: dispatch
 description: >
-  Launch a new tmux window with a Claude Code session for a task, or send additional
-  instructions to an existing dispatched session. Use when the user says "dispatch",
-  "spin up", "new session", "launch a window for", "send instructions to", "farm this out",
-  "get someone on this", "can you handle that in a separate window", or references a PR,
-  issue, or task they want worked on in a separate window. Also handles follow-up orders
-  like "tell that session to also run the tests" or "send new instructions to the PR session."
-  Trigger this skill whenever the user wants work done in parallel or outside the current
+  Launch a new tmux window with an AI agent session for a task, or send additional
+  instructions to an existing dispatched session. Supports Claude Code, Codex, and Gemini
+  CLI — defaults to launching the same agent type as the caller. Use when the user says
+  "dispatch", "spin up", "new session", "launch a window for", "send instructions to",
+  "farm this out", "get someone on this", "can you handle that in a separate window",
+  "have codex look at this", "send this to gemini", or references a PR, issue, or task
+  they want worked on in a separate window. Also handles follow-up orders like "tell that
+  session to also run the tests" or "send new instructions to the PR session." Trigger
+  this skill whenever the user wants work done in parallel or outside the current
   conversation, even if they don't use the word "dispatch."
 allowed-tools:
   - Bash
@@ -16,8 +18,13 @@ allowed-tools:
 
 # Dispatch
 
-Send agents out with delegated authority. Launch new Claude Code sessions in tmux windows
+Send agents out with delegated authority. Launch AI agent sessions in tmux windows
 with context, or send additional orders to sessions already running.
+
+Supports multiple agent runtimes: **Claude Code**, **Codex**, and **Gemini CLI**.
+By default, dispatch launches the same type of agent you are — if you're Claude, you
+launch Claude; if you're Codex, you launch Codex. The user can override this by
+specifying an agent explicitly (e.g., "dispatch to codex", "have gemini handle this").
 
 Tmux is the source of truth. No registry files, no persistent state. Tag windows with
 tmux user options so they're discoverable by other legate skills.
@@ -30,6 +37,10 @@ The user provides a task identifier:
 - PR number or ref: `123`, `#123`, `my-org/my-repo#45`
 - Issue tracker ticket: `TASK-100` (GitHub Issues, Linear, Jira, etc.)
 - Freeform: `"work on the database migration"`
+
+The user may also specify an agent runtime:
+- Explicit: `"dispatch to codex"`, `"have gemini look at this"`, `"send this to claude"`
+- If not specified, default to your own agent type
 
 ### Step 1: Gather context
 
@@ -68,13 +79,31 @@ MCP, etc. Synthesize into a brief.
 
 Use the description as-is. Add relevant context from the current conversation.
 
-### Step 2: Launch the tmux window
+### Step 2: Determine the agent runtime
+
+Resolve which agent to launch:
+
+1. If the user explicitly named an agent ("dispatch to codex", "have gemini handle this"),
+   use that.
+2. Otherwise, default to your own agent type — if you're Claude, launch Claude; if you're
+   Codex, launch Codex; if you're Gemini, launch Gemini.
+
+The three supported runtimes and their launcher commands:
+
+| Runtime | Exec command | Context passing | Notes |
+|---------|-------------|-----------------|-------|
+| `claude` | `exec claude --append-system-prompt "$CONTEXT" -n "<name>"` | Via `--append-system-prompt` flag | Unset `CLAUDECODE` to prevent nested session detection |
+| `codex` | `exec codex` | Via kick-off prompt (include context brief in the send-keys message) | Unset `CODEX_*` session env vars if present |
+| `gemini` | `exec gemini` | Via kick-off prompt (include context brief in the send-keys message) | No system prompt flag; context goes in kick-off |
+
+### Step 3: Launch the tmux window
 
 1. Write the context brief to `/tmp/legate-<name>.md` (see format below).
 
-2. Write a launcher script. `unset CLAUDECODE` prevents nested session detection.
-   `exec` replaces the shell so the tmux pane IS the claude process.
+2. Write a launcher script. `exec` replaces the shell so the tmux pane IS the agent
+   process.
 
+   **For Claude:**
    ```bash
    WORK_DIR=$(pwd)
    cat > /tmp/legate-<name>.sh <<LAUNCHER
@@ -83,6 +112,28 @@ Use the description as-is. Add relevant context from the current conversation.
    unset CLAUDECODE
    CONTEXT=\$(cat /tmp/legate-<name>.md)
    exec claude --append-system-prompt "\$CONTEXT" -n "<name>"
+   LAUNCHER
+   chmod +x /tmp/legate-<name>.sh
+   ```
+
+   **For Codex:**
+   ```bash
+   WORK_DIR=$(pwd)
+   cat > /tmp/legate-<name>.sh <<LAUNCHER
+   #!/bin/bash
+   cd $WORK_DIR
+   exec codex
+   LAUNCHER
+   chmod +x /tmp/legate-<name>.sh
+   ```
+
+   **For Gemini:**
+   ```bash
+   WORK_DIR=$(pwd)
+   cat > /tmp/legate-<name>.sh <<LAUNCHER
+   #!/bin/bash
+   cd $WORK_DIR
+   exec gemini
    LAUNCHER
    chmod +x /tmp/legate-<name>.sh
    ```
@@ -102,16 +153,28 @@ Use the description as-is. Add relevant context from the current conversation.
    tmux set-option -w -t "<name>" @legate-description "<short description of the task>"
    tmux set-option -w -t "<name>" @legate-source "<source identifier, e.g. gh:owner/repo#123>"
    tmux set-option -w -t "<name>" @legate-cwd "$WORK_DIR"
+   tmux set-option -w -t "<name>" @legate-agent "<runtime>"
    ```
 
-5. Send a kick-off prompt after Claude boots:
+   The `@legate-agent` tag records which runtime is in this window (`claude`, `codex`,
+   or `gemini`). Used by debrief for context.
+
+5. Send a kick-off prompt after the agent boots:
 
    ```bash
    sleep 3
    tmux send-keys -t "<name>" "<kick-off prompt>" Enter
    ```
 
-   Craft the kick-off based on task type:
+   **For Claude:** The context brief was already injected via `--append-system-prompt`,
+   so the kick-off is just the task instruction.
+
+   **For Codex and Gemini:** The context brief was NOT injected at launch, so the
+   kick-off must include both the context and the task instruction. Prepend the content
+   of `/tmp/legate-<name>.md` to the kick-off prompt. Keep it concise — these agents
+   have their own context limits.
+
+   Craft the task instruction based on type:
    - **PR review**: `"Review this PR. Read the diff, check the code, and report your findings."`
    - **Issue**: `"Investigate this ticket. Read the relevant code and report what you find."`
    - **Freeform with deliverable**: Use the user's description directly.
@@ -119,7 +182,8 @@ Use the description as-is. Add relevant context from the current conversation.
 
    Incorporate any specific instructions the user gave.
 
-6. Tell the user which window was created and what context was provided.
+6. Tell the user which window was created, what agent is running, and what context was
+   provided.
 
 ## Sending orders to an existing session
 

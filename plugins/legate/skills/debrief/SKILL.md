@@ -66,14 +66,16 @@ When the user asks for a sweep ("how's everything going", "status on all session
      managed=$(tmux show-option -wv -t "$w" @legate-managed 2>/dev/null)
      if [ "$managed" = "true" ]; then
        desc=$(tmux show-option -wv -t "$w" @legate-description 2>/dev/null)
-       echo "--- $w: $desc ---"
+       agent=$(tmux show-option -wv -t "$w" @legate-agent 2>/dev/null)
+       echo "--- $w [$agent]: $desc ---"
        tmux capture-pane -t "$w" -p -S -20
        echo ""
      fi
    done
    ```
 
-2. Summarize each session's status concisely — one or two lines per session.
+2. Summarize each session's status concisely — one or two lines per session. Include
+   which agent runtime is running (claude, codex, gemini) so the user knows what's where.
 
 ## When a session is gone
 
