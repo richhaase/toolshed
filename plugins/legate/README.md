@@ -55,6 +55,16 @@ inspect the migration task
 take me to the PR session
 ```
 
+## Shared sessions
+
+Dispatched sessions are not black boxes. The user can switch to any session and interact
+with the agent directly — giving instructions, asking follow-ups, or taking over entirely.
+This is a core part of the model: dispatch starts the work, but anyone can pick it up.
+
+When debriefing or otherwise reading pane output, look for user prompt markers (`❯`) to
+distinguish between user-driven actions and autonomous agent behavior. Report what happened
+factually based on who initiated it.
+
 ## How it works
 
 Legate tags each dispatched tmux window with user options:
