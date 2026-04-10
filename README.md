@@ -40,6 +40,10 @@ You can scope installations with `--scope user` (default, all projects), `--scop
 
 Delegated authority over tmux sessions. Dispatch Claude Code agents to work in parallel, check on their progress, or open a shell alongside them to look around yourself. Stateless by design — tmux is the source of truth.
 
+### [KB](plugins/kb/) — Personal Knowledge Base
+
+Multi-layer cache knowledge base with automated compilation. Treats knowledge like a CPU cache hierarchy: L1 (CLAUDE.md, always resident) → L2 (wiki, loaded on demand) → L3 (sources, cold storage). Compilation flows upward automatically via `/compile`. Includes session capture (`/fin`), task management, research with recall, and health checks.
+
 ## License
 
 [MIT](LICENSE)
