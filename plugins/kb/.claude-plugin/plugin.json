@@ -1,0 +1,13 @@
+{
+  "name": "kb",
+  "version": "0.1.0",
+  "description": "Personal knowledge base management. Scaffold a sources → wiki compilation pipeline with task tracking, research docs, session finishing, and health checks.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": ["knowledge-base", "wiki", "notes", "tasks", "research", "compile", "personal-knowledge-management"],
+  "skills": "./skills/"
+}
