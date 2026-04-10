@@ -30,18 +30,24 @@ skip them — never overwrite existing content.
 ### Directory structure
 
 ```
-sources/           # Raw inputs — notes, research docs, decisions
-├── tasks/         # One file per task, existence = open
-│   └── done/      # Archived completed tasks
-wiki/              # AI-compiled synthesis, topic-organized
-outputs/           # Persisted reports, analyses (write-once)
-private/           # Sensitive notes — never compiled into wiki
+sources/                # L3 — raw inputs, cold storage
+├── sessions/           # /fin captures from conversations
+├── syncs/              # Automated pulls from external services
+│   └── <provider>/     # One dir per source (concept2/, github/, etc.)
+├── notes/              # Manual markdown Rich drops in
+└── tasks/              # One file per task, existence = open
+    └── done/           # Archived completed tasks
+wiki/                   # L2 — compiled knowledge, loaded on demand
+outputs/                # Products of the system
+├── surfaces/           # HTML dashboards, served over HTTP
+└── reports/            # Generated briefings, analyses
+private/                # Sensitive notes — never compiled into wiki
 ```
 
 Create all directories:
 
 ```bash
-mkdir -p sources/tasks/done wiki outputs private
+mkdir -p sources/sessions sources/syncs sources/notes sources/tasks/done wiki outputs/surfaces outputs/reports private
 ```
 
 ### Starter CLAUDE.md
@@ -52,30 +58,62 @@ add the Entity Types registry and other customizations.
 ```markdown
 # Knowledge Base
 
+This KB uses a multi-layer cache model. Each layer has different access patterns.
+Compilation flows upward: L3 → L2 → L1.
+
+## Cache Layers
+
+### L1 — This file (CLAUDE.md) — Always resident
+Loaded every session automatically. Contains behavioral rules, quick lookup tables,
+and pointers to L2. The hot set tables below are maintained by `/compile`.
+
+### L2 — Wiki (`wiki/`) — Loaded on demand
+Compiled knowledge organized by topic. Read wiki pages when L1 doesn't have enough
+detail. Start with `wiki/INDEX.md` to see what's available.
+
+### L3 — Sources (`sources/`) — Cold storage
+Raw ingestion. Session captures, automated syncs, manual notes. Only access when
+L2 doesn't resolve the question.
+
+### Outputs (`outputs/`) — Outside the hierarchy
+Products of the system, not cache layers. `outputs/surfaces/` are HTML dashboards
+served over HTTP. `outputs/reports/` are generated briefings and analyses.
+
 ## Directory Structure
 
 ```
-sources/               # Everything the wiki compiles from
-├── tasks/             # Action items — one file per task, existence = open
-│   └── done/          # Archived completed tasks (optional)
-└── (flat .md files)   # Decisions, research, plans — dated, with frontmatter
-private/               # Sensitive notes — never compiled into wiki
-wiki/                  # AI-compiled synthesis, topic-organized (maintained by /compile)
-outputs/               # Persisted reports, analyses (write-once)
+sources/                # L3 — raw inputs
+├── sessions/           # /fin captures from conversations
+├── syncs/              # Automated pulls (one subdir per provider)
+│   └── <provider>/     # e.g., concept2/, github/ — timestamped files
+├── notes/              # Manual markdown
+└── tasks/              # One file per task, existence = open
+    └── done/           # Archived completed tasks
+wiki/                   # L2 — compiled knowledge
+├── INDEX.md            # Master index with freshness + pinned status
+└── <entity-type>/      # Subdirs per entity type
+outputs/                # Products
+├── surfaces/           # HTML dashboards served over HTTP
+└── reports/            # Generated briefings, analyses
+private/                # Sensitive notes — never compiled
 ```
 
 ## Conventions
 
 ### Filenames
-- Dated docs: `YYYY-MM-DD-topic.md` or `YYYY-MM-DD-HHmm-topic.md`
-- Evergreen docs: `descriptive-name.md`
+- Session captures: `YYYY-MM-DDTHHmmss-topic.md`
+- Sync data: `YYYY-MM-DDTHH-mm-ss.md` (in provider subdir)
+- Manual notes: `YYYY-MM-DD-topic.md` or `descriptive-name.md`
+- Tasks: `topic-slug.md` (date in frontmatter, not filename)
 
 ### Sources (`sources/`)
-All inputs that feed the wiki.
+All inputs that feed the wiki. Organized by origin:
+- **`sessions/`** — Extracted from conversations via `/fin`
+- **`syncs/<provider>/`** — Automated pulls from external services
+- **`notes/`** — Manual markdown dropped in directly
+- **`tasks/`** — Action items. Existence = open, deletion = done.
 
-**Tasks (`sources/tasks/`)** — One file per task: `topic-slug.md` (no date prefix — date in frontmatter). Existence = open, deletion = done. Optional `tasks/done/` for archived completed tasks.
-
-**Flat source docs** — Decisions, research, and plans live directly in `sources/`. All require YAML frontmatter with at least `date`. Research docs additionally require `topic`, `tags`, `sources`, and `staleness` fields.
+All source docs require YAML frontmatter with at least `date`.
 
 ### Private (`private/`)
 - Sensitive or personal notes
@@ -83,20 +121,21 @@ All inputs that feed the wiki.
 
 ### Wiki (`wiki/`)
 - AI-compiled synthesis maintained by `/compile`
-- Topic-organized, not date-organized — each topic gets its own .md file
-- `INDEX.md` lists every wiki page with a one-line description and last-updated date
+- Topic-organized, not date-organized
+- `INDEX.md` tracks every page with freshness and pinned status
 
 ### Outputs (`outputs/`)
-- Persisted reports, analyses, and generated content
-- Write-once — never overwrite; create a new timestamped file if needed
+- **`surfaces/`** — HTML dashboards, may be served via HTTP
+- **`reports/`** — Generated content, write-once
 
 ## Lookup Hierarchy
 
-When you need context about a topic — **follow this order**:
+Follow the cache layers:
 
-1. **`wiki/`** — Compiled, synthesized knowledge. Start with `wiki/INDEX.md`.
-2. **`sources/`** — Raw data the wiki compiles from. Use when wiki is stale or missing detail.
-3. **Ask the user** — If neither wiki nor sources have what you need, ask.
+1. **L1 (this file)** — Check the hot set tables below first.
+2. **L2 (`wiki/`)** — Cache miss. Read `wiki/INDEX.md`, then the relevant page.
+3. **L3 (`sources/`)** — Deep miss. Trace back to raw data.
+4. **Ask the user** — If no layer has what you need.
 
 ## Agent Rules
 
@@ -105,6 +144,9 @@ When you need context about a topic — **follow this order**:
 - **Outputs are immutable** — Files in `outputs/` are write-once. Never overwrite.
 - **Private is private** — Never read `private/` contents into wiki or outputs.
 - **Additive edits** — When updating wiki pages, add new information. Never delete historical content unless explicitly asked.
+
+<!-- HOT SET START — maintained by /compile, do not edit manually -->
+<!-- HOT SET END -->
 ```
 
 ### .gitignore
@@ -143,6 +185,10 @@ Ask the user questions to customize the KB. Be conversational — adapt based on
 answers. Don't ask all questions at once; ask one or two, then follow up based on
 responses.
 
+**Skip questions the user has already answered.** If entity types, purpose, or other
+details are already clear from context (e.g., stated in CLAUDE.md or conversation),
+don't re-ask — just confirm and move on.
+
 ### Question flow
 
 **Q1: Purpose**
@@ -160,11 +206,12 @@ Adapt suggestions based on Q1:
 - Project tracking → features, milestones, bugs, components
 - Engineering journal → topics, technologies, patterns, til (today-i-learned)
 - Customer management → customers, contacts, deals, interactions
+- Personal assistant → people, projects, interests, goals, ideas
 - General → topics, projects, references
 
 For each entity type the user names, follow up to understand:
-- **What fields matter?** A "person" might need role and team; a "customer" might need
-  status and account tier; a "project" might need status and owner.
+- **What fields matter?** A "person" might need role and relationship; a "project"
+  might need status and owner; a "goal" might need target date and progress.
 - **What sections should wiki pages have?** People might need "Current Focus" and
   "Key Contributions"; projects might need "Key Decisions" and "Timeline".
 - **Does this type have a privacy dimension?** People notes might have private
@@ -177,9 +224,10 @@ anything?"
 **Q3: Data sources**
 "Do you have data sources you'd like to pull from, or is this manual-input only?"
 
-Examples: GitHub (issues, PRs), Slack (channels), Jira, email, calendar, RSS feeds.
+Examples: GitHub (issues, PRs), Concept2 (rowing), Google Calendar, RSS feeds.
 If manual-only, skip to Q4. If integrations, note them for CLAUDE.md but don't
-configure them now — just document the intent.
+configure them now — just document the intent. These will be set up as sync
+providers under `sources/syncs/<provider>/`.
 
 **Q4: Privacy**
 "Anything that should stay private — not compiled into wiki pages?"
@@ -257,36 +305,38 @@ Also add these sections based on interview answers:
 
 Create a subdirectory under `wiki/` for each entity type:
 ```bash
-mkdir -p wiki/people wiki/projects wiki/customers wiki/topics  # example
+mkdir -p wiki/people wiki/projects wiki/interests wiki/goals wiki/ideas  # adapt to configured types
 ```
 
 #### Seed INDEX.md
 
-Write `wiki/INDEX.md` with a section for each entity type:
+Write `wiki/INDEX.md` with a section for each entity type. The INDEX tracks
+freshness and pinned status — this is the data structure the L2 → L1 compiler
+reads to decide what goes in the CLAUDE.md hot set.
 
 ```markdown
 ---
 title: Wiki Index
-date: <today>
+last_compiled: <today>
+pages: 0
+pinned: []
 ---
 
 # Wiki Index
 
-## People
-_No pages compiled yet._
+## <Entity Type>
+| Page | Summary | Last Updated | Pinned |
+|------|---------|-------------|--------|
 
-## Projects
-_No pages compiled yet._
-
-## Customers
-_No pages compiled yet._
-
-## Topics
-_No pages compiled yet._
+<!-- Repeat for each entity type -->
 
 ---
 _Run `/compile` to build wiki from sources._
 ```
+
+The `pinned` field in frontmatter is a list of page slugs that should always
+appear in the CLAUDE.md hot set regardless of recency. Users can manually add
+entries here or say "pin X in my hot set" to override the recency-based default.
 
 #### Create private subdirectories
 

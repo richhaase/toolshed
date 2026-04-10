@@ -22,7 +22,7 @@ Arguments are passed as: $ARGUMENTS
 ## Safety rules
 
 - **NEVER read files in `private/`** — that directory is a privacy boundary.
-- **NEVER write files outside `wiki/`** — sources are read-only inputs.
+- **NEVER write files outside `wiki/` and `CLAUDE.md`** — sources are read-only inputs. The only exception is updating the hot set section of CLAUDE.md during L2 → L1 distillation.
 - **All paths relative to repo root** — `sources/`, not absolute paths.
 
 ## Step 0: Read Entity Types registry
@@ -47,8 +47,8 @@ Check if `wiki/INDEX.md` exists:
 
 For incremental updates, use file modification times to detect changes:
 ```bash
-# Find source files modified after last compile
-find sources/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*'
+# Find source files modified after last compile (sessions, syncs, notes, tasks)
+find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null
 ```
 If no source files are newer than INDEX.md, report "wiki is current — no changes since last compile" and stop.
 
@@ -65,7 +65,7 @@ If no source files are newer than INDEX.md, report "wiki is current — no chang
 
 ### For incremental updates
 
-1. Run `find sources/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*'` to get the list of changed source files.
+1. Run `find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null` to get the list of changed source files.
 2. **In a single message**, issue parallel Read calls for ALL changed source files AND `wiki/INDEX.md`. This is one batch — not sequential reads.
 3. After reading all changed sources, identify which entities are mentioned and which entity type each belongs to.
 4. **In a single message**, issue parallel Read calls for ALL affected wiki pages that need updating.
@@ -198,27 +198,37 @@ After all pages are written, ensure cross-links are consistent:
 
 ## Step 6: Build INDEX.md
 
-Write `wiki/INDEX.md` with a catalog of every wiki page, grouped by entity type:
+Write `wiki/INDEX.md` with a catalog of every wiki page, grouped by entity type.
+The INDEX tracks pinned status — pages marked as pinned always appear in the
+CLAUDE.md hot set regardless of recency.
+
+Preserve the existing `pinned` list from the INDEX.md frontmatter — don't drop
+manual pins. Add any new pages to the table but don't auto-pin them.
 
 ```markdown
 ---
 last_compiled: YYYY-MM-DD
 pages: <count>
+pinned:
+  - <slug>
 ---
 
 # Wiki Index
 
 ## <Entity Type 1>
-| Page | <type-specific columns> | Last Updated |
-|------|------------------------|-------------|
-| [[entity-slug]] | <values> | YYYY-MM-DD |
+| Page | Summary | Last Updated | Pinned |
+|------|---------|-------------|--------|
+| [[entity-slug]] | One-line summary | YYYY-MM-DD | * |
 
 ## <Entity Type 2>
 ...
 ```
 
+The `Pinned` column shows `*` for pinned pages. The `pinned` frontmatter list is
+the machine-readable source of truth.
+
 The columns per entity type come from the key frontmatter fields defined in the
-Entity Types registry.
+Entity Types registry, plus Summary, Last Updated, and Pinned.
 
 ## Incremental update behavior
 
@@ -228,20 +238,60 @@ When running incrementally (not a full build):
 2. **Read ALL changed source files in one parallel batch.**
 3. Extract entity mentions by type. Build the list of affected wiki pages.
 4. **Read ALL affected wiki pages in one parallel batch.**
-5. Synthesize updates. **Write ALL updated wiki pages in one parallel batch.** Include INDEX.md in this batch.
-6. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections.
+5. Synthesize updates. **Write ALL updated wiki pages + INDEX.md in one parallel batch.**
+6. **Read CLAUDE.md, rebuild hot set between markers, write CLAUDE.md.**
+7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections.
 
-The entire incremental compile should be **3-4 roundtrips**: find changed files → read sources → read wiki pages → write updates.
+The entire incremental compile should be **4-5 roundtrips**: find changed files → read sources → read wiki pages → write wiki updates → write L1 hot set.
+
+## Step 7: Distill L2 → L1 (CLAUDE.md hot set)
+
+After the wiki is updated, rebuild the dynamic hot set section of CLAUDE.md.
+
+### How it works
+
+1. Read `wiki/INDEX.md` — get the full page list with `last_compiled` dates and
+   `pinned` list from frontmatter.
+2. Read `CLAUDE.md` — find the markers `<!-- HOT SET START -->` and `<!-- HOT SET END -->`.
+3. Build the hot set:
+   - **All pinned pages** go in, regardless of recency.
+   - **Most recently updated pages** fill remaining slots, sorted by `last_compiled` descending.
+   - **Cap per entity type**: max 5 entries per type (configurable, start simple).
+   - **Total cap**: ~20 entries across all types. The hot set must stay small.
+4. For each entry, write one row: name, one-line summary, link to wiki page.
+5. Replace everything between the HOT SET markers with the new tables.
+
+### Hot set format
+
+```markdown
+<!-- HOT SET START — maintained by /compile, do not edit manually -->
+
+## Quick Reference
+
+### <Entity Type>
+| Name | Summary | Details |
+|------|---------|---------|
+| Entity Name | One-line context | wiki/<type>/entity-slug.md |
+
+<!-- HOT SET END -->
+```
+
+### Safety
+
+- **Only modify content between the markers.** Never touch anything outside them.
+- If the markers don't exist in CLAUDE.md, append them at the end of the file and
+  then write the hot set.
+- The hot set is fully regenerated each compile — it's not an incremental edit.
 
 ## Post-compile
 
-Commit all wiki changes:
+Commit all changes (wiki + CLAUDE.md hot set update):
 ```bash
-git add wiki/
+git add wiki/ CLAUDE.md
 git commit -m "compile: update wiki from sources"
 ```
 
-Report to user: pages created / updated / unchanged, new entities discovered, any sources that couldn't be processed.
+Report to user: pages created / updated / unchanged, new entities discovered, hot set changes (promoted/demoted), any sources that couldn't be processed.
 
 ## Guidelines
 

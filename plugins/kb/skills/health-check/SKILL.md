@@ -22,7 +22,7 @@ If `CLAUDE.md` has no Entity Types registry, use sensible defaults (30-day priva
 
 ## Step 1: Stale research docs
 
-Glob `sources/*.md` (flat source docs only, not `sources/tasks/`). Read each file's YAML frontmatter and check for a `staleness` field and `date` field.
+Glob `sources/sessions/*.md` and `sources/notes/*.md`. Read each file's YAML frontmatter and check for a `staleness` field and `date` field.
 
 Staleness windows:
 - `high` — stale after 3 days
@@ -77,7 +77,17 @@ Also cross-reference against known entities. If `wiki/<type_path>/` has pages fo
 
 Do NOT read private note content — only check recency via git log. Privacy boundary applies.
 
-## Step 7: Produce summary
+## Step 7: L1 hot set staleness
+
+Check if CLAUDE.md has hot set markers (`<!-- HOT SET START -->` / `<!-- HOT SET END -->`).
+If it does, check when the hot set was last compiled by comparing the `last_compiled`
+date in `wiki/INDEX.md` frontmatter. If the wiki has been compiled more recently than
+the hot set was updated, the L1 is stale — flag it.
+
+Also check if any pinned pages in INDEX.md no longer exist as wiki pages — these are
+stale pins that should be cleaned up.
+
+## Step 8: Produce summary
 
 Output a concise health-check report. Two formats depending on context:
 

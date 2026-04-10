@@ -1,6 +1,17 @@
 # kb — Personal Knowledge Base Plugin
 
-A structured personal knowledge base with a `sources/` → `wiki/` compilation pipeline, task management, research docs, session finishing, and health checks.
+A multi-layer cache knowledge base with automated compilation from sources → wiki → CLAUDE.md.
+
+## Cache model
+
+The KB treats knowledge like a CPU cache hierarchy:
+
+- **L1 — CLAUDE.md** (always resident): Hot set tables with pointers to wiki pages. Loaded every session. Maintained automatically by `/compile`.
+- **L2 — Wiki** (loaded on demand): Compiled topic pages. Read when L1 doesn't have enough detail.
+- **L3 — Sources** (cold storage): Raw ingestion — session captures, automated syncs, manual notes. Accessed when L2 doesn't resolve the question.
+- **Outputs** (outside hierarchy): Products of the system — surfaces (HTML dashboards) and reports.
+
+Compilation flows upward: L3 → L2 → L1. The `/compile` skill handles the full pipeline.
 
 ## Quick start
 
@@ -13,12 +24,20 @@ This scaffolds the directory structure and walks you through customizing the KB 
 ## Directory structure
 
 ```
-sources/           # Raw inputs — notes, synced data, research docs
-├── tasks/         # One file per task (existence = open)
-│   └── done/      # Archived completed tasks
-wiki/              # AI-compiled synthesis, topic-organized
-outputs/           # Persisted reports, analyses (write-once)
-private/           # Sensitive notes — never compiled into wiki
+sources/                # L3 — raw inputs
+├── sessions/           # /fin captures from conversations
+├── syncs/              # Automated pulls (one subdir per provider)
+│   └── <provider>/     # e.g., concept2/, github/
+├── notes/              # Manual markdown
+└── tasks/              # One file per task (existence = open)
+    └── done/           # Archived completed tasks
+wiki/                   # L2 — compiled knowledge
+├── INDEX.md            # Master index with freshness + pinned status
+└── <entity-type>/      # Subdirs per entity type
+outputs/                # Products
+├── surfaces/           # HTML dashboards, served over HTTP
+└── reports/            # Generated briefings, analyses
+private/                # Sensitive notes — never compiled
 ```
 
 ## Skills
@@ -26,14 +45,15 @@ private/           # Sensitive notes — never compiled into wiki
 | Skill | Description |
 |-------|-------------|
 | `kb-setup` | Scaffold a KB repo and customize it via interview |
-| `compile` | Compile `sources/` into structured `wiki/` pages |
-| `fin` | End-of-session capture — extract decisions, tasks, findings |
+| `compile` | Full pipeline: L3 → L2 (sources → wiki) then L2 → L1 (wiki → CLAUDE.md hot set) |
+| `fin` | End-of-session capture — extract decisions, tasks, findings to `sources/sessions/` |
 | `tasks` | Task CRUD — create, list, update, mark done |
 | `research` | Research with recall, staleness tracking, source attribution |
-| `health-check` | Read-only audit for staleness, gaps, contradictions |
+| `health-check` | Read-only audit for staleness, gaps, contradictions, L1 freshness |
 
 ## Design principles
 
+- **Multi-layer cache.** L1 (CLAUDE.md) → L2 (wiki) → L3 (sources). Progressive disclosure.
 - **Convention over configuration.** File existence = open task. Frontmatter = metadata. Directories = organization.
 - **Local-first.** Git repo, no remote required.
 - **Additive.** Wiki compilation never destroys historical content.
@@ -44,8 +64,9 @@ private/           # Sensitive notes — never compiled into wiki
 
 - All content is Markdown with YAML frontmatter
 - Filenames: lowercase, hyphens, no spaces
+- Session captures: `YYYY-MM-DDTHHmmss-topic.md`
+- Sync data: `YYYY-MM-DDTHH-mm-ss.md` (in provider subdir)
 - Tasks: `topic-slug.md` (date in frontmatter, not filename)
-- Research: `YYYY-MM-DD-HHmm-topic-slug.md`
 - Required frontmatter: `title`, `date`
 
 ## License
