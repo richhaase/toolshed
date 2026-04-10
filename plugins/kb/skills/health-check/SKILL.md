@@ -1,153 +1,114 @@
 ---
 name: health-check
-description: >
-  Audit the knowledge base for staleness, gaps, contradictions, and structural issues.
-  Read-only — never modifies files. Use when the user says "health check", "audit",
-  "check my KB", "what's stale", "KB status", "anything out of date", "knowledge base
-  health", "check for issues", or wants to understand the current state and quality of
-  their knowledge base. Supports two output formats: standalone (detailed report) and
-  embed (compact summary for inclusion in other outputs).
-allowed-tools:
-  - Bash
-  - Read
-  - Glob
-  - Grep
+description: Audit the repo for staleness, contradictions, gaps, and neglected items. Checks research doc freshness, stale tasks, wiki currency, cross-link gaps, and private note recency.
+user-invocable: true
+allowed-tools: [Read, Glob, Grep, Bash]
 ---
 
 # Health Check
 
-Read-only audit of KB health. Fast over thorough — use frontmatter and git metadata
-rather than deep content analysis. Never modifies files.
+Audit the knowledge base for staleness, contradictions, gaps, and neglected items. Produces a concise summary suitable for embedding in a briefing or reading standalone.
 
-## Checks
+## Step 0: Get today's date
 
-### 1. Stale research
+Run `date '+%Y-%m-%d'` via Bash to establish the current date. All age calculations use this as "now."
 
-Find research docs past their staleness window.
+## Step 1: Stale research docs
 
-For each `.md` file in `sources/` (excluding `tasks/` and `private/`):
-1. Read frontmatter for `date` and `staleness` rating
-2. Calculate age: `today - date`
-3. Compare against staleness window:
-   - `high`: stale after 3 days
-   - `medium`: stale after 10 days
-   - `low`: stale after 30 days
-4. Flag stale docs
+Glob `sources/*.md` (flat source docs only, not `sources/tasks/`). Read each file's YAML frontmatter and check for a `staleness` field and `date` field.
 
-### 2. Stagnant tasks
+Staleness windows:
+- `high` — stale after 3 days
+- `medium` — stale after 10 days
+- `low` — stale after 30 days
 
-Find tasks that have been open too long without updates.
+A doc is **stale** if `today - date > staleness window`. Collect all stale docs with their title, date, and staleness level.
 
-```bash
-ls -1 sources/tasks/*.md 2>/dev/null | grep -v done/
-```
+If a doc has no `staleness` field, skip it (it's not a research doc).
 
-For each task:
-1. Read frontmatter for `date`
-2. Check git log for last modification:
-   ```bash
-   git log -1 --format="%ai" -- "sources/tasks/<file>"
-   ```
-3. Flag tasks with no activity in >14 days
+## Step 2: Stale tasks
 
-### 3. Outdated wiki pages
+Glob `sources/tasks/*.md` (exclude `done/`). Read each task's frontmatter `date` field.
 
-Find wiki pages that haven't been recompiled since their sources changed.
+Flag tasks that have been open for more than 14 days. For each, note the task slug and creation date.
 
-For each wiki page:
-1. Read frontmatter for `last_compiled` and `sources` list
-2. For each listed source, check if it was modified after `last_compiled`:
-   ```bash
-   git log -1 --format="%ai" -- "<source-path>"
-   ```
-3. Flag pages where sources are newer than last compile
+To check for "no updates," run `git log --format='%ai' -1 -- <file>` on each flagged task to get the last modification date. If the file hasn't been modified in 10+ days, it's considered stagnant.
 
-### 4. Broken cross-links
+## Step 3: Wiki freshness
 
-Check for references between wiki pages that point to non-existent pages.
+Check if `wiki/INDEX.md` exists. If it does, read it and extract `last_compiled` from frontmatter.
 
-For each wiki page:
-1. Scan for markdown links: `[text](path)`
-2. Verify the target file exists
-3. Flag broken links
+Then check individual wiki pages: Glob `wiki/**/*.md` and read each page's `last_compiled` frontmatter. For each wiki page, check the `sources` list in frontmatter — Glob or stat those source files to see if any source is newer than `last_compiled`. If so, the wiki page is **outdated**.
 
-### 5. Contradictions (light check)
+If `wiki/INDEX.md` doesn't exist, report "Wiki not yet compiled" and skip this step.
 
-Look for obvious conflicts — same entity with different states across pages. This is
-a heuristic check, not deep semantic analysis:
+## Step 4: Wiki cross-link gaps
 
-1. Find entities mentioned in multiple wiki pages
-2. Compare `Current state` sections for conflicting information
-3. Flag potential contradictions with source references
+If wiki pages exist, Grep all `wiki/**/*.md` for `\[\[([^\]]+)\]\]` patterns to find cross-links. For each unique linked page name, check if a corresponding file exists anywhere under `wiki/`. Collect any `[[page-name]]` references that point to non-existent pages — these are **gaps**.
 
-Only run this check in standalone mode (skip in embed mode).
+If no wiki pages exist, skip this step.
 
-## Output formats
+## Step 5: Wiki contradictions
 
-### Standalone (default)
+If wiki pages exist, scan for potential contradictions by looking for the same entity described differently in multiple wiki pages. Specifically:
 
-Detailed report for the user:
+- Grep for entity names across wiki pages. If an entity's status or role is described differently in two pages, flag it.
+- Grep for status terms (`active`, `completed`, `paused`, `planned`) in page frontmatter vs. mentions in other pages. If an entity is marked `completed` in its own page but referenced as active elsewhere, flag it.
 
-```markdown
-## KB Health Check — <date>
+This is best-effort — only flag clear contradictions, not minor wording differences. If no wiki pages exist, skip this step.
 
-### Summary
-- **Research docs:** <total> total, <stale> stale
-- **Open tasks:** <total> total, <stagnant> stagnant
-- **Wiki pages:** <total> total, <outdated> outdated
-- **Broken links:** <count>
-- **Potential contradictions:** <count>
+## Step 6: Private notes recency
 
-### Stale research
-| Doc | Age | Staleness | Status |
-|-----|-----|-----------|--------|
-| topic.md | 15 days | medium (10d) | STALE |
+Glob `private/*.md`. For each file, run `git log --format='%ai' -1 -- <file>` to get the last modification date. Flag private notes not updated in 30+ days.
 
-### Stagnant tasks
-| Task | Created | Last activity |
-|------|---------|---------------|
-| task.md | 2025-01-01 | 20 days ago |
+Do NOT read private note content — only check recency via git log. Privacy boundary applies.
 
-### Outdated wiki pages
-| Page | Last compiled | Sources changed |
-|------|---------------|-----------------|
-| entity.md | 2025-01-01 | 2 sources modified since |
+## Step 7: Produce summary
 
-### Broken links
-- `wiki/foo.md` links to `wiki/bar.md` (not found)
+Output a concise health-check report. Two formats depending on context:
 
-### Potential contradictions
-- Entity "X" described as "active" in `page-a.md` but "deprecated" in `page-b.md`
-
-### Recommendations
-1. Refresh stale research: <list>
-2. Review stagnant tasks: <list>
-3. Run `/compile` to update wiki pages
-```
-
-### Embed (compact)
-
-Short summary for inclusion in other outputs (e.g., session start):
+### Standalone format (when run directly)
 
 ```
-KB: 12 sources, 8 wiki pages, 3 tasks | 1 stale doc, 0 stagnant tasks | Last compile: 2 days ago
+# Health Check — YYYY-MM-DD
+
+## Stale Research (N)
+- **doc-title** — dated YYYY-MM-DD, staleness: X (Y days overdue)
+
+## Stagnant Tasks (N)
+- **task-slug** — open since YYYY-MM-DD, last touched YYYY-MM-DD
+
+## Outdated Wiki Pages (N)
+- **page-name** — compiled YYYY-MM-DD, sources updated since
+
+## Wiki Gaps (N)
+- [[page-name]] — referenced from page-name.md but doesn't exist
+
+## Wiki Contradictions (N)
+- **entity** — page-a.md says X, page-b.md says Y
+
+## Private Notes (N issues)
+- **file** — last updated YYYY-MM-DD (N days ago)
+
+## Summary
+X stale research docs, Y stagnant tasks, Z outdated wiki pages, W wiki gaps, V contradictions, U private note issues.
 ```
 
-Use embed format when the user asks for a quick status or when health check is part
-of another workflow.
+### Embed format (when called from another workflow)
 
-## Determining format
+Single section, counts + top items only:
 
-- Default to **standalone** when the user directly asks for a health check.
-- Use **embed** when health check is mentioned as part of another request, or when
-  the user asks for a "quick" or "brief" status.
-- The user can explicitly request either: "detailed health check" → standalone,
-  "quick health check" → embed.
+```
+## Health Check
+N stale research docs, N stagnant tasks, N outdated wiki pages, N wiki gaps, N private note issues.
+- Most urgent: <1-3 most important items across all categories>
+```
 
-## Performance
+Omit categories with zero issues from the summary line. If everything is clean, say "All clear — no issues found."
 
-- **Frontmatter first.** Read only frontmatter (first ~10 lines) for most checks.
-  Don't read full file contents unless needed for contradiction checks.
-- **Git metadata.** Use `git log` for modification dates rather than filesystem mtime.
-- **Batch operations.** Run git commands in batches, not per-file.
-- **Skip private.** Never read or report on `private/` contents.
+## Guidelines
+
+- **Read-only.** This skill never modifies files — it only reads and reports.
+- **Fast over thorough.** Skip deep content analysis if it would require reading dozens of files. Frontmatter and git metadata are usually sufficient.
+- **Counts matter most.** The user wants to know the scale of issues, then drill into specifics on request.
+- **Don't read private note content** — only check recency via git log. Privacy boundary applies.

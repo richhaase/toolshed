@@ -1,166 +1,133 @@
 ---
 name: research
-description: >
-  Create and manage research documents in the knowledge base. Supports recall (checking
-  existing docs before researching), staleness tracking, source attribution, and updates.
-  Use when the user says "research", "look into", "investigate", "what do we know about",
-  "find out about", "dig into", "write up findings", "update research on", "is our info
-  on X still current", or wants to create, find, or update research documentation. Also
-  triggers on "recall" or "what do we know" to check existing knowledge before starting
-  new research.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - Agent
-  - WebSearch
-  - WebFetch
+description: Use when asked to research, investigate, look into, or dig into a topic, when asked what we know about something, or when about to spin up research agents autonomously
+user-invocable: false
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 ---
 
 # Research
 
-Research documents with recall, staleness tracking, and source attribution. Every
-research doc records where information came from and when it expires.
+Check existing research before doing new work. Update rather than duplicate. Enforce consistent format with dating and sourcing.
 
-## Recall phase
+## Process
 
-Before starting new research, always check existing knowledge:
+```dot
+digraph research {
+    "Triggered" [shape=doublecircle];
+    "Scan sources/" [shape=box];
+    "Match found?" [shape=diamond];
+    "Assess staleness" [shape=box];
+    "Sufficient?" [shape=diamond];
+    "Present to user" [shape=box];
+    "User decision" [shape=diamond];
+    "Dispatch research" [shape=box];
+    "Write/update doc" [shape=box];
+    "Commit" [shape=doublecircle];
+    "Done — surface doc" [shape=doublecircle];
 
-1. **Search wiki** for the topic:
-   ```bash
-   grep -rl "<topic>" wiki/ 2>/dev/null
-   ```
-
-2. **Search sources** for prior research:
-   ```bash
-   grep -rl "<topic>" sources/ 2>/dev/null | grep -v tasks/
-   ```
-
-3. **Report findings** to the user:
-   - If fresh research exists (within staleness window), present it. Ask if they want
-     an update or if the existing doc answers their question.
-   - If stale research exists, note it and offer to refresh.
-   - If no prior research, proceed to new research.
-
-## Staleness model
-
-Every research doc has a staleness rating in frontmatter:
-
-| Rating | Window | Use for |
-|--------|--------|---------|
-| `high` | 3 days | Fast-moving topics: prices, API status, release notes |
-| `medium` | 10 days | Moderate topics: competitor analysis, project status |
-| `low` | 30 days | Stable topics: architectural decisions, historical facts |
-
-A doc is **stale** when `today - date > staleness window`.
-
-When creating a research doc, choose the staleness rating based on how quickly the
-information is likely to change. Default to `medium` if unsure.
-
-## Creating a research doc
-
-### Filename
-
-`YYYY-MM-DD-HHmm-topic-slug.md`
-
-Use the current date and time. The timestamp ensures uniqueness and chronological
-sorting.
-
-```bash
-date +%Y-%m-%d-%H%M
+    "Triggered" -> "Scan sources/";
+    "Scan sources/" -> "Match found?";
+    "Match found?" -> "Assess staleness" [label="yes"];
+    "Match found?" -> "Present to user" [label="no"];
+    "Assess staleness" -> "Sufficient?" ;
+    "Sufficient?" -> "Done — surface doc" [label="yes, conversational"];
+    "Sufficient?" -> "Present to user" [label="stale or incomplete"];
+    "Present to user" -> "User decision";
+    "User decision" -> "Done — surface doc" [label="sufficient"];
+    "User decision" -> "Dispatch research" [label="update or new"];
+    "Dispatch research" -> "Write/update doc";
+    "Write/update doc" -> "Commit";
+}
 ```
 
-### Template
+## Phase 1: Recall
 
-```markdown
----
-title: <Research topic>
-date: <ISO 8601 timestamp>
-topic: <topic keyword>
-tags: [<tag1>, <tag2>]
-sources:
-  - description: <Source name or URL>
-    accessed: <ISO 8601 date>
-  - description: <Another source>
-    accessed: <ISO 8601 date>
-staleness: <high|medium|low>
----
+Before any new work:
 
-# <Research topic>
+1. Glob `sources/**/*.md` for all research docs
+2. Read frontmatter from each (just the YAML block — don't read full content yet)
+3. Match by keyword overlap against filename, `topic`, and `tags`
+4. If match found, assess staleness: compare `date` vs today using `staleness` hint
+   - `high`: stale after days
+   - `medium`: stale after weeks
+   - `low`: stale after months
+5. Tell the user what exists, when it was written, staleness assessment
 
-## Summary
-<2-3 sentence executive summary of findings>
+If the user is asking conversationally ("what do we know about X?"), read and surface the matching doc. Stop here.
 
-## Findings
-<Detailed findings organized by subtopic>
+## Phase 2: Decision
 
-## Open questions
-<What wasn't answered, what needs follow-up>
+Present recommendation:
+- **Sufficient** — exists, current. Surface it, stop.
+- **Update** — exists, stale or incomplete. Proceed to Phase 3 in update mode.
+- **New** — nothing relevant. Proceed to Phase 3 in create mode.
 
-## Sources
-<Formatted source list with access dates and notes on reliability>
+User can override ("just update it", "start fresh", "that's fine").
+
+## Phase 3: Research
+
+### Dispatch via legate (preferred)
+
+If the legate plugin is available (check if `legate:dispatch` skill exists in the system
+reminder), **always dispatch research to a legate session** rather than doing it inline.
+This frees the main conversation for other work.
+
+Dispatch with a research brief:
+
+```
+/dispatch "research: <topic>"
 ```
 
-### Process
+The brief should include:
+- The topic and specific questions to answer
+- Whether this is a new doc or update to an existing one
+- If updating, the path to the existing doc and what's stale
+- The required output format (see template below)
+- The destination path: `sources/YYYY-MM-DD-HHmm-topic-slug.md`
 
-1. Perform the recall phase (above).
-2. Conduct research using available tools (web search, file reading, etc.).
-3. Write the research doc to `sources/`.
-4. Commit:
-   ```bash
-   git add sources/
-   git commit -m "research: <topic>"
-   ```
-5. Report findings to the user.
+After dispatching, tell the user research is running in a legate session and they can
+check on it with `/debrief` or `/fin` the session when ready.
 
-## Updating a research doc
+### Fallback: inline research
 
-When refreshing an existing research doc:
+If legate is not available, do the research inline:
 
-1. Read the existing doc.
-2. Conduct new research.
-3. Update the doc:
-   - **Bump the date** in frontmatter to today.
-   - **Revise content** with new findings.
-   - **Preserve old sources** — add new sources, don't remove old ones.
-   - **Add update note** at the top of the body:
-     ```markdown
-     > Updated <date>: <what changed>
-     ```
-4. Commit:
-   ```bash
-   git add sources/
-   git commit -m "research: update <topic>"
-   ```
+1. Spin up parallel research agents via the Agent tool
+2. Write or update the doc in `sources/` with enforced format
 
-## Source attribution
+### Output format
 
-Every piece of external information must have a source entry:
+**Filename:** `YYYY-MM-DD-HHmm-topic-slug.md` (24h time avoids collisions when a topic is revisited the same day)
 
+**Required frontmatter:**
 ```yaml
+---
+date: YYYY-MM-DD
+topic: Human-readable topic description
+tags: [keyword1, keyword2]
 sources:
-  - description: "GitHub API documentation"
-    accessed: 2025-01-15
-  - description: "https://example.com/article"
-    accessed: 2025-01-15
+  - url: https://example.com
+    accessed: YYYY-MM-DD
+  - description: "Non-URL source description"
+    accessed: YYYY-MM-DD
+staleness: high|medium|low
+---
 ```
 
-If information comes from conversation with the user, attribute it:
+**Body:** Research content, then a human-readable Sources section at the bottom.
 
-```yaml
-sources:
-  - description: "User (direct input)"
-    accessed: 2025-01-15
-```
+**On update:** Bump `date`. Revise content. Append new sources. Preserve old sources with original access dates.
 
-## Guidelines
+3. Commit the new/updated doc.
 
-- **Recall first.** Always check existing docs before researching. The user may not
-  remember what's already in the KB.
-- **Source everything.** No unsourced claims in research docs.
-- **Be honest about confidence.** If information is uncertain, say so.
-- **Staleness is a feature.** Setting the right staleness rating saves future effort.
-- **Don't over-research.** Answer the question, note open items, move on.
+## Backfill
+
+If a matching research doc exists but lacks frontmatter (predates this skill), backfill the frontmatter as part of the update before proceeding.
+
+## Format Rules
+
+- Every research doc gets YAML frontmatter — no exceptions
+- Every source gets recorded with access date
+- Filename always date-and-time-prefixed: `YYYY-MM-DD-HHmm-topic-slug.md`
+- Sources section rendered at bottom of doc (human-readable, not just frontmatter)
+- `staleness` field is required — forces the researcher to think about shelf life

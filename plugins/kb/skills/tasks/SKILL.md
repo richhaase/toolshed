@@ -1,151 +1,88 @@
 ---
 name: tasks
-description: >
-  Create, list, update, and complete tasks in the knowledge base. Tasks are markdown files
-  in sources/tasks/ — file existence means the task is open. Use when the user says "create
-  a task", "add a task", "new task", "list tasks", "show tasks", "what's open", "mark done",
-  "complete task", "update task", "task status", "todo", "what do I need to do", or otherwise
-  wants to manage action items. Supports CRUD operations: create, list/read, update, done.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - AskUserQuestion
+description: Manage tasks in the KB — create, list, update, and complete tasks. Use this skill when the user mentions tasks, action items, to-dos, or follow-ups. Triggers on phrases like "add a task", "what's on my plate", "mark that done", "task for X", "open tasks", "I need to remember to", "follow up on", or any request to track, review, or manage work items. Also invoked by fin for task creation.
 ---
 
 # Tasks
 
-Task management via the filesystem. Each task is a markdown file in `sources/tasks/`.
-File existence = open task. No databases, no IDs — just files.
+Manage task files in `sources/tasks/`. Each task is its own markdown file — existence means open, deletion means done.
 
-## Operations
+## Modes
+
+Determine the mode from context. If ambiguous, ask.
 
 ### Create
 
-Create a new task file at `sources/tasks/<slug>.md`.
+Make a new task file in `sources/tasks/`.
 
-**Before creating:** Check for duplicates.
+**Filename:** `sources/tasks/topic-slug.md` — short, descriptive, scannable in a directory listing. No date prefix (date lives in frontmatter). Use lowercase with hyphens.
 
-```bash
-ls sources/tasks/*.md 2>/dev/null
-```
+Decide the right weight based on what the user gives you:
 
-Scan existing task filenames and titles for overlap. If a similar task exists, ask the
-user if they want to update the existing one or create a new one.
-
-**Filename:** `<topic-slug>.md` — no date prefix. The date goes in frontmatter.
-
-**Simple task** (just a title, no context needed):
+**Simple task** (one-liner, no extra context needed):
 
 ```markdown
 ---
-title: <Task title>
-date: <today ISO 8601>
+date: YYYY-MM-DD
 ---
-
-# <Task title>
+# Review API rate limiting configuration
 ```
 
-**Complex task** (needs context, subtasks, or acceptance criteria):
+**Complex task** (has context, subtasks, links, or needs explanation):
 
 ```markdown
 ---
-title: <Task title>
-date: <today ISO 8601>
-tags: [<relevant tags>]
+date: YYYY-MM-DD
 ---
+# Evaluate database migration strategy
 
-# <Task title>
+Came out of architecture discussion. Need to compare approaches before committing to a migration path.
 
 ## Context
-<Why this task exists, background information>
+- Current schema has grown organically, needs cleanup
+- Performance issues on key queries
+- Team has time in the next sprint
 
 ## Subtasks
-- [ ] <Subtask 1>
-- [ ] <Subtask 2>
-- [ ] <Subtask 3>
-
-## Notes
-<Any additional context, links, references>
+- [ ] Benchmark current query performance
+- [ ] Prototype alternative schema
+- [ ] Get cost estimate for migration downtime
 ```
 
-After creating, confirm to the user with the filename and title.
+**Before creating:** Glob `sources/tasks/*.md` to check for duplicates or related tasks. If something similar exists, ask whether to update the existing task or create a new one.
 
 ### List
 
-Show all open tasks, sorted by date (most recent first).
-
-```bash
-ls -1 sources/tasks/*.md 2>/dev/null | grep -v done/
-```
-
-For each task file:
-1. Read the frontmatter to extract title and date
-2. Display as a sorted list
-
-**Output format:**
+Show what's open. Glob `sources/tasks/*.md` (excluding `sources/tasks/done/`), read each file's title and date, and present a summary:
 
 ```
-## Open tasks
-
-1. **Task title** — `sources/tasks/slug.md` (created <date>)
-2. **Task title** — `sources/tasks/slug.md` (created <date>)
-
-<count> open tasks
+Open tasks (5):
+  2026-03-30  api-rate-limiting.md — Review API rate limiting configuration
+  2026-03-28  database-migration.md — Evaluate database migration strategy
+  ...
 ```
 
-If no tasks exist, say so clearly.
-
-For larger task lists (>10), batch the reads using parallel Read calls.
+Sort by date, newest first. If there are many tasks, group by week or offer to filter.
 
 ### Update
 
-Modify an existing task. The user might:
-- Add context or notes
-- Add/check subtasks
-- Change the title
-- Add tags
+Add context, notes, or subtasks to an existing task. Read the file, append or edit as appropriate, write it back. Common updates:
 
-**Resolve which task:** Match the user's description to an existing task file. If
-ambiguous, list tasks and ask.
-
-**Edit the file** using the Edit tool. Preserve existing content — add to it, don't
-replace unless explicitly asked.
+- Adding context learned from a conversation
+- Checking off subtasks
+- Adding links to tickets or PRs
+- Adding notes on progress
 
 ### Done
 
-Mark a task as complete. Two modes:
+Complete a task. Two options:
 
-**Delete (default):** Remove the task file. The task is done; it doesn't need to exist.
+- **Delete** — just remove the file. Clean and simple. This is the default.
+- **Archive** — move to `sources/tasks/done/` (create the directory if it doesn't exist). For tasks where a record is useful.
 
-```bash
-rm sources/tasks/<slug>.md
-```
+If the user says "that's done" or "finished the X task" without specifying, delete. If they say "archive it" or "keep a record", move to `sources/tasks/done/`.
 
-**Archive:** Move to `sources/tasks/done/` for historical reference. Use this when
-the user says "archive" or the task has significant context worth keeping.
-
-```bash
-mv sources/tasks/<slug>.md sources/tasks/done/<slug>.md
-```
-
-Add a `completed` date to the frontmatter when archiving:
-
-```markdown
----
-title: <Task title>
-date: <original date>
-completed: <today ISO 8601>
----
-```
-
-**Resolve which task:** Match the user's description to an existing task file. If
-ambiguous, list tasks and ask.
-
-After completing, confirm to the user and report remaining open task count.
+When completing, confirm which task if there's any ambiguity.
 
 ### Commit
 
@@ -157,11 +94,3 @@ git commit -m "tasks: <action> — <task title>"
 ```
 
 Action words: `create`, `update`, `complete`, `archive`.
-
-## Conventions
-
-- Filenames are lowercase, hyphenated, no spaces: `migrate-users-table.md`
-- No date prefix in filename — date is in frontmatter
-- One task per file
-- Keep tasks atomic — if a task has many subtasks, consider splitting into separate tasks
-- Tags are optional but useful for filtering

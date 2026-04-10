@@ -30,7 +30,7 @@ skip them — never overwrite existing content.
 ### Directory structure
 
 ```
-sources/           # Raw inputs — notes, synced data, research docs
+sources/           # Raw inputs — notes, research docs, decisions
 ├── tasks/         # One file per task, existence = open
 │   └── done/      # Archived completed tasks
 wiki/              # AI-compiled synthesis, topic-organized
@@ -52,34 +52,59 @@ future AI sessions how to work with this KB.
 ```markdown
 # Knowledge Base
 
-## Directory structure
+## Directory Structure
 
-- `sources/` — Raw inputs: notes, synced data, research docs. The ground truth.
-  - `sources/tasks/` — One markdown file per open task. File existence = task is open.
-  - `sources/tasks/done/` — Archived completed tasks.
-- `wiki/` — AI-compiled synthesis pages, organized by topic/entity. Generated from sources.
-- `outputs/` — Persisted reports and analyses. Write-once, never modified after creation.
-- `private/` — Sensitive notes. Never compiled into wiki or referenced in outputs.
+```
+sources/               # Everything the wiki compiles from
+├── tasks/             # Action items — one file per task, existence = open
+│   └── done/          # Archived completed tasks (optional)
+└── (flat .md files)   # Decisions, research, plans — dated, with frontmatter
+private/               # Sensitive notes — never compiled into wiki
+wiki/                  # AI-compiled synthesis, topic-organized (maintained by /compile)
+outputs/               # Persisted reports, analyses (write-once)
+```
 
 ## Conventions
 
-### Files
-- All content files are Markdown with YAML frontmatter.
-- Filenames: lowercase, hyphens, no spaces. Tasks: `topic-slug.md`. Research: `YYYY-MM-DD-HHmm-topic-slug.md`.
-- Frontmatter is required: at minimum `title` and `date`.
+### Filenames
+- Dated docs: `YYYY-MM-DD-topic.md` or `YYYY-MM-DD-HHmm-topic.md`
+- Evergreen docs: `descriptive-name.md`
 
-### Lookup hierarchy
-When asked about a topic:
-1. Check `wiki/` for compiled synthesis
-2. Check `sources/` for raw material
-3. Ask the user if nothing found
+### Sources (`sources/`)
+All inputs that feed the wiki.
 
-### Agent rules
-- **Local only** — no remote pushes unless explicitly asked.
-- **No unsolicited changes** — don't reorganize, rename, or "improve" files without being asked.
-- **Outputs are immutable** — never modify files in `outputs/` after creation.
-- **Private is private** — never read `private/` contents into wiki or outputs.
-- **Additive edits** — when updating wiki pages, add new information. Never delete historical content unless explicitly asked.
+**Tasks (`sources/tasks/`)** — One file per task: `topic-slug.md` (no date prefix — date in frontmatter). Existence = open, deletion = done. Optional `tasks/done/` for archived completed tasks.
+
+**Flat source docs** — Decisions, research, and plans live directly in `sources/`. All require YAML frontmatter with at least `date`. Research docs additionally require `topic`, `tags`, `sources`, and `staleness` fields.
+
+### Private (`private/`)
+- Sensitive or personal notes
+- Never compiled into wiki — privacy boundary
+
+### Wiki (`wiki/`)
+- AI-compiled synthesis maintained by `/compile`
+- Topic-organized, not date-organized — each topic gets its own .md file
+- `INDEX.md` lists every wiki page with a one-line description and last-updated date
+
+### Outputs (`outputs/`)
+- Persisted reports, analyses, and generated content
+- Write-once — never overwrite; create a new timestamped file if needed
+
+## Lookup Hierarchy
+
+When you need context about a topic — **follow this order**:
+
+1. **`wiki/`** — Compiled, synthesized knowledge. Start with `wiki/INDEX.md`.
+2. **`sources/`** — Raw data the wiki compiles from. Use when wiki is stale or missing detail.
+3. **Ask the user** — If neither wiki nor sources have what you need, ask.
+
+## Agent Rules
+
+- **Local-only repo** — Commit freely. No remote pushes unless explicitly asked.
+- **No unsolicited changes** — Don't reorganize, rename, or "improve" files without being asked.
+- **Outputs are immutable** — Files in `outputs/` are write-once. Never overwrite.
+- **Private is private** — Never read `private/` contents into wiki or outputs.
+- **Additive edits** — When updating wiki pages, add new information. Never delete historical content unless explicitly asked.
 ```
 
 ### .gitignore
@@ -147,8 +172,7 @@ configure them now — just document the intent.
 "Anything that should stay private — not compiled into wiki pages?"
 
 The `private/` directory already exists. This question determines what guidance goes
-in CLAUDE.md about what belongs there. Examples: personal notes about people, salary
-info, credentials, draft communications.
+in CLAUDE.md about what belongs there.
 
 **Q5: Organization** (skip if answers are clear enough)
 "How do you want wiki pages organized — by entity type (people/, projects/), flat, or
@@ -158,12 +182,13 @@ something custom?"
 
 Based on interview answers, update the KB:
 
-1. **Update CLAUDE.md** — Add a "KB profile" section with:
+1. **Update CLAUDE.md** — Add a "KB Profile" section with:
    - Purpose description
    - Entity types tracked
    - Data sources (if any)
    - Privacy rules
    - Wiki organization scheme
+   - Nickname decoder (if the user mentions shorthand they use)
 
 2. **Create wiki subdirectories** matching the chosen organization:
    ```bash
