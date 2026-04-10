@@ -38,18 +38,37 @@ Resolve which session the user means:
 
 ## Debriefing a single session
 
-Capture recent output from the target window:
+### Know what was asked
+
+Before looking at pane output, read the context brief written at dispatch time:
+
+```bash
+cat /tmp/legate-<name>.md 2>/dev/null
+```
+
+If the file is gone (reboot, manual cleanup), fall back to the description tag:
+
+```bash
+tmux show-option -wv -t "<name>" @legate-description 2>/dev/null
+```
+
+Either way, anchor on what the task was — this is the frame for interpreting pane output.
+
+### Capture and read the tail
 
 ```bash
 tmux capture-pane -t "<name>" -p -S -50
 ```
 
-Read the output and report back to the user:
-- What the agent appears to be doing (working, waiting for input, idle, errored)
-- Key output or findings visible in the pane
-- Whether it looks like it needs intervention
+The signal is at the bottom. Read the captured output from the last line upward:
 
-If the visible output isn't enough to tell what's going on, you can capture more history:
+1. Skip blank lines, prompt lines, and idle cursors (`❯`, `>`, `$`)
+2. Skip tool-call noise — file paths being read, grep results, diff hunks, progress bars
+3. Find the agent's last substantive prose block — that's the conclusion or current status
+4. Compare it against the original task brief
+
+If 50 lines isn't enough context, capture more — but resist going wider than necessary.
+More lines means more noise to sift through.
 
 ```bash
 tmux capture-pane -t "<name>" -p -S -200
@@ -59,23 +78,26 @@ tmux capture-pane -t "<name>" -p -S -200
 
 When the user asks for a sweep ("how's everything going", "status on all sessions"):
 
-1. Find all legate-managed windows:
+1. Find all legate-managed windows and read each context brief:
 
    ```bash
    for w in $(tmux list-windows -F '#{window_name}'); do
      managed=$(tmux show-option -wv -t "$w" @legate-managed 2>/dev/null)
      if [ "$managed" = "true" ]; then
-       desc=$(tmux show-option -wv -t "$w" @legate-description 2>/dev/null)
        agent=$(tmux show-option -wv -t "$w" @legate-agent 2>/dev/null)
-       echo "--- $w [$agent]: $desc ---"
+       echo "=== $w [$agent] ==="
+       echo "--- brief ---"
+       cat /tmp/legate-$w.md 2>/dev/null || tmux show-option -wv -t "$w" @legate-description 2>/dev/null
+       echo "--- tail ---"
        tmux capture-pane -t "$w" -p -S -20
        echo ""
      fi
    done
    ```
 
-2. Summarize each session's status concisely — one or two lines per session. Include
-   which agent runtime is running (claude, codex, gemini) so the user knows what's where.
+2. For each session, read the tail bottom-up (skip noise, find the conclusion) and compare
+   against the brief. Summarize concisely — one or two lines per session. Include which
+   agent runtime is running (claude, codex, gemini) so the user knows what's where.
 
 ## When a session is gone
 
@@ -86,9 +108,15 @@ Don't treat a missing window as an error in *your* workflow — it's just a fact
 
 ## Reporting style
 
-Be concise. The user wants to know what's happening, not a transcript. Lead with the
-status, follow with details only if relevant:
+Structure reports around the task arc, not the raw output:
 
-- "pr-123 is still working — it's running the test suite after applying review feedback."
-- "db-migration looks done — it's sitting at an idle prompt. Last thing it did was open a PR."
-- "task-100 hit an error — couldn't find the config file it expected."
+- **What was asked** — one line from the context brief
+- **Current state** — working / idle / errored / done
+- **Conclusion** (if idle or done) — what the agent concluded or delivered
+- **Needs intervention?** — only if something looks stuck or wrong
+
+Be concise. The user wants the arc, not a transcript.
+
+- "pr-123 was asked to address review feedback. Done — applied all three suggestions and pushed. Idle."
+- "db-migration was asked to add the new index. Still working — running the test suite."
+- "task-100 was asked to investigate the config bug. Errored — can't find the expected config file. Needs a nudge."

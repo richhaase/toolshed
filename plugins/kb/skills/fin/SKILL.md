@@ -46,15 +46,38 @@ done
 
 ### For a legate session
 
-Capture the full visible output:
+Start with what was asked — read the context brief written at dispatch time:
+
 ```bash
-tmux capture-pane -t "<name>" -p -S -500
+cat /tmp/legate-<name>.md 2>/dev/null
 ```
 
-Also read the legate's description and source tags for context:
+If the file is gone, fall back to the tags:
+
 ```bash
 tmux show-option -wv -t "<name>" @legate-description
 tmux show-option -wv -t "<name>" @legate-source
+```
+
+Then capture the tail — the conclusion and recent activity:
+
+```bash
+tmux capture-pane -t "<name>" -p -S -80
+```
+
+Read the tail from the bottom up. Skip blank lines, prompt lines, and tool-call noise
+(file reads, grep output, diff hunks, progress bars). Find the agent's last substantive
+prose block — that's the conclusion. Compare it against the context brief to understand
+what was asked, what was delivered, and what's worth extracting.
+
+If the conclusion references specific deliverables (PRs opened, files written, commits
+made), check those directly rather than trying to reconstruct them from scrollback.
+
+Only escalate to a larger capture if the tail genuinely doesn't have enough to assess
+what happened:
+
+```bash
+tmux capture-pane -t "<name>" -p -S -200
 ```
 
 ### For the main conversation
