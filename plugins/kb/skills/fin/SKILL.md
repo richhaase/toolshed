@@ -76,10 +76,10 @@ Review the session content and identify items in these categories:
 
 | Category | What to look for | Destination |
 |----------|-----------------|-------------|
-| **Decisions** | Choices made, direction set, options ruled out | `sources/YYYY-MM-DD-topic.md` |
+| **Decisions** | Choices made, direction set, options ruled out | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
 | **Tasks** | Action items, follow-ups, things to do later | `sources/tasks/topic-slug.md` |
-| **Research** | New information, findings worth preserving | `sources/YYYY-MM-DD-HHmm-topic.md` |
-| **Analyses** | Substantive ad-hoc analyses, trade-off evaluations | `outputs/YYYY-MM-DD-HHmm-topic.md` |
+| **Research** | New information, findings worth preserving | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
+| **Analyses** | Substantive ad-hoc analyses, trade-off evaluations | `outputs/reports/YYYY-MM-DDTHHmmss-topic.md` |
 | **Private notes** | Observations about entities with `private_notes: yes` | `private/<filename-pattern>` (append) |
 | **Task updates** | Progress on existing tasks — subtasks completed, blockers found | Update existing `sources/tasks/*.md` |
 
@@ -173,7 +173,7 @@ tmux kill-window -t "<name>"
 ### For the main conversation
 Commit all written files:
 ```bash
-git add sources/ outputs/
+git add sources/ outputs/ private/
 git commit -m "fin: capture session — <brief summary>"
 ```
 
