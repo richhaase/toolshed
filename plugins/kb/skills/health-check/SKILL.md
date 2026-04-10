@@ -9,9 +9,16 @@ allowed-tools: [Read, Glob, Grep, Bash]
 
 Audit the knowledge base for staleness, contradictions, gaps, and neglected items. Produces a concise summary suitable for embedding in a briefing or reading standalone.
 
-## Step 0: Get today's date
+## Step 0: Get today's date and read Entity Types
 
 Run `date '+%Y-%m-%d'` via Bash to establish the current date. All age calculations use this as "now."
+
+Read the `## Entity Types` section from `CLAUDE.md`. This tells you:
+- Which entity types exist and their wiki paths
+- Which entity types have `private_notes: yes` and their `private_note_staleness` thresholds
+- What frontmatter fields wiki pages should have (for contradiction detection)
+
+If `CLAUDE.md` has no Entity Types registry, use sensible defaults (30-day private note staleness, generic wiki checks).
 
 ## Step 1: Stale research docs
 
@@ -50,16 +57,23 @@ If no wiki pages exist, skip this step.
 
 ## Step 5: Wiki contradictions
 
-If wiki pages exist, scan for potential contradictions by looking for the same entity described differently in multiple wiki pages. Specifically:
+If wiki pages exist, scan for potential contradictions by looking for the same entity described differently in multiple wiki pages. Use the Entity Types registry to know what fields to check per type:
 
-- Grep for entity names across wiki pages. If an entity's status or role is described differently in two pages, flag it.
-- Grep for status terms (`active`, `completed`, `paused`, `planned`) in page frontmatter vs. mentions in other pages. If an entity is marked `completed` in its own page but referenced as active elsewhere, flag it.
+- For entity types with a `status` frontmatter field, check if the status in the entity's own page matches how it's described in other pages. If a project is marked `completed` in its own page but referenced as active elsewhere, flag it.
+- For entity types with `role` or `team` fields, check consistency across pages.
 
 This is best-effort — only flag clear contradictions, not minor wording differences. If no wiki pages exist, skip this step.
 
 ## Step 6: Private notes recency
 
-Glob `private/*.md`. For each file, run `git log --format='%ai' -1 -- <file>` to get the last modification date. Flag private notes not updated in 30+ days.
+Check private notes using entity type definitions from `CLAUDE.md`.
+
+For each entity type with `private_notes: yes`:
+1. Glob `private/*.md` to find existing private note files.
+2. For each file, run `git log --format='%ai' -1 -- <file>` to get the last modification date.
+3. Flag notes that exceed the entity type's `private_note_staleness` threshold (default: 30 days if not specified).
+
+Also cross-reference against known entities. If `wiki/<type_path>/` has pages for entities that should have private notes but don't have a corresponding `private/` file, flag the gap.
 
 Do NOT read private note content — only check recency via git log. Privacy boundary applies.
 
@@ -89,6 +103,7 @@ Output a concise health-check report. Two formats depending on context:
 
 ## Private Notes (N issues)
 - **file** — last updated YYYY-MM-DD (N days ago)
+- **entity** — no private note file (expected by <entity-type> definition)
 
 ## Summary
 X stale research docs, Y stagnant tasks, Z outdated wiki pages, W wiki gaps, V contradictions, U private note issues.

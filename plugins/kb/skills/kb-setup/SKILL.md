@@ -46,8 +46,8 @@ mkdir -p sources/tasks/done wiki outputs private
 
 ### Starter CLAUDE.md
 
-Write a `CLAUDE.md` at the repo root with the following content. This file teaches
-future AI sessions how to work with this KB.
+Write a `CLAUDE.md` at the repo root with the base structure below. Phase 2 will
+add the Entity Types registry and other customizations.
 
 ```markdown
 # Knowledge Base
@@ -139,7 +139,7 @@ Confirm what was created. Then transition to Phase 2.
 
 ## Phase 2: Interview
 
-Ask the user 3-5 questions to customize the KB. Be conversational — adapt based on
+Ask the user questions to customize the KB. Be conversational — adapt based on
 answers. Don't ask all questions at once; ask one or two, then follow up based on
 responses.
 
@@ -151,15 +151,28 @@ responses.
 Examples to offer: personal notes, team lead context, project tracking, engineering
 journal, customer management, learning/research.
 
-**Q2: Entities**
+**Q2: Entity types** (this is the critical question — dig in here)
+
 "What kinds of things do you want to track?"
 
-Adapt based on Q1. Suggest relevant entity types:
+Adapt suggestions based on Q1:
 - Team lead → people, projects, teams, decisions
 - Project tracking → features, milestones, bugs, components
 - Engineering journal → topics, technologies, patterns, til (today-i-learned)
 - Customer management → customers, contacts, deals, interactions
 - General → topics, projects, references
+
+For each entity type the user names, follow up to understand:
+- **What fields matter?** A "person" might need role and team; a "customer" might need
+  status and account tier; a "project" might need status and owner.
+- **What sections should wiki pages have?** People might need "Current Focus" and
+  "Key Contributions"; projects might need "Key Decisions" and "Timeline".
+- **Does this type have a privacy dimension?** People notes might have private
+  observations that shouldn't compile into wiki.
+
+Don't make this tedious — suggest sensible defaults and let the user adjust. Offer
+a proposed entity type definition and ask "does this look right, or would you change
+anything?"
 
 **Q3: Data sources**
 "Do you have data sources you'd like to pull from, or is this manual-input only?"
@@ -172,56 +185,126 @@ configure them now — just document the intent.
 "Anything that should stay private — not compiled into wiki pages?"
 
 The `private/` directory already exists. This question determines what guidance goes
-in CLAUDE.md about what belongs there.
+in CLAUDE.md about what belongs there. Also connects to entity types — if the user
+tracks people, ask if private observations about people should route to `private/`.
 
-**Q5: Organization** (skip if answers are clear enough)
-"How do you want wiki pages organized — by entity type (people/, projects/), flat, or
-something custom?"
+**Q5: Nicknames** (skip if not relevant)
+"Do you use shorthand or nicknames that the AI should understand?"
+
+If yes, build a nickname decoder table for CLAUDE.md.
 
 ### Apply customizations
 
-Based on interview answers, update the KB:
+Based on interview answers, write the Entity Types registry and other customizations
+into CLAUDE.md. This is the most important output — all other kb skills read this
+section to know how to operate.
 
-1. **Update CLAUDE.md** — Add a "KB Profile" section with:
-   - Purpose description
-   - Entity types tracked
-   - Data sources (if any)
-   - Privacy rules
-   - Wiki organization scheme
-   - Nickname decoder (if the user mentions shorthand they use)
+#### Entity Types registry
 
-2. **Create wiki subdirectories** matching the chosen organization:
-   ```bash
-   mkdir -p wiki/people wiki/projects  # example
-   ```
+Add an `## Entity Types` section to CLAUDE.md. This is a machine-readable registry
+that compile, fin, health-check, and other skills reference. Each entity type defines:
 
-3. **Seed an INDEX.md** in `wiki/`:
-   ```markdown
-   ---
-   title: Wiki Index
-   date: <today>
-   ---
+```markdown
+## Entity Types
 
-   # Wiki Index
+### people
+- **wiki_path:** `wiki/people/`
+- **filename:** `firstname-lastname.md`
+- **frontmatter:** title, type, role, team, last_compiled, sources, related
+- **sections:** Overview, Current Focus, Recent Activity, Key Contributions
+- **private_notes:** yes — route to `private/firstname-lastname.md`
+- **private_note_staleness:** 14 days
 
-   ## Categories
+### projects
+- **wiki_path:** `wiki/projects/`
+- **filename:** `project-slug.md`
+- **frontmatter:** title, type, status, last_compiled, sources, related
+- **sections:** Overview, Current Status, Key Decisions, Open Questions, Timeline
 
-   - [People](people/) — Team members, contacts, stakeholders
-   - [Projects](projects/) — Active and past projects
+### customers
+- **wiki_path:** `wiki/customers/`
+- **filename:** `customer-slug.md`
+- **frontmatter:** title, type, status, last_compiled, sources, related
+- **sections:** Overview, Integration Status, Recent Activity, Key Contacts
 
-   ## Recent updates
+### topics
+- **wiki_path:** `wiki/topics/`
+- **filename:** `topic-slug.md`
+- **frontmatter:** title, type, last_compiled, sources, related
+- **sections:** Overview, Current State, History
+```
 
-   _No pages compiled yet. Run `/compile` to build wiki from sources._
-   ```
+The specific entity types, fields, and sections come from the interview. The above is
+an example — adapt to what the user actually needs.
 
-4. **Commit customizations**:
-   ```bash
-   git add -A
-   git commit -m "Customize KB: <brief summary of choices>"
-   ```
+Key properties per entity type:
+- **wiki_path** — subdirectory under `wiki/` for this type's pages
+- **filename** — naming pattern for wiki pages of this type
+- **frontmatter** — YAML frontmatter fields for wiki pages (always includes title, type, last_compiled, sources, related)
+- **sections** — markdown sections each wiki page of this type should have
+- **private_notes** (optional) — if `yes`, this entity type has private observations that route to `private/` instead of wiki. Include the filename pattern.
+- **private_note_staleness** (optional) — how many days before a private note is flagged as stale by health-check. Defaults to 30 if omitted.
 
-5. **Tell the user what's next** — suggest they:
-   - Add notes to `sources/`
-   - Create tasks with `/tasks`
-   - Run `/compile` after adding source material
-   - Use `/fin` at end of sessions to capture value
+#### Other CLAUDE.md additions
+
+Also add these sections based on interview answers:
+
+1. **KB Profile** — purpose, data sources, privacy rules
+2. **Nickname Decoder** (if applicable) — table mapping shorthand to entity names
+3. **Labels** (if applicable) — abbreviations the user uses
+
+#### Create wiki subdirectories
+
+Create a subdirectory under `wiki/` for each entity type:
+```bash
+mkdir -p wiki/people wiki/projects wiki/customers wiki/topics  # example
+```
+
+#### Seed INDEX.md
+
+Write `wiki/INDEX.md` with a section for each entity type:
+
+```markdown
+---
+title: Wiki Index
+date: <today>
+---
+
+# Wiki Index
+
+## People
+_No pages compiled yet._
+
+## Projects
+_No pages compiled yet._
+
+## Customers
+_No pages compiled yet._
+
+## Topics
+_No pages compiled yet._
+
+---
+_Run `/compile` to build wiki from sources._
+```
+
+#### Create private subdirectories
+
+If any entity types have `private_notes: yes`, ensure `private/` exists (it already
+does from Phase 1).
+
+#### Commit customizations
+
+```bash
+git add -A
+git commit -m "Customize KB: <brief summary of entity types and choices>"
+```
+
+#### Tell the user what's next
+
+Suggest they:
+- Add notes to `sources/`
+- Create tasks with `/tasks`
+- Run `/compile` after adding source material
+- Use `/fin` at end of sessions to capture value
+- Run `/health-check` to audit KB state
