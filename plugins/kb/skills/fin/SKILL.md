@@ -1,6 +1,6 @@
 ---
 name: fin
-description: Finish a session — extract useful data, persist to sources, close down. Works on legate sessions and the main conversation. Use when wrapping up any session ("we're done", "wrap up", "fin", "close out"), when closing a legate, or as the final step before killing a legate window. Also triggers on "session-log", "log this", "anything to capture?".
+description: Finish a session — extract useful data, persist to sources, close down. Works on legate sessions and the main conversation. Use when wrapping up any session ("we're done", "wrap up", "fin", "close out"), when closing a legate, or as the final step before killing a legate window. Also triggers on "session-log", "log this", "anything to capture?". Default action is immediate — pass `ask` to review the capture plan before writing.
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 ---
@@ -18,13 +18,24 @@ Works on two kinds of sessions:
 
 Arguments are passed as: $ARGUMENTS
 
+Target selector (pick one):
+
 - No arguments → fin the current (main) conversation
 - A legate window name (e.g., `pr-52`, `research-auth`) → fin that legate session
 - `all` → fin all open legate sessions, then the main conversation
 
-## Step 0: Determine the target
+Mode modifier (optional, combines with any target):
 
-**No arguments = fin the main conversation. Do NOT check on, debrief, or interact with legates.** Legates are independent sessions — they keep running. Only touch them if explicitly named or `all` is passed.
+- `approve` (or omitted) → **default.** Extract → write → commit → report. No prompt.
+- `ask` → Extract → show capture plan → wait for user approval → write → commit → report.
+
+Examples: `fin`, `fin ask`, `fin pr-52`, `fin pr-52 ask`, `fin all`, `fin all ask`.
+
+## Step 0: Determine the target and mode
+
+**No arguments = fin the main conversation in default (no-approval) mode. Do NOT check on, debrief, or interact with legates.** Legates are independent sessions — they keep running. Only touch them if explicitly named or `all` is passed.
+
+Parse `$ARGUMENTS`: the mode is `ask` if the tokens contain `ask`; otherwise `approve` (default). The remaining token (if any) is the target — a legate name or `all`. Remember the mode for Step 4.
 
 If a legate name is given, verify the window exists:
 ```bash
@@ -129,16 +140,20 @@ Legates often produce specific kinds of value:
 - **Investigation legates**: Findings may warrant a research doc or analysis if substantive.
 - **Interactive task legates**: May have produced code changes (already committed) or surfaced new tasks/blockers.
 
-## Step 4: Present the capture plan
+## Step 4: Capture plan (and optional approval)
 
-Show the user what you plan to persist. For each item:
+Build a capture plan — for each item:
 - Category and destination file
 - New file or append to existing
 - One-line preview of what will be written
 
-If nothing worth capturing, say so. Don't create empty files.
+**Nothing to capture:** if the plan is empty, print "Nothing to capture" (with a one-line reason) and stop. Don't create empty files, don't commit. This short-circuit applies to both modes.
 
-Wait for the user's approval before writing. Exception: when running `fin all` on many legates, batch the plan for all of them and get one approval.
+**Default mode (no arg, `approve`):** print the plan as a record of what's about to happen, then proceed directly to Step 5. Do not wait for confirmation.
+
+**Ask mode (`ask`):** print the plan and wait for explicit user approval before proceeding to Step 5. For `fin all ask`, batch plans across all targets into a single prompt and get one approval.
+
+`fin all` in default mode proceeds without approval — Rich triggered it deliberately.
 
 ## Step 5: Write files
 
