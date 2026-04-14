@@ -1,6 +1,6 @@
 {
   "name": "legate",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Delegated authority over tmux sessions. Dispatch AI agents (Claude Code, Codex, Gemini) to work in parallel, debrief them for status, or inspect their workspace yourself.",
   "author": {
     "name": "Rich Haase",

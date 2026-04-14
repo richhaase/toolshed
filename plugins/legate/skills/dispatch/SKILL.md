@@ -159,12 +159,20 @@ The three supported runtimes and their launcher commands:
    The `@legate-agent` tag records which runtime is in this window (`claude`, `codex`,
    or `gemini`). Used by debrief for context.
 
-5. Send a kick-off prompt after the agent boots:
+5. Send a kick-off prompt after the agent boots. **Submit the text and the Enter
+   keystroke in separate `send-keys` calls with a sleep between them** — otherwise
+   the TUI can absorb Enter as part of the bracketed-paste block and the prompt just
+   sits in the input box, never submitted:
 
    ```bash
    sleep 3
-   tmux send-keys -t "<name>" "<kick-off prompt>" Enter
+   tmux send-keys -t "<name>" "<kick-off prompt>"
+   sleep 1
+   tmux send-keys -t "<name>" Enter
    ```
+
+   Do NOT collapse this into `tmux send-keys -t "<name>" "<prompt>" Enter` — it works
+   for short prompts and silently fails for long ones. Always use two calls.
 
    **For Claude:** The context brief was already injected via `--append-system-prompt`,
    so the kick-off is just the task instruction.
@@ -182,7 +190,22 @@ The three supported runtimes and their launcher commands:
 
    Incorporate any specific instructions the user gave.
 
-6. Tell the user which window was created, what agent is running, and what context was
+6. **Verify the kick-off actually submitted.** After a brief pause, capture the pane
+   and confirm the prompt is no longer sitting in the input box:
+
+   ```bash
+   sleep 2
+   tmux capture-pane -t "<name>" -p | tail -10
+   ```
+
+   If the prompt text still appears next to the `❯` input marker, the Enter didn't
+   land. Send another Enter:
+
+   ```bash
+   tmux send-keys -t "<name>" Enter
+   ```
+
+7. Tell the user which window was created, what agent is running, and what context was
    provided.
 
 ## Sending orders to an existing session
@@ -201,13 +224,20 @@ When the user wants to send additional instructions to a running session:
    done
    ```
 
-2. Send the instruction:
+2. Send the instruction as two separate calls (text, then Enter) — same reason as
+   the kick-off: a combined `send-keys "<text>" Enter` can leave the Enter absorbed
+   into the paste, and the instruction sits unsubmitted in the input box:
 
    ```bash
-   tmux send-keys -t "<name>" "<instruction>" Enter
+   tmux send-keys -t "<name>" "<instruction>"
+   sleep 1
+   tmux send-keys -t "<name>" Enter
    ```
 
-3. Confirm to the user what was sent and to which window.
+3. Verify submission by capturing the pane and confirming the instruction is no longer
+   in the input box. Send another Enter if needed.
+
+4. Confirm to the user what was sent and to which window.
 
 ## Context brief format
 
