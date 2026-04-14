@@ -20,18 +20,21 @@ Read the `## Entity Types` section from `CLAUDE.md`. This tells you:
 
 If `CLAUDE.md` has no Entity Types registry, use sensible defaults (30-day private note staleness, generic wiki checks).
 
-## Step 1: Stale research docs
+## Step 1: Stale research docs (only if referenced)
 
-Glob `sources/sessions/*.md` and `sources/notes/*.md`. Read each file's YAML frontmatter and check for a `staleness` field and `date` field.
+Research documents are point-in-time captures, not living documents. The `staleness` field signals "trust this less the older it gets" — it is **not** a prompt to rewrite the doc on a schedule. A stale research doc that nothing references is not a problem; it's just an old artifact.
 
-Staleness windows:
-- `high` — stale after 3 days
-- `medium` — stale after 10 days
-- `low` — stale after 30 days
+Only flag a research doc as stale if **both** are true:
 
-A doc is **stale** if `today - date > staleness window`. Collect all stale docs with their title, date, and staleness level.
+1. The doc is past its staleness window (windows: `high` → 3d, `medium` → 10d, `low` → 30d). Compute against the `date` frontmatter field.
+2. The doc is **actively referenced** somewhere that matters — i.e. it appears in a `sources:` list of a current wiki page, in another flat source doc dated within the last 14 days, or in an open task file (`sources/tasks/*.md` excluding `done/`).
 
-If a doc has no `staleness` field, skip it (it's not a research doc).
+Procedure:
+- Glob the flat source layout your KB uses (e.g. `sources/*.md`, `sources/sessions/*.md`, `sources/notes/*.md` — match what exists). For each file with a `staleness` field, compute whether it's past its window.
+- For each stale candidate, Grep for its filename or slug across `wiki/**/*.md`, recent `sources/*.md`, and `sources/tasks/*.md`. If there are no hits, **skip it** — it's an unreferenced artifact, not a maintenance issue.
+- If a stale doc IS referenced, the recommendation is **re-research**, not edit-in-place. Re-running the original investigation against current data is usually the right move; patching the old doc tends to mix vintages.
+
+Docs without a `staleness` field are not research docs — skip them.
 
 ## Step 2: Stale tasks
 
@@ -97,7 +100,8 @@ Output a concise health-check report. Two formats depending on context:
 # Health Check — YYYY-MM-DD
 
 ## Stale Research (N)
-- **doc-title** — dated YYYY-MM-DD, staleness: X (Y days overdue)
+Only docs that are both past their staleness window AND actively referenced. Recommendation for each is **re-research**, not edit-in-place.
+- **doc-title** — dated YYYY-MM-DD, staleness: X (Y days overdue) · referenced from: <wiki-page or task-slug>
 
 ## Stagnant Tasks (N)
 - **task-slug** — open since YYYY-MM-DD, last touched YYYY-MM-DD
