@@ -1,6 +1,7 @@
 ---
 name: fin
 description: Finish a session — extract useful data, persist to sources, close down. Works on legate sessions and the main conversation. Use when wrapping up any session ("we're done", "wrap up", "fin", "close out"), when closing a legate, or as the final step before killing a legate window. Also triggers on "session-log", "log this", "anything to capture?". Default action is immediate — pass `ask` to review the capture plan before writing.
+argument-hint: "[session-name|all] [ask]"
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 ---

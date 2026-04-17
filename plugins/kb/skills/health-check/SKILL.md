@@ -1,6 +1,7 @@
 ---
 name: health-check
 description: Audit the repo for staleness, contradictions, gaps, and neglected items. Checks research doc freshness, stale tasks, wiki currency, cross-link gaps, and private note recency. Pass `triage` to interactively walk through issues and take action on each one.
+argument-hint: "[triage|embed]"
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Skill, Agent]
 ---
