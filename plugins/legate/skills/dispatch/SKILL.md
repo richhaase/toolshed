@@ -11,6 +11,7 @@ description: >
   session to also run the tests" or "send new instructions to the PR session." Trigger
   this skill whenever the user wants work done in parallel or outside the current
   conversation, even if they don't use the word "dispatch."
+argument-hint: "<task|PR#|issue> [--codex|--gemini]"
 allowed-tools:
   - Bash
   - Agent

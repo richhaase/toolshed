@@ -7,6 +7,7 @@ description: >
   or otherwise wants to know what a dispatched session is doing. Can target a specific
   session or sweep all legate-managed sessions. Trigger this skill whenever the user
   asks about the state of work happening in other sessions, even casually.
+argument-hint: "[session-name|all]"
 allowed-tools:
   - Bash
 ---
