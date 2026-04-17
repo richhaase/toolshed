@@ -1,13 +1,21 @@
 ---
 name: health-check
-description: Audit the repo for staleness, contradictions, gaps, and neglected items. Checks research doc freshness, stale tasks, wiki currency, cross-link gaps, and private note recency.
+description: Audit the repo for staleness, contradictions, gaps, and neglected items. Checks research doc freshness, stale tasks, wiki currency, cross-link gaps, and private note recency. Pass `triage` to interactively walk through issues and take action on each one.
 user-invocable: true
-allowed-tools: [Read, Glob, Grep, Bash]
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Skill, Agent]
 ---
 
 # Health Check
 
 Audit the knowledge base for staleness, contradictions, gaps, and neglected items. Produces a concise summary suitable for embedding in a briefing or reading standalone.
+
+## Arguments
+
+Arguments are passed as: $ARGUMENTS
+
+- No arguments → **standalone** mode. Run audit, print full report.
+- `embed` → **embed** mode. Run audit, print compact summary for embedding in another workflow.
+- `triage` → **triage** mode. Run audit, then interactively walk the user through each issue, offering actions.
 
 ## Step 0: Get today's date and read Entity Types
 
@@ -90,11 +98,11 @@ the hot set was updated, the L1 is stale — flag it.
 Also check if any pinned pages in INDEX.md no longer exist as wiki pages — these are
 stale pins that should be cleaned up.
 
-## Step 8: Produce summary
+## Step 8: Produce output
 
-Output a concise health-check report. Two formats depending on context:
+Output depends on the mode determined in the Arguments section.
 
-### Standalone format (when run directly)
+### Standalone mode (default)
 
 ```
 # Health Check — YYYY-MM-DD
@@ -123,7 +131,7 @@ Only docs that are both past their staleness window AND actively referenced. Rec
 X stale research docs, Y stagnant tasks, Z outdated wiki pages, W wiki gaps, V contradictions, U private note issues.
 ```
 
-### Embed format (when called from another workflow)
+### Embed mode
 
 Single section, counts + top items only:
 
@@ -135,9 +143,95 @@ N stale research docs, N stagnant tasks, N outdated wiki pages, N wiki gaps, N p
 
 Omit categories with zero issues from the summary line. If everything is clean, say "All clear — no issues found."
 
+### Triage mode
+
+Print the full standalone report first so the user sees the landscape. Then walk through actionable issues interactively, one category at a time. Skip categories with zero issues.
+
+For each issue, present the item and offer concrete actions. **Wait for the user's response before moving to the next item.** The user can always say "skip" to move on or "stop" to end the triage early.
+
+#### Stale research docs
+
+For each stale, referenced research doc:
+
+> **<doc-title>** — dated YYYY-MM-DD, <N> days overdue, referenced from <location>.
+> - **Re-research** — I'll dispatch a legate to refresh this
+> - **Skip** — leave it for now
+
+If the user picks re-research, invoke the research skill via `/research` with the original topic as context, specifying it's an update to the existing doc. Then continue to the next item.
+
+#### Stagnant tasks
+
+For each stagnant task:
+
+> **<task-slug>** — open since YYYY-MM-DD, last touched YYYY-MM-DD.
+> - **Update** — what's the latest? (captures the user's response and appends it to the task file)
+> - **Close** — mark it done
+> - **Skip**
+
+If the user picks "update," ask a short follow-up: "What's the current status?" Append their response as a dated entry to the task file. If "close," move the task to `sources/tasks/done/`.
+
+#### Outdated wiki pages
+
+If any wiki pages are outdated:
+
+> **<N> wiki pages** have sources newer than their last compile.
+> - **Recompile** — I'll run a compile to bring the wiki current
+> - **Skip**
+
+If the user picks recompile, invoke the compile skill via `/compile`. Only offer this once (not per page).
+
+#### Missing private notes
+
+For each entity that should have a private note but doesn't:
+
+> **<entity-name>** (<entity-type>) — no private note file.
+> - **Add a note** — anything to capture? (writes the user's response to `private/<filename>`)
+> - **Skip**
+
+If the user provides a note, create the private note file using the entity type's filename pattern and write a dated entry.
+
+#### Stale private notes
+
+For each private note past its staleness threshold:
+
+> **<entity-name>** — last updated YYYY-MM-DD (<N> days ago).
+> - **Add a note** — anything new? (appends to the existing file)
+> - **Skip**
+
+If the user provides a note, append a dated entry to the existing private note file.
+
+#### Wiki gaps and contradictions
+
+These are informational — no inline action. List them at the end:
+
+> **Wiki gaps:** [[page-a]], [[page-b]] — these are referenced but don't exist. They'll resolve on the next compile if sources mention these entities.
+>
+> **Contradictions:** <entity> described differently in <page-a> vs <page-b>. Worth checking manually.
+
+#### Wrap-up
+
+After all categories are triaged (or the user says "stop"), print a summary of actions taken:
+
+```
+## Triage Complete
+- Dispatched N re-research tasks
+- Updated N tasks, closed N tasks
+- Captured N private notes
+- Recompiled wiki: yes/no
+```
+
+If any files were written or modified during triage, commit them:
+
+```bash
+git add sources/ private/
+git commit -m "health-check triage: <brief summary of actions>"
+```
+
 ## Guidelines
 
-- **Read-only.** This skill never modifies files — it only reads and reports.
+- **Standalone and embed modes are read-only.** These modes never modify files — only read and report.
+- **Triage mode writes.** It can create/edit files in `sources/` and `private/`, invoke other skills, and commit.
 - **Fast over thorough.** Skip deep content analysis if it would require reading dozens of files. Frontmatter and git metadata are usually sufficient.
 - **Counts matter most.** The user wants to know the scale of issues, then drill into specifics on request.
-- **Don't read private note content** — only check recency via git log. Privacy boundary applies.
+- **Don't read private note content** — only check recency via git log. Privacy boundary applies even in triage mode.
+- **One item at a time in triage.** Don't dump all items and ask for a batch response. Walk through them conversationally. But group wiki gaps and contradictions together since they're informational.
