@@ -124,12 +124,16 @@ Do NOT read private/. All content must come from the provided source data.
 Each wiki page uses the sections defined in its entity type. The frontmatter includes
 the fields specified in the entity type definition.
 
+**Do NOT add `last_compiled` or `compile_pass` to per-page frontmatter.** Page-level
+freshness lives only in the `Last Updated` column of `wiki/INDEX.md`; git history
+covers everything else. Adding per-page compile metadata churns the frontmatter on
+every run for no reader benefit.
+
 ```markdown
 ---
 title: <Entity Name>
 type: <entity type>
 <additional frontmatter fields from entity type definition>
-last_compiled: YYYY-MM-DD
 sources:
   - <relative path to source file>
 related:
@@ -155,7 +159,6 @@ title: Jane Doe
 type: people
 role: Backend Engineer
 team: Platform
-last_compiled: 2026-04-10
 sources:
   - sources/2026-04-08-api-migration.md
 related:
@@ -183,7 +186,7 @@ related:
 
 For each entity to compile:
 
-1. **Existing page** — Read current content, merge new information. Update dynamic sections (Current Focus, Current State, Recent Activity). Never delete accumulated sections (History, Key Contributions, Key Decisions). Update `last_compiled` and `sources` frontmatter.
+1. **Existing page** — Read current content, merge new information. Update dynamic sections (Current Focus, Current State, Recent Activity). Never delete accumulated sections (History, Key Contributions, Key Decisions). Update the `sources` frontmatter array. Do NOT add or update `last_compiled`/`compile_pass` — that data belongs only in INDEX.md.
 
 2. **New page** — Generate from template. Fill in from source material. Sparse pages are fine — they'll fill in over subsequent compiles.
 
@@ -205,6 +208,16 @@ CLAUDE.md hot set regardless of recency.
 
 Preserve the existing `pinned` list from the INDEX.md frontmatter — don't drop
 manual pins. Add any new pages to the table but don't auto-pin them.
+
+INDEX.md is the wiki's single source of compile metadata: it carries
+`last_compiled` in its own frontmatter (the wiki-wide freshness indicator) and a
+`Last Updated` column per page row. Update both on every compile.
+
+**Do NOT append `<!-- Compile run ... -->` HTML comments to INDEX.md.** The git
+log is the durable record of what each compile pass did; the inline log
+duplicated that and grew unboundedly. The skill commits its work as its final
+step (Step 8), and the commit message carries the synthesis that used to live in
+the comment.
 
 ```markdown
 ---
@@ -241,9 +254,10 @@ When running incrementally (not a full build):
 4. **Read ALL affected wiki pages in one parallel batch.**
 5. Synthesize updates. **Write ALL updated wiki pages + INDEX.md in one parallel batch.**
 6. **Read CLAUDE.md, rebuild hot set between markers, write CLAUDE.md.**
-7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections.
+7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
+8. **Commit (Step 8).** Always the last action. Skip cleanly when not in a git repo or when nothing is staged.
 
-The entire incremental compile should be **4-5 roundtrips**: find changed files → read sources → read wiki pages → write wiki updates → write L1 hot set.
+The entire incremental compile should be **5-6 roundtrips**: find changed files → read sources → read wiki pages → write wiki updates → write L1 hot set → commit.
 
 ## Step 7: Distill L2 → L1 (CLAUDE.md hot set)
 
@@ -251,12 +265,14 @@ After the wiki is updated, rebuild the dynamic hot set section of CLAUDE.md.
 
 ### How it works
 
-1. Read `wiki/INDEX.md` — get the full page list with `last_compiled` dates and
-   `pinned` list from frontmatter.
+1. Read `wiki/INDEX.md` — get the full page list with `Last Updated` dates from
+   the per-type tables and the `pinned` list from frontmatter. INDEX.md is the
+   only place that holds page-level freshness data; do not look for
+   `last_compiled` in per-page frontmatter.
 2. Read `CLAUDE.md` — find the markers `<!-- HOT SET START -->` and `<!-- HOT SET END -->`.
 3. Build the hot set:
    - **All pinned pages** go in, regardless of recency.
-   - **Most recently updated pages** fill remaining slots, sorted by `last_compiled` descending.
+   - **Most recently updated pages** fill remaining slots, sorted by INDEX `Last Updated` descending.
    - **Cap per entity type**: max 5 entries per type (configurable, start simple).
    - **Total cap**: ~20 entries across all types. The hot set must stay small.
 4. For each entry, write one row: name, one-line summary, link to wiki page.
@@ -284,15 +300,68 @@ After the wiki is updated, rebuild the dynamic hot set section of CLAUDE.md.
   then write the hot set.
 - The hot set is fully regenerated each compile — it's not an incremental edit.
 
-## Post-compile
+## Step 8: Commit (final step — mandatory when in a git repo)
 
-Commit all changes (wiki + CLAUDE.md hot set update):
+The compile run is not finished until its output is committed. The git log is the
+durable record of what each compile pass did, so this step replaces the inline
+`<!-- Compile run ... -->` log that earlier versions wrote into INDEX.md.
+
+### Detect the git context
+
 ```bash
-git add wiki/ CLAUDE.md
-git commit -m "compile: update wiki from sources"
+git -C "$(pwd)" rev-parse --is-inside-work-tree 2>/dev/null
 ```
 
-Report to user: pages created / updated / unchanged, new entities discovered, hot set changes (promoted/demoted), any sources that couldn't be processed.
+- Output `true` → in a git working tree, proceed with the commit flow below.
+- Anything else (non-zero exit, empty output) → no git context. Skip this step
+  silently and report `commit: skipped (not a git repo)` in the user-facing
+  summary. Do **not** error out; `/compile` must work in non-git scratch dirs.
+
+### Commit flow (when in a git repo)
+
+1. Stage compile output:
+   ```bash
+   git add wiki/ CLAUDE.md
+   ```
+2. Check whether anything is actually staged:
+   ```bash
+   git diff --cached --quiet
+   ```
+   If exit code is `0` (no staged changes), skip the commit — there is nothing
+   to record. Report `commit: skipped (no changes)`.
+3. Commit. Subject and body together replace the old HTML compile-run comment.
+   - **Subject** (≤ 72 chars): `compile: update wiki — <brief synthesis>`
+     where `<brief synthesis>` is the one-line theme of the run (e.g.
+     `IH deploy trigger investigation, AT-498/AT-407 DONE`).
+   - **Body** (multi-line): the synthesis that previously went in the inline
+     HTML comment — sources processed, pages updated, hot-set
+     promotions/demotions, any sources that couldn't be processed. Use a
+     HEREDOC to preserve formatting:
+     ```bash
+     git commit -m "$(cat <<'EOF'
+     compile: update wiki — <brief synthesis>
+
+     Sources processed (N): <one-line list or grouped summary>
+     Pages updated (N): <one-line list>
+     Hot set: <promoted X, demoted Y, no change>
+     Notes: <anything that couldn't be processed, or "none">
+     EOF
+     )"
+     ```
+4. Never push. The skill only commits locally — pushing is the user's call,
+   not the skill's.
+
+### Failure handling
+
+- If `git add` or `git commit` fails for an unexpected reason (hooks, locked
+  index, etc.), surface the exact stderr to the user and stop. Do not retry,
+  do not `--no-verify`, do not amend prior commits.
+- Pre-commit hook failure means the commit did not happen — fix the underlying
+  issue, re-stage, and create a new commit. Never amend.
+
+## Post-compile
+
+Report to user: pages created / updated / unchanged, new entities discovered, hot set changes (promoted/demoted), any sources that couldn't be processed, and the commit SHA (or `skipped` reason).
 
 ## Guidelines
 
