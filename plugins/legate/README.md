@@ -23,10 +23,19 @@ Launch a new AI agent session in a tmux window with context, or send additional 
 - Resolves natural references ("the PR session", "that migration task") to the right tmux window
 - Sends instructions via `tmux send-keys`
 
+**Auto-watching:**
+- Every dispatch arms an automatic watcher for its children. The parent
+  session sweeps its own children roughly every 5 minutes via `ScheduleWakeup`
+  and speaks up only when a pane tail changes, a new child appears, or one
+  disappears. No `/loop`, no explicit opt-in — it just happens.
+- To stop: say "stop watching". The watcher goes silent; children keep
+  running. The next dispatch re-arms it.
+
 ```
 dispatch a session for #123
 tell the PR session to also run the tests
 dispatch a task to investigate the flaky CI
+stop watching
 ```
 
 ### debrief
@@ -76,8 +85,9 @@ Legate tags each dispatched tmux window with user options:
 | `@legate-source` | Source identifier (e.g., `gh:owner/repo#123`) |
 | `@legate-cwd` | Working directory of the session |
 | `@legate-agent` | Agent runtime: `claude`, `codex`, or `gemini` |
+| `@legate-parent` | Pane id of the parent session — scopes auto-watching to its own children |
 
-These tags let `debrief` and `inspect` discover and interact with sessions without any external state. Named Claude Code sessions (`claude -n <name>`) mean session history persists even if you need to reconnect.
+These tags let `debrief`, `inspect`, and the auto-watcher discover and interact with sessions without any external state. Named Claude Code sessions (`claude -n <name>`) mean session history persists even if you need to reconnect.
 
 ## Installation
 

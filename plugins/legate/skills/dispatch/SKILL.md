@@ -15,6 +15,7 @@ argument-hint: "<task|PR#|issue> [--codex|--gemini]"
 allowed-tools:
   - Bash
   - Agent
+  - Skill
 ---
 
 # Dispatch
@@ -146,7 +147,14 @@ The three supported runtimes and their launcher commands:
    tmux list-windows -F '#{window_name}' | grep -q "^<name>$" && name="<name>-2"
    ```
 
-4. Launch the window and tag it for discoverability:
+4. Capture your own pane id — this becomes the `@legate-parent` tag so the new
+   `watch` skill knows which children belong to you:
+
+   ```bash
+   PARENT_PANE=$(tmux display-message -p -t "$TMUX_PANE" '#{pane_id}')
+   ```
+
+   Launch the window and tag it for discoverability:
 
    ```bash
    tmux new-window -d -n "<name>" "/tmp/legate-<name>.sh"
@@ -155,10 +163,12 @@ The three supported runtimes and their launcher commands:
    tmux set-option -w -t "<name>" @legate-source "<source identifier, e.g. gh:owner/repo#123>"
    tmux set-option -w -t "<name>" @legate-cwd "$WORK_DIR"
    tmux set-option -w -t "<name>" @legate-agent "<runtime>"
+   tmux set-option -w -t "<name>" @legate-parent "$PARENT_PANE"
    ```
 
    The `@legate-agent` tag records which runtime is in this window (`claude`, `codex`,
-   or `gemini`). Used by debrief for context.
+   or `gemini`). Used by debrief for context. The `@legate-parent` tag scopes
+   `watch` sweeps to this parent's own children.
 
 5. Send a kick-off prompt after the agent boots. **Submit the text and the Enter
    keystroke in separate `send-keys` calls with a sleep between them** — otherwise
@@ -208,6 +218,12 @@ The three supported runtimes and their launcher commands:
 
 7. Tell the user which window was created, what agent is running, and what context was
    provided.
+
+8. Arm the watcher. Invoke `legate:watch` via the Skill tool so it records an
+   initial snapshot of this parent's children and schedules the first
+   `ScheduleWakeup` tick. Watching is implicit in dispatch — the user doesn't
+   have to ask for it. If a prior "stop watching" opt-out was recorded,
+   `watch` clears it on invocation; any new dispatch re-arms the sweep.
 
 ## Sending orders to an existing session
 
