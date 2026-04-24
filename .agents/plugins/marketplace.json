@@ -1,0 +1,32 @@
+{
+  "name": "toolshed",
+  "interface": {
+    "displayName": "Toolshed"
+  },
+  "plugins": [
+    {
+      "name": "legate",
+      "source": {
+        "source": "local",
+        "path": "./plugins/legate"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "kb",
+      "source": {
+        "source": "local",
+        "path": "./plugins/kb"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
