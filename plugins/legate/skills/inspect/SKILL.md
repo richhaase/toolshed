@@ -6,6 +6,7 @@ description: >
   "show me that session", "switch to the PR window", or wants to go see what a dispatched
   agent is doing firsthand. Trigger this skill when the user wants to navigate to a
   dispatched session, even if they phrase it casually.
+argument-hint: "<session-name>"
 allowed-tools:
   - Bash
 ---

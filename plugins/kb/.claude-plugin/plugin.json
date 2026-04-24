@@ -1,6 +1,6 @@
 {
   "name": "kb",
-  "version": "0.3.1",
+  "version": "0.4.2",
   "description": "Multi-layer cache knowledge base. L3 (sources) → L2 (wiki) → L1 (CLAUDE.md) compilation pipeline with progressive disclosure, task tracking, research docs, session finishing, and health checks.",
   "author": {
     "name": "Rich Haase",
