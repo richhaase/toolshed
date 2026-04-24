@@ -98,7 +98,8 @@ Scan the current conversation history. You have full access to it — no tmux ca
 
 ## Step 2: Read Entity Types registry
 
-Read the `## Entity Types` section from `CLAUDE.md` to understand:
+Read the `## Entity Types` section from canonical `AGENTS.md`. In legacy repos
+without `AGENTS.md`, fall back to `CLAUDE.md`, then `GEMINI.md`. Use it to understand:
 - Which entity types have `private_notes: yes` — observations about these entities
   route to `private/` instead of `sources/`.
 - The filename pattern for private notes (e.g., `private/firstname-lastname.md`).

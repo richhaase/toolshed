@@ -2,8 +2,9 @@
 name: kb-setup
 description: >
   Set up and scaffold a personal knowledge base repository. Creates the directory structure
-  (sources, wiki, outputs, private), generates a starter CLAUDE.md, then interviews the
-  user to customize the KB for their use case. Use when the user says "set up a knowledge
+  (sources, wiki, outputs, private), generates canonical AGENTS.md context plus
+  thin harness entrypoints, then
+  interviews the user to customize the KB for their use case. Use when the user says "set up a knowledge
   base", "create a KB", "scaffold my notes repo", "initialize my wiki", "kb setup",
   "start a new knowledge base", "I want to track my notes", or otherwise wants to create
   a structured personal knowledge management system. This is the entry point for the kb
@@ -50,10 +51,21 @@ Create all directories:
 mkdir -p sources/sessions sources/syncs sources/notes sources/tasks/done wiki outputs/surfaces outputs/reports private
 ```
 
-### Starter CLAUDE.md
+### Starter context files
 
-Write a `CLAUDE.md` at the repo root with the base structure below. Phase 2 will
-add the Entity Types registry and other customizations.
+Write canonical `AGENTS.md` at the repo root with the base structure below.
+Phase 2 will add the Entity Types registry and other customizations. If
+`AGENTS.md` already exists, never overwrite it; merge the missing KB sections
+instead.
+
+Write `CLAUDE.md` and `GEMINI.md` only as thin harness entrypoints that tell the
+harness to read `AGENTS.md`. Do not duplicate the KB operating model, Entity
+Types registry, or hot set into those files.
+
+If setting up a legacy repo that already has a full `CLAUDE.md` but no
+`AGENTS.md`, preserve the full KB context by moving or copying it into
+`AGENTS.md`, then replace `CLAUDE.md` with the thin entrypoint only after the
+canonical content is safely present in `AGENTS.md`.
 
 ```markdown
 # Knowledge Base
@@ -63,9 +75,11 @@ Compilation flows upward: L3 → L2 → L1.
 
 ## Cache Layers
 
-### L1 — This file (CLAUDE.md) — Always resident
-Loaded every session automatically. Contains behavioral rules, quick lookup tables,
-and pointers to L2. The hot set tables below are maintained by `/compile`.
+### L1 — This file (AGENTS.md) — Always resident
+Loaded every session automatically by agent harnesses that support `AGENTS.md`.
+Claude Code and Gemini use thin local entrypoints that point here. Contains
+behavioral rules, quick lookup tables, and pointers to L2. The hot set tables
+below are maintained by `/compile`.
 
 ### L2 — Wiki (`wiki/`) — Loaded on demand
 Compiled knowledge organized by topic. Read wiki pages when L1 doesn't have enough
@@ -149,6 +163,26 @@ Follow the cache layers:
 <!-- HOT SET END -->
 ```
 
+Starter `CLAUDE.md`:
+
+```markdown
+# Claude Entrypoint
+
+Read `AGENTS.md` at session start. It is the canonical shared KB context for
+Claude Code, Codex, and Gemini.
+
+Claude-specific local configuration may remain under `.claude/`.
+```
+
+Starter `GEMINI.md`:
+
+```markdown
+# Gemini Entrypoint
+
+Read `AGENTS.md` at session start. It is the canonical shared KB context for
+Claude Code, Codex, and Gemini.
+```
+
 ### .gitignore
 
 Create a `.gitignore` if one doesn't exist:
@@ -186,7 +220,7 @@ answers. Don't ask all questions at once; ask one or two, then follow up based o
 responses.
 
 **Skip questions the user has already answered.** If entity types, purpose, or other
-details are already clear from context (e.g., stated in CLAUDE.md or conversation),
+details are already clear from context (e.g., stated in `AGENTS.md` or conversation),
 don't re-ask — just confirm and move on.
 
 ### Question flow
@@ -225,7 +259,7 @@ anything?"
 "Do you have data sources you'd like to pull from, or is this manual-input only?"
 
 Examples: GitHub (issues, PRs), Concept2 (rowing), Google Calendar, RSS feeds.
-If manual-only, skip to Q4. If integrations, note them for CLAUDE.md but don't
+If manual-only, skip to Q4. If integrations, note them in `AGENTS.md` but don't
 configure them now — just document the intent. These will be set up as sync
 providers under `sources/syncs/<provider>/`.
 
@@ -233,23 +267,24 @@ providers under `sources/syncs/<provider>/`.
 "Anything that should stay private — not compiled into wiki pages?"
 
 The `private/` directory already exists. This question determines what guidance goes
-in CLAUDE.md about what belongs there. Also connects to entity types — if the user
+in `AGENTS.md` about what belongs there. Also connects to entity types — if the user
 tracks people, ask if private observations about people should route to `private/`.
 
 **Q5: Nicknames** (skip if not relevant)
 "Do you use shorthand or nicknames that the AI should understand?"
 
-If yes, build a nickname decoder table for CLAUDE.md.
+If yes, build a nickname decoder table in `AGENTS.md`.
 
 ### Apply customizations
 
-Based on interview answers, write the Entity Types registry and other customizations
-into CLAUDE.md. This is the most important output — all other kb skills read this
-section to know how to operate.
+Based on interview answers, write the Entity Types registry and other
+customizations into `AGENTS.md`. `CLAUDE.md` and `GEMINI.md` should remain thin
+harness entrypoints that point to `AGENTS.md`. This is the most important
+output — all other kb skills read `AGENTS.md` to know how to operate.
 
 #### Entity Types registry
 
-Add an `## Entity Types` section to CLAUDE.md. This is a machine-readable registry
+Add an `## Entity Types` section to `AGENTS.md`. This is a machine-readable registry
 that compile, fin, health-check, and other skills reference. Each entity type defines:
 
 ```markdown
@@ -293,7 +328,7 @@ Key properties per entity type:
 - **private_notes** (optional) — if `yes`, this entity type has private observations that route to `private/` instead of wiki. Include the filename pattern.
 - **private_note_staleness** (optional) — how many days before a private note is flagged as stale by health-check. Defaults to 30 if omitted.
 
-#### Other CLAUDE.md additions
+#### Other `AGENTS.md` additions
 
 Also add these sections based on interview answers:
 
@@ -312,7 +347,7 @@ mkdir -p wiki/people wiki/projects wiki/interests wiki/goals wiki/ideas  # adapt
 
 Write `wiki/INDEX.md` with a section for each entity type. The INDEX tracks
 freshness and pinned status — this is the data structure the L2 → L1 compiler
-reads to decide what goes in the CLAUDE.md hot set.
+reads to decide what goes in the `AGENTS.md` hot set.
 
 ```markdown
 ---
@@ -335,7 +370,7 @@ _Run `/compile` to build wiki from sources._
 ```
 
 The `pinned` field in frontmatter is a list of page slugs that should always
-appear in the CLAUDE.md hot set regardless of recency. Users can manually add
+appear in the `AGENTS.md` hot set regardless of recency. Users can manually add
 entries here or say "pin X in my hot set" to override the recency-based default.
 
 #### Create private subdirectories

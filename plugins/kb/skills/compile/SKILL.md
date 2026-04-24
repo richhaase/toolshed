@@ -1,6 +1,6 @@
 ---
 name: compile
-description: Compile wiki pages from all sources — tasks, decisions, research. Reads sources/**/*.md and synthesizes into wiki/ organized by topic/entity. First run builds full wiki; subsequent runs do incremental updates. Use when the user says "compile", "update the wiki", "build wiki", "compile wiki", or wants to refresh the knowledge base.
+description: Compile wiki pages from all sources — tasks, decisions, research. Reads sources/**/*.md and synthesizes into wiki/ organized by topic/entity, then refreshes the AGENTS.md hot set. First run builds full wiki; subsequent runs do incremental updates. Use when the user says "compile", "update the wiki", "build wiki", "compile wiki", or wants to refresh the knowledge base.
 argument-hint: "[full|<topic>]"
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
@@ -9,8 +9,10 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 # Wiki Compiler
 
 Compile all sources into a topic-organized wiki. Each wiki page covers one entity,
-organized by entity type as defined in `CLAUDE.md`'s Entity Types registry. Pages
-accumulate knowledge over time — this is additive, not destructive.
+organized by entity type as defined in the canonical `AGENTS.md` Entity Types
+registry. In legacy KB repos without `AGENTS.md`, fall back to an existing
+`CLAUDE.md` or `GEMINI.md` registry and report that the repo should be migrated.
+Pages accumulate knowledge over time — this is additive, not destructive.
 
 ## Arguments
 
@@ -23,20 +25,22 @@ Arguments are passed as: $ARGUMENTS
 ## Safety rules
 
 - **NEVER read files in `private/`** — that directory is a privacy boundary.
-- **NEVER write files outside `wiki/` and `CLAUDE.md`** — sources are read-only inputs. The only exception is updating the hot set section of CLAUDE.md during L2 → L1 distillation.
+- **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs. The only exception is a legacy repo without `AGENTS.md`, where you may update the existing entrypoint that owns the hot set and report the migration need.
 - **All paths relative to repo root** — `sources/`, not absolute paths.
 
 ## Step 0: Read Entity Types registry
 
-Read `CLAUDE.md` and parse the `## Entity Types` section. This tells you:
+Read `AGENTS.md` and parse the `## Entity Types` section. This tells you:
 - What entity types exist (people, projects, customers, topics, etc.)
 - Where each type's wiki pages live (`wiki_path`)
 - What filename pattern to use (`filename`)
 - What frontmatter fields each type needs (`frontmatter`)
 - What sections each type's wiki pages should have (`sections`)
 
-If `CLAUDE.md` has no Entity Types registry, fall back to a flat `wiki/` with the
-generic template (Overview, Current State, Recent Activity, History).
+If `AGENTS.md` is missing or lacks an Entity Types registry, check legacy
+entrypoints in this order: `CLAUDE.md`, then `GEMINI.md`. If neither has a
+registry, fall back to a flat `wiki/` with the generic template (Overview,
+Current State, Recent Activity, History).
 
 ## Step 1: Determine scope
 
@@ -59,7 +63,7 @@ If no source files are newer than INDEX.md, report "wiki is current — no chang
 
 1. **Batch all reads in parallel.** Never read files one at a time. Issue all Read calls for a step in a single message so they execute concurrently. If you need to read 17 source files, that's ONE message with 17 Read tool calls — not 17 sequential messages.
 2. **Batch all writes in parallel.** Same rule. If you're updating 10 wiki pages, issue all 10 Edit/Write calls in one message.
-3. **No unnecessary reads.** Don't read wiki pages for entities that aren't mentioned in the changed sources. Don't re-read CLAUDE.md if you already have the entity types in context.
+3. **No unnecessary reads.** Don't read wiki pages for entities that aren't mentioned in the changed sources. Don't re-read `AGENTS.md` if you already have the entity types in context.
 4. **Target: under 3 minutes for incremental compiles.** If you're taking longer, you're doing too much sequentially.
 
 ## Step 2: Gather all sources
@@ -204,7 +208,7 @@ After all pages are written, ensure cross-links are consistent:
 
 Write `wiki/INDEX.md` with a catalog of every wiki page, grouped by entity type.
 The INDEX tracks pinned status — pages marked as pinned always appear in the
-CLAUDE.md hot set regardless of recency.
+`AGENTS.md` hot set regardless of recency.
 
 Preserve the existing `pinned` list from the INDEX.md frontmatter — don't drop
 manual pins. Add any new pages to the table but don't auto-pin them.
@@ -253,15 +257,17 @@ When running incrementally (not a full build):
 3. Extract entity mentions by type. Build the list of affected wiki pages.
 4. **Read ALL affected wiki pages in one parallel batch.**
 5. Synthesize updates. **Write ALL updated wiki pages + INDEX.md in one parallel batch.**
-6. **Read CLAUDE.md, rebuild hot set between markers, write CLAUDE.md.**
+6. **Read `AGENTS.md`, rebuild the hot set between markers, write `AGENTS.md`.**
 7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
 8. **Commit (Step 8).** Always the last action. Skip cleanly when not in a git repo or when nothing is staged.
 
 The entire incremental compile should be **5-6 roundtrips**: find changed files → read sources → read wiki pages → write wiki updates → write L1 hot set → commit.
 
-## Step 7: Distill L2 → L1 (CLAUDE.md hot set)
+## Step 7: Distill L2 -> L1 (`AGENTS.md` hot set)
 
-After the wiki is updated, rebuild the dynamic hot set section of CLAUDE.md.
+After the wiki is updated, rebuild the dynamic hot set section in canonical
+`AGENTS.md`. `CLAUDE.md` and `GEMINI.md` should be thin harness entrypoints that
+point to `AGENTS.md`; do not duplicate the hot set into them.
 
 ### How it works
 
@@ -269,14 +275,18 @@ After the wiki is updated, rebuild the dynamic hot set section of CLAUDE.md.
    the per-type tables and the `pinned` list from frontmatter. INDEX.md is the
    only place that holds page-level freshness data; do not look for
    `last_compiled` in per-page frontmatter.
-2. Read `CLAUDE.md` — find the markers `<!-- HOT SET START -->` and `<!-- HOT SET END -->`.
+2. Read `AGENTS.md` and find the markers `<!-- HOT SET START -->` and `<!-- HOT SET END -->`.
 3. Build the hot set:
    - **All pinned pages** go in, regardless of recency.
    - **Most recently updated pages** fill remaining slots, sorted by INDEX `Last Updated` descending.
    - **Cap per entity type**: max 5 entries per type (configurable, start simple).
    - **Total cap**: ~20 entries across all types. The hot set must stay small.
 4. For each entry, write one row: name, one-line summary, link to wiki page.
-5. Replace everything between the HOT SET markers with the new tables.
+5. Replace everything between the HOT SET markers in `AGENTS.md` with the new tables.
+
+For a legacy repo that does not have `AGENTS.md`, update the first existing
+entrypoint with hot set markers (`CLAUDE.md`, then `GEMINI.md`) and report that
+the repo should migrate to canonical `AGENTS.md` plus thin harness entrypoints.
 
 ### Hot set format
 
@@ -296,8 +306,10 @@ After the wiki is updated, rebuild the dynamic hot set section of CLAUDE.md.
 ### Safety
 
 - **Only modify content between the markers.** Never touch anything outside them.
-- If the markers don't exist in CLAUDE.md, append them at the end of the file and
+- If the markers don't exist in `AGENTS.md`, append them at the end of the file and
   then write the hot set.
+- Do not append hot set markers to thin `CLAUDE.md` or `GEMINI.md` files when
+  `AGENTS.md` exists.
 - The hot set is fully regenerated each compile — it's not an incremental edit.
 
 ## Step 8: Commit (final step — mandatory when in a git repo)
@@ -321,8 +333,10 @@ git -C "$(pwd)" rev-parse --is-inside-work-tree 2>/dev/null
 
 1. Stage compile output:
    ```bash
-   git add wiki/ CLAUDE.md
+   git add wiki/ AGENTS.md
    ```
+   In a legacy repo without `AGENTS.md`, stage `wiki/` plus the fallback
+   entrypoint file you updated (`CLAUDE.md` or `GEMINI.md`).
 2. Check whether anything is actually staged:
    ```bash
    git diff --cached --quiet

@@ -22,12 +22,13 @@ Arguments are passed as: $ARGUMENTS
 
 Run `date '+%Y-%m-%d'` via Bash to establish the current date. All age calculations use this as "now."
 
-Read the `## Entity Types` section from `CLAUDE.md`. This tells you:
+Read the `## Entity Types` section from canonical `AGENTS.md`. In legacy repos
+without `AGENTS.md`, fall back to `CLAUDE.md`, then `GEMINI.md`. This tells you:
 - Which entity types exist and their wiki paths
 - Which entity types have `private_notes: yes` and their `private_note_staleness` thresholds
 - What frontmatter fields wiki pages should have (for contradiction detection)
 
-If `CLAUDE.md` has no Entity Types registry, use sensible defaults (30-day private note staleness, generic wiki checks).
+If no context file has an Entity Types registry, use sensible defaults (30-day private note staleness, generic wiki checks).
 
 ## Step 1: Stale research docs (only if referenced)
 
@@ -78,7 +79,7 @@ This is best-effort — only flag clear contradictions, not minor wording differ
 
 ## Step 6: Private notes recency
 
-Check private notes using entity type definitions from `CLAUDE.md`.
+Check private notes using entity type definitions from `AGENTS.md` or the legacy fallback registry.
 
 For each entity type with `private_notes: yes`:
 1. Glob `private/*.md` to find existing private note files.
@@ -91,10 +92,14 @@ Do NOT read private note content — only check recency via git log. Privacy bou
 
 ## Step 7: L1 hot set staleness
 
-Check if CLAUDE.md has hot set markers (`<!-- HOT SET START -->` / `<!-- HOT SET END -->`).
-If it does, check when the hot set was last compiled by comparing the `last_compiled`
-date in `wiki/INDEX.md` frontmatter. If the wiki has been compiled more recently than
-the hot set was updated, the L1 is stale — flag it.
+Check canonical `AGENTS.md` for hot set markers (`<!-- HOT SET START -->` /
+`<!-- HOT SET END -->`). Compare the hot set against the `last_compiled` date in
+`wiki/INDEX.md` frontmatter. If the wiki has been compiled more recently than
+the hot set was updated, `AGENTS.md` is stale — flag it.
+
+If `CLAUDE.md` or `GEMINI.md` also contains hot set markers while `AGENTS.md`
+exists, flag that as duplicated legacy state. Those harness files should be thin
+entrypoints that point to `AGENTS.md`.
 
 Also check if any pinned pages in INDEX.md no longer exist as wiki pages — these are
 stale pins that should be cleaned up.

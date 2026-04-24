@@ -1,17 +1,21 @@
 # kb — Personal Knowledge Base Plugin
 
-A multi-layer cache knowledge base with automated compilation from sources → wiki → CLAUDE.md.
+A multi-layer cache knowledge base with automated compilation from sources to
+wiki to canonical `AGENTS.md` context.
 
 ## Cache model
 
 The KB treats knowledge like a CPU cache hierarchy:
 
-- **L1 — CLAUDE.md** (always resident): Hot set tables with pointers to wiki pages. Loaded every session. Maintained automatically by `/compile`.
+- **L1 — `AGENTS.md`** (always resident where supported): Hot set tables with
+  pointers to wiki pages. `CLAUDE.md` and `GEMINI.md` are thin harness
+  entrypoints that point to the same canonical context. Maintained
+  automatically by `/compile`.
 - **L2 — Wiki** (loaded on demand): Compiled topic pages. Read when L1 doesn't have enough detail.
 - **L3 — Sources** (cold storage): Raw ingestion — session captures, automated syncs, manual notes. Accessed when L2 doesn't resolve the question.
 - **Outputs** (outside hierarchy): Products of the system — surfaces (HTML dashboards) and reports.
 
-Compilation flows upward: L3 → L2 → L1. The `/compile` skill handles the full pipeline.
+Compilation flows upward: L3 -> L2 -> L1. The `/compile` skill handles the full pipeline.
 
 ## Quick start
 
@@ -45,7 +49,7 @@ private/                # Sensitive notes — never compiled
 | Skill | Description |
 |-------|-------------|
 | `kb-setup` | Scaffold a KB repo and customize it via interview |
-| `compile` | Full pipeline: L3 → L2 (sources → wiki) then L2 → L1 (wiki → CLAUDE.md hot set) |
+| `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
 | `fin` | End-of-session capture — extract decisions, tasks, findings to `sources/sessions/` |
 | `tasks` | Task CRUD — create, list, update, mark done |
 | `research` | Research with recall, staleness tracking, source attribution |
@@ -53,7 +57,7 @@ private/                # Sensitive notes — never compiled
 
 ## Design principles
 
-- **Multi-layer cache.** L1 (CLAUDE.md) → L2 (wiki) → L3 (sources). Progressive disclosure.
+- **Multi-layer cache.** L1 (`AGENTS.md`) -> L2 (wiki) -> L3 (sources). Progressive disclosure.
 - **Convention over configuration.** File existence = open task. Frontmatter = metadata. Directories = organization.
 - **Local-first.** Git repo, no remote required.
 - **Additive.** Wiki compilation never destroys historical content.
