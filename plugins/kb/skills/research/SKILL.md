@@ -9,6 +9,20 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 
 Check existing research before doing new work. Update rather than duplicate. Enforce consistent format with dating and sourcing.
 
+## KB root
+
+Resolve the KB data root before scanning or writing research docs:
+
+```bash
+KB_ROOT="$(../_shared/scripts/kb-root)"
+../_shared/scripts/kb-run pwd
+```
+
+All `sources/` paths are relative to `KB_ROOT`, not necessarily the current repo.
+Use absolute paths under `KB_ROOT` for file reads/writes and `git -C "$KB_ROOT"
+...` for commits. Script paths are shown relative to this `SKILL.md`; if your
+shell is in another directory, invoke the same scripts by absolute path.
+
 ## Process
 
 ```dot

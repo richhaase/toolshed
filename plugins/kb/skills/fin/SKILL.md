@@ -15,6 +15,21 @@ Works on two kinds of sessions:
 1. **Legate sessions** — capture the tmux pane output, extract value, write to sources, kill the window.
 2. **Main conversation** — scan the current conversation, extract value, write to sources, commit.
 
+## KB root
+
+Resolve the KB data root before reading or writing KB files:
+
+```bash
+KB_ROOT="$(../_shared/scripts/kb-root)"
+../_shared/scripts/kb-run pwd
+```
+
+All `sources/`, `outputs/`, `private/`, and context files below are relative to
+`KB_ROOT`, not necessarily the current repo. Use `../_shared/scripts/kb-run <command>` or
+`git -C "$KB_ROOT" ...` for Bash commands. Read and write files using absolute
+paths under `KB_ROOT`. Script paths are shown relative to this `SKILL.md`; if
+your shell is in another directory, invoke the same scripts by absolute path.
+
 ## Arguments
 
 Arguments are passed as: $ARGUMENTS
@@ -213,8 +228,8 @@ tmux kill-window -t "<name>"
 ### For the main conversation
 Commit all written files:
 ```bash
-git add sources/ outputs/ private/
-git commit -m "fin: capture session — <brief summary>"
+git -C "$KB_ROOT" add sources/ outputs/ private/
+git -C "$KB_ROOT" commit -m "fin: capture session — <brief summary>"
 ```
 
 ### For `fin all`

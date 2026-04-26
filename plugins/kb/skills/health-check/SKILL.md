@@ -10,6 +10,21 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Skill, Agent]
 
 Audit the knowledge base for staleness, contradictions, gaps, and neglected items. Produces a concise summary suitable for embedding in a briefing or reading standalone.
 
+## KB root
+
+Resolve the KB data root before auditing:
+
+```bash
+KB_ROOT="$(../_shared/scripts/kb-root)"
+../_shared/scripts/kb-run pwd
+```
+
+All `sources/`, `wiki/`, `private/`, and context files below are relative to
+`KB_ROOT`, not necessarily the current repo. Use `../_shared/scripts/kb-run <command>` or
+`git -C "$KB_ROOT" ...` for Bash commands. Script paths are shown relative to
+this `SKILL.md`; if your shell is in another directory, invoke the same scripts
+by absolute path. Do not read private note content.
+
 ## Arguments
 
 Arguments are passed as: $ARGUMENTS
@@ -229,8 +244,8 @@ After all categories are triaged (or the user says "stop"), print a summary of a
 If any files were written or modified during triage, commit them:
 
 ```bash
-git add sources/ private/
-git commit -m "health-check triage: <brief summary of actions>"
+git -C "$KB_ROOT" add sources/ private/
+git -C "$KB_ROOT" commit -m "health-check triage: <brief summary of actions>"
 ```
 
 ## Guidelines

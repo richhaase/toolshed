@@ -7,6 +7,20 @@ description: Manage tasks in the KB — create, list, update, and complete tasks
 
 Manage task files in `sources/tasks/`. Each task is its own markdown file — existence means open, deletion means done.
 
+## KB root
+
+Resolve the KB data root before reading or writing task files:
+
+```bash
+KB_ROOT="$(../_shared/scripts/kb-root)"
+../_shared/scripts/kb-run pwd
+```
+
+All task paths are relative to `KB_ROOT`, not necessarily the current repo. Use
+absolute paths under `KB_ROOT` for file reads/writes and `git -C "$KB_ROOT" ...`
+for commits. Script paths are shown relative to this `SKILL.md`; if your shell
+is in another directory, invoke the same scripts by absolute path.
+
 ## Modes
 
 Determine the mode from context. If ambiguous, ask.
@@ -89,8 +103,8 @@ When completing, confirm which task if there's any ambiguity.
 After any create/update/done operation, commit the change:
 
 ```bash
-git add sources/tasks/
-git commit -m "tasks: <action> — <task title>"
+git -C "$KB_ROOT" add sources/tasks/
+git -C "$KB_ROOT" commit -m "tasks: <action> — <task title>"
 ```
 
 Action words: `create`, `update`, `complete`, `archive`.

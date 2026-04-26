@@ -75,6 +75,11 @@ demand) -> L3 (sources, cold storage). Claude and Gemini use thin entrypoints
 that point to `AGENTS.md`. Includes setup, compilation, session capture, task
 management, research with recall, and health checks.
 
+KB can be installed globally while the actual wiki lives in one configured data
+root. Set `KB_ROOT=/path/to/kb` or add a `.kb-root` file to a project repo; the
+bundled `skills/_shared/scripts/kb-root` and `skills/_shared/scripts/kb-run` helpers make each skill operate
+from the resolved KB root instead of assuming the current repo is the KB.
+
 ### [Legate](plugins/legate/) — Tmux Session Management
 
 Delegated authority over tmux sessions. Dispatch Claude Code, Codex, or Gemini

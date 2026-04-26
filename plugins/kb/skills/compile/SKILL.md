@@ -14,6 +14,21 @@ registry. In legacy KB repos without `AGENTS.md`, fall back to an existing
 `CLAUDE.md` or `GEMINI.md` registry and report that the repo should be migrated.
 Pages accumulate knowledge over time — this is additive, not destructive.
 
+## KB root
+
+Resolve the KB data root before doing anything else. Use the bundled scripts:
+
+```bash
+KB_ROOT="$(../_shared/scripts/kb-root)"
+../_shared/scripts/kb-run pwd
+```
+
+All KB paths below are relative to `KB_ROOT`, not necessarily the user's current
+repo. Use `../_shared/scripts/kb-run <command>` or `git -C "$KB_ROOT" ...` for Bash
+commands. Script paths are shown relative to this `SKILL.md`; if your shell is
+in another directory, invoke the same scripts by absolute path. Read and write
+files using absolute paths under `KB_ROOT`.
+
 ## Arguments
 
 Arguments are passed as: $ARGUMENTS
@@ -26,7 +41,7 @@ Arguments are passed as: $ARGUMENTS
 
 - **NEVER read files in `private/`** — that directory is a privacy boundary.
 - **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs. The only exception is a legacy repo without `AGENTS.md`, where you may update the existing entrypoint that owns the hot set and report the migration need.
-- **All paths relative to repo root** — `sources/`, not absolute paths.
+- **All KB paths are relative to the resolved KB root** — `sources/`, not the caller's current repo.
 
 ## Step 0: Read Entity Types registry
 
@@ -53,7 +68,7 @@ Check if `wiki/INDEX.md` exists:
 For incremental updates, use file modification times to detect changes:
 ```bash
 # Find source files modified after last compile (sessions, syncs, notes, tasks)
-find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null
+../_shared/scripts/kb-run find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null
 ```
 If no source files are newer than INDEX.md, report "wiki is current — no changes since last compile" and stop.
 
@@ -70,7 +85,7 @@ If no source files are newer than INDEX.md, report "wiki is current — no chang
 
 ### For incremental updates
 
-1. Run `find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null` to get the list of changed source files.
+1. Run `../_shared/scripts/kb-run find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null` to get the list of changed source files.
 2. **In a single message**, issue parallel Read calls for ALL changed source files AND `wiki/INDEX.md`. This is one batch — not sequential reads.
 3. After reading all changed sources, identify which entities are mentioned and which entity type each belongs to.
 4. **In a single message**, issue parallel Read calls for ALL affected wiki pages that need updating.
@@ -321,7 +336,7 @@ durable record of what each compile pass did, so this step replaces the inline
 ### Detect the git context
 
 ```bash
-git -C "$(pwd)" rev-parse --is-inside-work-tree 2>/dev/null
+git -C "$KB_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
 ```
 
 - Output `true` → in a git working tree, proceed with the commit flow below.
@@ -333,13 +348,13 @@ git -C "$(pwd)" rev-parse --is-inside-work-tree 2>/dev/null
 
 1. Stage compile output:
    ```bash
-   git add wiki/ AGENTS.md
+   git -C "$KB_ROOT" add wiki/ AGENTS.md
    ```
    In a legacy repo without `AGENTS.md`, stage `wiki/` plus the fallback
    entrypoint file you updated (`CLAUDE.md` or `GEMINI.md`).
 2. Check whether anything is actually staged:
    ```bash
-   git diff --cached --quiet
+   git -C "$KB_ROOT" diff --cached --quiet
    ```
    If exit code is `0` (no staged changes), skip the commit — there is nothing
    to record. Report `commit: skipped (no changes)`.
@@ -352,7 +367,7 @@ git -C "$(pwd)" rev-parse --is-inside-work-tree 2>/dev/null
      promotions/demotions, any sources that couldn't be processed. Use a
      HEREDOC to preserve formatting:
      ```bash
-     git commit -m "$(cat <<'EOF'
+     git -C "$KB_ROOT" commit -m "$(cat <<'EOF'
      compile: update wiki — <brief synthesis>
 
      Sources processed (N): <one-line list or grouped summary>

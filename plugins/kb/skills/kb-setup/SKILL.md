@@ -23,10 +23,34 @@ allowed-tools:
 
 Two-phase skill: scaffold the directory structure, then interview the user to customize.
 
+## KB root
+
+`kb-setup` is the entry point that creates or selects the KB data root.
+
+Use the bundled resolver when a root may already be configured:
+
+```bash
+KB_ROOT="$(../_shared/scripts/kb-root 2>/dev/null || true)"
+```
+
+If the user gives a target directory, use that as `KB_ROOT`. If they ask for a
+global KB and do not give a path, ask for the location. If they just ask to set
+up the current repo, use the current working directory.
+
+For global plugin use, support either configuration method:
+
+- `KB_ROOT=/path/to/kb` in the user's shell environment.
+- A `.kb-root` file in any project repo containing `/path/to/kb` or a relative path.
+
+After choosing `KB_ROOT`, run filesystem and git commands against that directory
+with absolute paths or `git -C "$KB_ROOT" ...`. Script paths are shown relative
+to this `SKILL.md`; if your shell is in another directory, invoke the same
+scripts by absolute path.
+
 ## Phase 1: Scaffold
 
-Create the base KB structure in the current working directory. If files already exist,
-skip them — never overwrite existing content.
+Create the base KB structure in `KB_ROOT`. If files already exist, skip them —
+never overwrite existing content.
 
 ### Directory structure
 
@@ -48,7 +72,7 @@ private/                # Sensitive notes — never compiled into wiki
 Create all directories:
 
 ```bash
-mkdir -p sources/sessions sources/syncs sources/notes sources/tasks/done wiki outputs/surfaces outputs/reports private
+mkdir -p "$KB_ROOT"/sources/sessions "$KB_ROOT"/sources/syncs "$KB_ROOT"/sources/notes "$KB_ROOT"/sources/tasks/done "$KB_ROOT"/wiki "$KB_ROOT"/outputs/surfaces "$KB_ROOT"/outputs/reports "$KB_ROOT"/private
 ```
 
 ### Starter context files
@@ -197,17 +221,24 @@ private/
 If not already a git repo, initialize one:
 
 ```bash
-git init
-git add -A
-git commit -m "Initialize knowledge base"
+git -C "$KB_ROOT" init
+git -C "$KB_ROOT" add -A
+git -C "$KB_ROOT" commit -m "Initialize knowledge base"
 ```
 
 If already a git repo, stage and commit the scaffold:
 
 ```bash
-git add -A
-git commit -m "Scaffold KB directory structure"
+git -C "$KB_ROOT" add -A
+git -C "$KB_ROOT" commit -m "Scaffold KB directory structure"
 ```
+
+### Optional project pointer
+
+If the user wants this global KB available from a project repo, write `.kb-root`
+in that project repo with the chosen `KB_ROOT` path. Do this only when the user
+asks for the pointer or confirms the target project. Do not overwrite an existing
+`.kb-root` without asking.
 
 ### Tell the user
 
@@ -340,7 +371,7 @@ Also add these sections based on interview answers:
 
 Create a subdirectory under `wiki/` for each entity type:
 ```bash
-mkdir -p wiki/people wiki/projects wiki/interests wiki/goals wiki/ideas  # adapt to configured types
+mkdir -p "$KB_ROOT"/wiki/people "$KB_ROOT"/wiki/projects "$KB_ROOT"/wiki/interests "$KB_ROOT"/wiki/goals "$KB_ROOT"/wiki/ideas  # adapt to configured types
 ```
 
 #### Seed INDEX.md
@@ -381,8 +412,8 @@ does from Phase 1).
 #### Commit customizations
 
 ```bash
-git add -A
-git commit -m "Customize KB: <brief summary of entity types and choices>"
+git -C "$KB_ROOT" add -A
+git -C "$KB_ROOT" commit -m "Customize KB: <brief summary of entity types and choices>"
 ```
 
 #### Tell the user what's next

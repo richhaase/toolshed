@@ -3,6 +3,10 @@
 A multi-layer cache knowledge base with automated compilation from sources to
 wiki to canonical `AGENTS.md` context.
 
+The plugin can be installed globally. Its skills resolve the KB data root before
+reading or writing, so the wiki can live in one configured directory while the
+skills are invoked from any project.
+
 ## Cache model
 
 The KB treats knowledge like a CPU cache hierarchy:
@@ -24,6 +28,31 @@ Compilation flows upward: L3 -> L2 -> L1. The `/compile` skill handles the full 
 ```
 
 This scaffolds the directory structure and walks you through customizing the KB for your use case.
+
+## KB root configuration
+
+Skills resolve the KB root in this order:
+
+1. `KB_ROOT` environment variable
+2. nearest `.kb-root` file walking upward from the current directory
+3. current directory, if it already looks like a KB
+
+For a global KB, either export `KB_ROOT`:
+
+```bash
+export KB_ROOT=/Users/rdh/src/kb
+```
+
+Or add a `.kb-root` file to a project:
+
+```text
+/Users/rdh/src/kb
+```
+
+Bundled scripts:
+
+- `skills/_shared/scripts/kb-root` prints the resolved KB root.
+- `skills/_shared/scripts/kb-run <command>` runs a command from the resolved KB root.
 
 ## Directory structure
 
