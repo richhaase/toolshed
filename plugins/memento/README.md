@@ -1,20 +1,15 @@
-# kb — Personal Knowledge Base Plugin
+# memento — Personal Memory Base Plugin
 
-> **Deprecated:** `kb` remains available for existing users and compatibility.
-> New installs should use the `memento` plugin instead. The `kb` behavior is
-> intentionally preserved; new memory/control-plane workflows will continue in
-> `plugins/memento/`.
-
-A multi-layer cache knowledge base with automated compilation from sources to
+A multi-layer cache memory base with automated compilation from sources to
 wiki to canonical `AGENTS.md` context.
 
-The plugin can be installed globally. Its skills resolve the KB data root before
+The plugin can be installed globally. Its skills resolve the Memento data root before
 reading or writing, so the wiki can live in one configured directory while the
 skills are invoked from any project.
 
 ## Cache model
 
-The KB treats knowledge like a CPU cache hierarchy:
+The Memento treats knowledge like a CPU cache hierarchy:
 
 - **L1 — `AGENTS.md`** (always resident where supported): Hot set tables with
   pointers to wiki pages. `CLAUDE.md` and `GEMINI.md` are thin harness
@@ -29,35 +24,37 @@ Compilation flows upward: L3 -> L2 -> L1. The `/compile` skill handles the full 
 ## Quick start
 
 ```
-/kb-setup
+/memento-setup
 ```
 
-This scaffolds the directory structure and walks you through customizing the KB for your use case.
+This scaffolds the directory structure and walks you through customizing the Memento for your use case.
 
-## KB root configuration
+## Memento root configuration
 
-Skills resolve the KB root in this order:
+Skills resolve the Memento root in this order:
 
-1. `KB_ROOT` environment variable
-2. nearest `.kb-root` file walking upward from the current directory
-3. current directory, if it already looks like a KB
+1. `MEMENTO_ROOT` environment variable
+2. nearest `.memento-root` file walking upward from the current directory
+3. `KB_ROOT` environment variable (deprecated compatibility alias)
+4. nearest `.kb-root` file walking upward from the current directory (deprecated)
+5. current directory, if it already looks like a Memento
 
-For a global KB, either export `KB_ROOT`:
+For a global Memento, either export `MEMENTO_ROOT`:
 
 ```bash
-export KB_ROOT=/Users/rdh/src/kb
+export MEMENTO_ROOT=/Users/rdh/src/memento
 ```
 
-Or add a `.kb-root` file to a project:
+Or add a `.memento-root` file to a project:
 
 ```text
-/Users/rdh/src/kb
+/Users/rdh/src/memento
 ```
 
 Bundled scripts:
 
-- `skills/_shared/scripts/kb-root` prints the resolved KB root.
-- `skills/_shared/scripts/kb-run <command>` runs a command from the resolved KB root.
+- `skills/_shared/scripts/memento-root` prints the resolved Memento root.
+- `skills/_shared/scripts/memento-run <command>` runs a command from the resolved Memento root.
 
 ## Directory structure
 
@@ -82,12 +79,35 @@ private/                # Sensitive notes — never compiled
 
 | Skill | Description |
 |-------|-------------|
-| `kb-setup` | Scaffold a KB repo and customize it via interview |
+| `memento-setup` | Scaffold a Memento repo and customize it via interview |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
+| `recall` | Read-only lookup in L1, then L2, then L3 |
+| `remember` | Additive capture that writes new source material only under `sources/` |
+| `correct` | Supersede or archive stale source material while preserving history |
 | `fin` | End-of-session capture — extract decisions, tasks, findings to `sources/sessions/` |
 | `tasks` | Task CRUD — create, list, update, mark done |
 | `research` | Research with recall, staleness tracking, source attribution |
-| `health-check` | Read-only audit for staleness, gaps, contradictions, L1 freshness |
+| `health-check` | Read-only audit for source status, staleness, gaps, contradictions, L1 freshness |
+
+## Source status
+
+Sources are current by default. Add frontmatter when a source should stop
+shaping current synthesis:
+
+```yaml
+---
+status: active|superseded|archived
+supersedes:
+  - sources/path-to-old-source.md
+superseded_by: sources/path-to-new-source.md
+archive_note: "Why this is historical only"
+correction_note: "What changed and why"
+---
+```
+
+`compile` ignores `superseded` and `archived` sources for current-state wiki and
+hot-set synthesis. `health-check` validates status consistency, broken
+supersession links, stale index entries, and private leakage.
 
 ## Design principles
 
@@ -96,7 +116,7 @@ private/                # Sensitive notes — never compiled
 - **Local-first.** Git repo, no remote required.
 - **Additive.** Wiki compilation never destroys historical content.
 - **Private by default.** `private/` is never compiled or referenced externally.
-- **Opinionated defaults, customizable.** Works immediately; `kb-setup` interview tunes it.
+- **Opinionated defaults, customizable.** Works immediately; `memento-setup` interview tunes it.
 
 ## File conventions
 
