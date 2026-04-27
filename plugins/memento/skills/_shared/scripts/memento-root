@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: memento-root [--allow-missing]
+
+Print the configured Memento root.
+
+Resolution order:
+  1. MEMENTO_ROOT environment variable
+  2. nearest .memento-root file walking upward from the current directory
+  3. KB_ROOT environment variable (deprecated compatibility alias)
+  4. nearest .kb-root file walking upward from the current directory (deprecated)
+  5. current directory, if it already looks like a Memento
+
+.memento-root and .kb-root may contain an absolute path, a ~ path, or a path
+relative to the directory containing the marker file. Blank lines and # comments
+are ignored.
+EOF
+}
+
+allow_missing=false
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+elif [[ "${1:-}" == "--allow-missing" ]]; then
+  allow_missing=true
+elif [[ $# -gt 0 ]]; then
+  usage >&2
+  exit 64
+fi
+
+expand_path() {
+  local raw="$1"
+  local base="${2:-}"
+
+  case "$raw" in
+    "~") raw="$HOME" ;;
+    "~/"*) raw="$HOME/${raw#~/}" ;;
+  esac
+
+  if [[ "$raw" = /* ]]; then
+    printf '%s\n' "$raw"
+  elif [[ -n "$base" ]]; then
+    printf '%s/%s\n' "$base" "$raw"
+  else
+    printf '%s/%s\n' "$(pwd)" "$raw"
+  fi
+}
+
+canonicalize_existing() {
+  local path="$1"
+  (cd "$path" 2>/dev/null && pwd -P)
+}
+
+canonicalize_maybe_missing() {
+  local path="$1"
+  local parent
+  parent="$(dirname "$path")"
+  local leaf
+  leaf="$(basename "$path")"
+  (cd "$parent" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$leaf")
+}
+
+print_root() {
+  local candidate="$1"
+  if [[ -d "$candidate" ]]; then
+    canonicalize_existing "$candidate"
+    exit 0
+  fi
+
+  if [[ "$allow_missing" == true ]]; then
+    if ! canonicalize_maybe_missing "$candidate"; then
+      printf 'memento-root: parent directory for configured Memento root does not exist: %s\n' "$candidate" >&2
+      exit 66
+    fi
+    exit 0
+  fi
+
+  printf 'memento-root: configured Memento root does not exist: %s\n' "$candidate" >&2
+  exit 66
+}
+
+find_marker_root() {
+  local marker_name="$1"
+  local dir marker target
+  dir="$(pwd -P)"
+
+  while true; do
+    marker="$dir/$marker_name"
+    if [[ -f "$marker" ]]; then
+      target="$(sed -n '/^[[:space:]]*#/d; /^[[:space:]]*$/d; s/^[[:space:]]*//; s/[[:space:]]*$//; p; q' "$marker")"
+      if [[ -z "$target" ]]; then
+        printf 'memento-root: %s exists but contains no path\n' "$marker" >&2
+        exit 65
+      fi
+      print_root "$(expand_path "$target" "$dir")"
+    fi
+
+    if [[ "$dir" == "/" ]]; then
+      break
+    fi
+    dir="$(dirname "$dir")"
+  done
+}
+
+if [[ -n "${MEMENTO_ROOT:-}" ]]; then
+  print_root "$(expand_path "$MEMENTO_ROOT")"
+fi
+
+find_marker_root ".memento-root"
+
+if [[ -n "${KB_ROOT:-}" ]]; then
+  print_root "$(expand_path "$KB_ROOT")"
+fi
+
+find_marker_root ".kb-root"
+
+cwd="$(pwd -P)"
+if [[ -d "$cwd/sources" && -d "$cwd/wiki" && -f "$cwd/AGENTS.md" ]]; then
+  printf '%s\n' "$cwd"
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+memento-root: no Memento root configured.
+
+Set MEMENTO_ROOT, add a .memento-root file containing the Memento path, or run
+memento-setup in a directory that should become the Memento root.
+
+Deprecated compatibility aliases also work: KB_ROOT and .kb-root.
+EOF
+exit 69

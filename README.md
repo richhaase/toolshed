@@ -20,16 +20,20 @@ claude plugin marketplace add richhaase/toolshed
 Install a plugin:
 
 ```bash
-claude plugin install kb@toolshed
+claude plugin install memento@toolshed
 claude plugin install legate@toolshed
+# Deprecated compatibility alias:
+claude plugin install kb@toolshed
 ```
 
 Inside Claude Code, the equivalent commands are:
 
 ```text
 /plugin marketplace add richhaase/toolshed
-/plugin install kb@toolshed
+/plugin install memento@toolshed
 /plugin install legate@toolshed
+# Deprecated compatibility alias:
+/plugin install kb@toolshed
 ```
 
 ### Codex
@@ -54,31 +58,36 @@ codex plugin marketplace add /path/to/toolshed
 Install the portable skills:
 
 ```bash
-gemini skills install https://github.com/richhaase/toolshed --path plugins/kb/skills
+gemini skills install https://github.com/richhaase/toolshed --path plugins/memento/skills
 gemini skills install https://github.com/richhaase/toolshed --path plugins/legate/skills
 ```
 
 For local development:
 
 ```bash
-gemini skills link /path/to/toolshed/plugins/kb/skills --scope workspace --consent
+gemini skills link /path/to/toolshed/plugins/memento/skills --scope workspace --consent
 gemini skills link /path/to/toolshed/plugins/legate/skills --scope workspace --consent
 ```
 
 ## Plugins
 
-### [KB](plugins/kb/) — Personal Knowledge Base
+### [Memento](plugins/memento/) — Personal Memory Base
 
-Multi-layer cache knowledge base with automated compilation. Treats knowledge
+Multi-layer cache memory base with automated compilation. Treats knowledge
 like a CPU cache hierarchy: L1 (`AGENTS.md` hot set) -> L2 (wiki, loaded on
 demand) -> L3 (sources, cold storage). Claude and Gemini use thin entrypoints
 that point to `AGENTS.md`. Includes setup, compilation, session capture, task
-management, research with recall, and health checks.
+management, recall, remember/correct workflows, research, and health checks.
 
-KB can be installed globally while the actual wiki lives in one configured data
-root. Set `KB_ROOT=/path/to/kb` or add a `.kb-root` file to a project repo; the
-bundled `skills/_shared/scripts/kb-root` and `skills/_shared/scripts/kb-run` helpers make each skill operate
-from the resolved KB root instead of assuming the current repo is the KB.
+Memento can be installed globally while the actual wiki lives in one configured
+data root. Set `MEMENTO_ROOT=/path/to/memento` or add a `.memento-root` file to
+a project repo; the bundled `skills/_shared/scripts/memento-root` and
+`skills/_shared/scripts/memento-run` helpers make each skill operate from the
+resolved root instead of assuming the current repo is the Memento.
+
+`kb` remains available as a deprecated compatibility plugin at
+[`plugins/kb/`](plugins/kb/) for existing installs, including `KB_ROOT` and
+`.kb-root`.
 
 ### [Legate](plugins/legate/) — Tmux Session Management
 
@@ -94,7 +103,7 @@ alongside them. Stateless by design: tmux is the source of truth.
 | Codex | `.agents/plugins/marketplace.json` | `plugins/*/.codex-plugin/plugin.json` | `AGENTS.md` |
 | Gemini CLI | `gemini skills install/link --path plugins/*/skills` | n/a | `GEMINI.md` |
 
-Keep plugin behavior in `SKILL.md`; keep wrappers thin. For KB consumer repos,
+Keep plugin behavior in `SKILL.md`; keep wrappers thin. For Memento consumer repos,
 `AGENTS.md` is the canonical shared context and vendor entrypoints should only
 adapt their harness to it.
 

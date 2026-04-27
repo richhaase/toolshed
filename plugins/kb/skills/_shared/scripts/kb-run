@@ -2,12 +2,4 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-root="$("$script_dir/kb-root")"
-
-if [[ $# -eq 0 || "${1:-}" == "--print-root" ]]; then
-  printf '%s\n' "$root"
-  exit 0
-fi
-
-cd "$root"
-exec "$@"
+exec "$script_dir/../../../../memento/skills/_shared/scripts/memento-run" "$@"

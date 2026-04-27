@@ -16,7 +16,7 @@ Skills follow the [Agent Skills](https://agentskills.io) open format.
 claude plugin validate .          # Validate marketplace structure
 claude plugin validate plugins/<name>  # Validate a single plugin
 codex plugin marketplace add .    # Smoke-test Codex marketplace discovery
-gemini skills link plugins/kb/skills --scope workspace --consent
+gemini skills link plugins/memento/skills --scope workspace --consent
 ```
 
 ## Adding a plugin
@@ -37,7 +37,7 @@ Each skill is a directory with a `SKILL.md` containing YAML frontmatter + Markdo
 
 ## Current plugins
 
-- **kb** — Knowledge-base workflows (setup, compile, fin, tasks, research, health-check).
+- **memento** — Memory-base workflows (setup, recall, remember, correct, compile, fin, tasks, research, health-check). `kb` remains a deprecated compatibility alias.
 - **legate** — Stateless tmux session management (dispatch, debrief, inspect). Tmux is the source of truth; no registry files.
 
 ## Portability rules
@@ -46,10 +46,10 @@ Each skill is a directory with a `SKILL.md` containing YAML frontmatter + Markdo
   harness manifests or install docs.
 - Treat `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` as harness-specific entrypoint
   files for the same conceptual context.
-- For KB consumer repos, treat `AGENTS.md` as the canonical shared KB context.
+- For Memento consumer repos, treat `AGENTS.md` as the canonical shared Memento context.
   `CLAUDE.md` and `GEMINI.md` should be thin harness entrypoints that route to
-  it, not duplicated copies of the same KB state.
+  it, not duplicated copies of the same Memento state.
 - Prefer generic wording in skills: "agent entrypoint" rather than only
   `CLAUDE.md`, unless the instruction is explicitly Claude-specific.
-- Keep `kb` and `legate` separate plugins. `kb` may use `legate` when installed,
+- Keep `memento` and `legate` separate plugins. Memento may use `legate` when installed,
   but must degrade cleanly when it is not.

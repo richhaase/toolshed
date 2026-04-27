@@ -8,8 +8,9 @@ docs only expose the same portable resources to Claude Code, Codex, and Gemini C
 
 ## Plugins
 
-- `kb` provides local knowledge-base workflows: setup, compile, finish session,
-  tasks, research, and health checks.
+- `memento` provides local memory-base workflows: setup, recall, remember,
+  correct, compile, finish session, tasks, research, and health checks. `kb`
+  remains a deprecated compatibility alias.
 - `legate` provides tmux-based delegated agent session management: dispatch,
   debrief, and inspect.
 
@@ -18,6 +19,6 @@ docs only expose the same portable resources to Claude Code, Codex, and Gemini C
 Install or link the existing skill directories:
 
 ```bash
-gemini skills link plugins/kb/skills --scope workspace --consent
+gemini skills link plugins/memento/skills --scope workspace --consent
 gemini skills link plugins/legate/skills --scope workspace --consent
 ```
