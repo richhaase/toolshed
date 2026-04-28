@@ -95,34 +95,61 @@ Compute three diffs against the current state:
 Unchanged windows are not interesting. **If all three diffs are empty, report
 nothing.**
 
-If any diff is non-empty, render the report inside an ASCII box so it stands
-out from surrounding model output. Every line in the report — including the
-header, body lines, and footer — is part of the same visual container. Use
-this exact format:
+If any diff is non-empty, render the **entire** report inside an ASCII box
+so it stands out from surrounding model output. Every line — header, body,
+footer, and any contextual notes — lives inside the box. Use this exact
+shape:
 
 ```
-┌─ legate:watch ──────────────────────────────────────────
+┌─ legate:watch ──────────────────────────────────────────────
+│
 │ Appeared:    <window> — <one-line synthesis>
 │ Changed:     <window> — <one-line synthesis>
+│              <window> — <one-line synthesis>
 │ Disappeared: <window>
-└─────────────────────────────────────────────────────────
+│
+│ Unchanged: <window>, <window>, <window>
+│
+└─────────────────────────────────────────────────────────────
 ```
+
+Hard rules — prior renderings violated these and the box "leaked":
+
+- **Gutter on every line.** Every body line starts with `│ ` (vertical bar
+  + space). Plain leading spaces are not a substitute — the bar must be
+  there. This includes continuation lines for wrapped synthesis. Blank
+  spacer lines are a single `│` with nothing after.
+- **Breathing room.** Open with one blank gutter line (`│`) right after
+  the header border, close with one blank gutter line right before the
+  footer border, and put one blank gutter line between the diff section
+  and the optional `Unchanged:` line. Do not pack content edge-to-edge
+  against the borders.
+- **Borders wider than content.** The top and bottom borders must be at
+  least as wide as the widest body line — nothing should visually escape
+  the box. Default to ~60 dashes; widen if a synthesis demands it.
+- **Wrap inside the box.** If a synthesis runs long, wrap it onto a
+  continuation line that also starts with `│ `, indented under the value
+  column (not under the label). Never let text spill past the right
+  border or appear outside the gutter.
+- **Omit empty sections.** Skip any of `Appeared` / `Changed` /
+  `Disappeared` whose diff is empty — don't print an empty header.
+- **Everything inside.** Do not print a plain-text recap, an "all quiet"
+  follow-up sentence, or any other watch-related text outside the box on
+  the same tick. The box is the only rendering.
 
 For changed and appeared windows, invoke `legate:debrief <window>` via the
 Skill tool to get a one-line synthesis — debrief already knows how to
-interpret a pane tail against a brief. For disappeared windows, just note the
-name and that it's gone.
+interpret a pane tail against a brief. For disappeared windows, just note
+the name.
 
-Multiple windows of the same kind get one line each, all sharing the same
-gutter character (`│`). Omit any of the three labels (`Appeared` /
-`Changed` / `Disappeared`) whose diff is empty. If a window's synthesis runs
-long, wrap it onto a continuation line that also starts with `│ ` — never let
-a line escape the gutter. Keep each window's line to one or two lines; the
-user wants the arc, not a transcript.
+The optional `Unchanged:` line is a single comma-separated list of
+window names that did not change this tick — included for scan context so
+the user can see "everything else is steady". Skip it if there are no
+unchanged windows or if it would overflow ~80 chars even after wrapping
+inside the gutter.
 
-The box is the **only** rendering for the delta report — do not also print a
-plain-text version of the same content outside the box. Consistency across
-ticks matters more than the specific glyphs.
+Keep each window's line to one or two lines. Consistency across ticks
+matters more than the specific glyphs.
 
 ### Step 5: Record the new snapshot
 
