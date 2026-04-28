@@ -95,14 +95,34 @@ Compute three diffs against the current state:
 Unchanged windows are not interesting. **If all three diffs are empty, report
 nothing.**
 
-If any diff is non-empty, print a short section per changed window. For
-changed and appeared windows, invoke `legate:debrief <window>` via the Skill
-tool to get a one-line synthesis — debrief already knows how to interpret a
-pane tail against a brief. For disappeared windows, just note the name and
-that it's gone.
+If any diff is non-empty, render the report inside an ASCII box so it stands
+out from surrounding model output. Every line in the report — including the
+header, body lines, and footer — is part of the same visual container. Use
+this exact format:
 
-Keep each window's line to one or two lines. The user wants the arc, not a
-transcript.
+```
+┌─ legate:watch ──────────────────────────────────────────
+│ Appeared:    <window> — <one-line synthesis>
+│ Changed:     <window> — <one-line synthesis>
+│ Disappeared: <window>
+└─────────────────────────────────────────────────────────
+```
+
+For changed and appeared windows, invoke `legate:debrief <window>` via the
+Skill tool to get a one-line synthesis — debrief already knows how to
+interpret a pane tail against a brief. For disappeared windows, just note the
+name and that it's gone.
+
+Multiple windows of the same kind get one line each, all sharing the same
+gutter character (`│`). Omit any of the three labels (`Appeared` /
+`Changed` / `Disappeared`) whose diff is empty. If a window's synthesis runs
+long, wrap it onto a continuation line that also starts with `│ ` — never let
+a line escape the gutter. Keep each window's line to one or two lines; the
+user wants the arc, not a transcript.
+
+The box is the **only** rendering for the delta report — do not also print a
+plain-text version of the same content outside the box. Consistency across
+ticks matters more than the specific glyphs.
 
 ### Step 5: Record the new snapshot
 
