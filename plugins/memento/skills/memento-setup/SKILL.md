@@ -192,9 +192,6 @@ Follow the cache layers:
 3. **L3 (`sources/`)** — Deep miss. Trace back to raw data.
 4. **Ask the user** — If no layer has what you need.
 
-Use `/recall` for read-only lookup, `/remember` for additive capture, and
-`/correct` to supersede or archive stale source material.
-
 ## Agent Rules
 
 - **Local-only repo** — Commit freely. No remote pushes unless explicitly asked.

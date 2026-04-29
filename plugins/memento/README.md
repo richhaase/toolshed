@@ -81,13 +81,15 @@ private/                # Sensitive notes — never compiled
 |-------|-------------|
 | `memento-setup` | Scaffold a Memento repo and customize it via interview |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
-| `recall` | Read-only lookup in L1, then L2, then L3 |
-| `remember` | Additive capture that writes new source material only under `sources/` |
-| `correct` | Supersede or archive stale source material while preserving history |
 | `fin` | End-of-session capture — extract decisions, tasks, findings to `sources/sessions/` |
 | `tasks` | Task CRUD — create, list, update, mark done |
-| `research` | Research with recall, staleness tracking, source attribution |
+| `research` | Research with staleness tracking and source attribution |
 | `health-check` | Read-only audit for source status, staleness, gaps, contradictions, L1 freshness |
+
+For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
+descend into `wiki/` and `sources/` as needed). For capture, edit files under
+`sources/` directly or use `fin` for session-end captures. Supersession is a
+manual frontmatter edit (see Source status below).
 
 ## Source status
 
