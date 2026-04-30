@@ -1,6 +1,6 @@
 ---
 name: tasks
-description: Manage tasks in the Memento — create, list, update, and complete tasks. Use this skill when the user mentions tasks, action items, to-dos, or follow-ups. Triggers on phrases like "add a task", "what's on my plate", "mark that done", "task for X", "open tasks", "I need to remember to", "follow up on", or any request to track, review, or manage work items. Also invoked by fin for task creation.
+description: Manage tasks in the Memento — create, list, update, complete, and promote follow-ups into tasks. Use this skill when the user mentions tasks, action items, or commitments. Triggers on phrases like "add a task", "what's on my plate", "mark that done", "task for X", "open tasks", "I need to remember to", "I'm going to drive X", "promote this follow-up", or any request to track or manage committed work. Also invoked by fin for task creation and by review-followups for promotion. Tasks are commitments — for uncommitted captures (open questions, awareness items, loose ends), use follow-ups via fin or review-followups instead.
 ---
 
 # Tasks
@@ -26,6 +26,13 @@ is in another directory, invoke the same scripts by absolute path.
 Determine the mode from context. If ambiguous, ask.
 
 ### Create
+
+**Tasks are commitments.** Create a task only when the user has explicitly
+said they will drive an action. If the input is "this exists / someone
+asked / open question / we should think about X / I'll look at it later,"
+that is a follow-up, not a task — file it via `fin` or hand it back so it
+lands in `sources/followups/` instead. Promotion (follow-up → task) is
+cheap and happens via the `promote` mode below.
 
 Make a new task file in `sources/tasks/`.
 
@@ -87,6 +94,55 @@ Add context, notes, or subtasks to an existing task. Read the file, append or ed
 - Adding links to tickets or PRs
 - Adding notes on progress
 
+### Promote
+
+Convert an existing follow-up into a task. Triggered by `review-followups`
+or directly by the user ("promote that follow-up", "make X a task").
+
+Input: a path to a follow-up file under `sources/followups/<slug>.md`.
+
+Procedure:
+
+1. Read the follow-up file. Extract the title (first `#` heading), body,
+   and any `## Notes` history.
+2. Confirm with the user that this represents a real commitment — not
+   "we should think about it" but "I'm going to drive this." If the
+   commitment is unclear, ask one question to pin it down (e.g., "is
+   this something you're going to drive, or should it stay as a
+   follow-up?"). If the answer is no, leave the follow-up in place and
+   stop.
+3. Write a new task file at `sources/tasks/<slug>.md` (reuse the slug
+   unless it collides with an existing task). Frontmatter:
+
+   ```markdown
+   ---
+   date: <today>
+   promoted_from: sources/followups/<slug>.md
+   originally_opened: <date from the follow-up frontmatter>
+   ---
+   # <Title>
+
+   <Body from the follow-up, rephrased as a commitment if needed.>
+
+   ## History
+   - YYYY-MM-DD opened as follow-up
+   - YYYY-MM-DD promoted to task
+
+   <Append the follow-up's `## Notes`, if any.>
+   ```
+
+4. Delete the original follow-up file. The task is now the canonical
+   record.
+5. Commit:
+
+   ```bash
+   git -C "$MEMENTO_ROOT" add sources/tasks/ sources/followups/
+   git -C "$MEMENTO_ROOT" commit -m "tasks: promote — <task title>"
+   ```
+
+Do not promote silently. The user has to confirm the commitment, since
+that confirmation is the whole point of the task vs follow-up split.
+
 ### Done
 
 Complete a task. Two options:
@@ -107,4 +163,4 @@ git -C "$MEMENTO_ROOT" add sources/tasks/
 git -C "$MEMENTO_ROOT" commit -m "tasks: <action> — <task title>"
 ```
 
-Action words: `create`, `update`, `complete`, `archive`.
+Action words: `create`, `update`, `complete`, `archive`, `promote`.

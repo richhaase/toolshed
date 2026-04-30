@@ -62,8 +62,10 @@ sources/                # L3 — raw inputs, cold storage
 ├── syncs/              # Automated pulls from external services
 │   └── <provider>/     # One dir per source (concept2/, github/, etc.)
 ├── notes/              # Manual markdown Rich drops in
-└── tasks/              # One file per task, existence = open
-    └── done/           # Archived completed tasks
+├── tasks/              # One file per task — user-committed actions
+│   └── done/           # Archived completed tasks
+└── followups/          # One file per follow-up — uncommitted captures
+                        # (open questions, awareness items, loose ends)
 wiki/                   # L2 — compiled knowledge, loaded on demand
 outputs/                # Products of the system
 ├── surfaces/           # HTML dashboards, served over HTTP
@@ -74,7 +76,7 @@ private/                # Sensitive notes — never compiled into wiki
 Create all directories:
 
 ```bash
-mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/tasks/done "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
+mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/tasks/done "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
 ```
 
 ### Starter context files
@@ -127,8 +129,10 @@ sources/                # L3 — raw inputs
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/ — timestamped files
 ├── notes/              # Manual markdown
-└── tasks/              # One file per task, existence = open
-    └── done/           # Archived completed tasks
+├── tasks/              # User-committed actions; existence = open
+│   └── done/           # Archived completed tasks
+└── followups/          # Uncommitted captures — open questions,
+                        # awareness items, loose ends
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
@@ -151,7 +155,12 @@ All inputs that feed the wiki. Organized by origin:
 - **`sessions/`** — Extracted from conversations via `/fin`
 - **`syncs/<provider>/`** — Automated pulls from external services
 - **`notes/`** — Manual markdown dropped in directly
-- **`tasks/`** — Action items. Existence = open, deletion = done.
+- **`tasks/`** — User-committed actions. Existence = open, deletion = done.
+- **`followups/`** — Uncommitted captures: open questions, awareness items,
+  things others surfaced, loose ends. Default destination for non-task
+  `/fin` captures. Walked periodically via `/review-followups` and either
+  promoted to `tasks/`, dismissed, or kept. Briefings do not surface
+  follow-ups as urgent.
 
 All source docs require YAML frontmatter with at least `date`.
 

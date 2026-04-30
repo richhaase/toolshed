@@ -39,10 +39,20 @@ Each skill is a directory with a `SKILL.md` containing YAML frontmatter + Markdo
 
 When you change anything inside a plugin directory (`plugins/<name>/SKILL.md`,
 files under `plugins/<name>/skills/`, scripts, hooks, references, assets),
-bump `version` in `plugins/<name>/.claude-plugin/plugin.json`. Claude Code's
-plugin cache keys off that version; without a bump, installed copies keep
-serving the old skill bodies after a `/plugin update`. README and LICENSE
-edits don't need a bump.
+bump `version` in **both** harness manifests in lockstep:
+
+- `plugins/<name>/.claude-plugin/plugin.json`
+- `plugins/<name>/.codex-plugin/plugin.json`
+
+Use the same version string in both files. Claude Code's plugin cache keys
+off `.claude-plugin/plugin.json`; Codex keys off `.codex-plugin/plugin.json`.
+Without a bump on either side, installed copies keep serving the old skill
+bodies after `/plugin update` (Claude) or a Codex marketplace refresh.
+
+If a plugin gains a new harness manifest later, this rule extends to it —
+keep all per-harness `plugin.json` versions identical for a given release.
+
+README and LICENSE edits don't need a bump.
 
 ## Current plugins
 

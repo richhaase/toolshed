@@ -128,13 +128,38 @@ Review the session content and identify items in these categories:
 | Category | What to look for | Destination |
 |----------|-----------------|-------------|
 | **Decisions** | Choices made, direction set, options ruled out | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
-| **Tasks** | Action items, follow-ups, things to do later | `sources/tasks/topic-slug.md` |
+| **Tasks** | The user explicitly committed to drive an action ("I will do X", "I'm going to ship Y") | `sources/tasks/topic-slug.md` |
+| **Follow-ups** | Open questions, awareness items, loose ends, things others surfaced, judgment calls awaiting user clarification | `sources/followups/topic-slug.md` |
 | **Research** | New information, findings worth preserving | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
 | **Analyses** | Substantive ad-hoc analyses, trade-off evaluations | `outputs/reports/YYYY-MM-DDTHHmmss-topic.md` |
 | **Private notes** | Observations about entities with `private_notes: yes` | `private/<filename-pattern>` (append) |
 | **Task updates** | Progress on existing tasks — subtasks completed, blockers found | Update existing `sources/tasks/*.md` |
+| **Follow-up updates** | New context on existing follow-ups | Update existing `sources/followups/*.md` |
 
 Most sessions produce 0-2 items. Don't force it.
+
+### Tasks vs Follow-ups — the bright line
+
+This split matters. Conflating them produces "urgent task" framings on what
+were actually informational items.
+
+- **Task** = a commitment the user made. They said, in this session, that
+  they will do X. Existence of the file means an open commitment.
+- **Follow-up** = anything else worth not losing. The thing exists, the
+  question is open, someone surfaced it, a loose end was left — but the
+  user has not committed to drive it. Default destination for captures.
+
+When in doubt, file as a follow-up. Promotion (follow-up → task) is cheap
+and happens via the `tasks` skill when the user decides to drive it.
+Demoting a misclassified task is more painful — it has already shaped the
+next briefing.
+
+Heuristics:
+- "I'll look at that later" → follow-up (vague intent, no commitment).
+- "I'll send the email tomorrow" → task (specific, committed).
+- "We should think about X" → follow-up.
+- Someone else's request, until the user accepts it → follow-up.
+- An open question waiting on the user → follow-up.
 
 ### Entity-aware routing
 
@@ -176,6 +201,27 @@ Build a capture plan — for each item:
 
 ### Tasks
 Use the tasks skill for creation. For updates to existing tasks, edit the file directly.
+
+### Follow-ups
+
+Write directly to `sources/followups/<topic-slug>.md`. Frontmatter mirrors
+tasks so the two are easy to convert:
+
+```markdown
+---
+date: YYYY-MM-DD
+kind: followup
+origin: <what surfaced this — meeting, session, person, etc.>
+---
+
+# <Short title — what's open>
+
+<One or two paragraphs: what the thing is, why it might matter, what would
+move it forward. Do not phrase as a directive.>
+```
+
+For updates to existing follow-ups, append a dated note under a `## Notes`
+section rather than rewriting the body.
 
 ### Decisions
 ```markdown
@@ -231,6 +277,8 @@ Commit all written files:
 git -C "$MEMENTO_ROOT" add sources/ outputs/ private/
 git -C "$MEMENTO_ROOT" commit -m "fin: capture session — <brief summary>"
 ```
+
+`sources/` includes `sources/followups/` automatically.
 
 ### For `fin all`
 Fin each legate (extract + kill), then fin the main conversation (extract + commit everything together).
