@@ -1,6 +1,7 @@
 ---
 name: tasks
 description: Manage tasks in the Memento — create, list, update, complete, and promote follow-ups into tasks. Use this skill when the user mentions tasks, action items, or commitments. Triggers on phrases like "add a task", "what's on my plate", "mark that done", "task for X", "open tasks", "I need to remember to", "I'm going to drive X", "promote this follow-up", or any request to track or manage committed work. Also invoked by fin for task creation and by review-followups for promotion. Tasks are commitments — for uncommitted captures (open questions, awareness items, loose ends), use follow-ups via fin or review-followups instead.
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash]
 ---
 
 # Tasks
@@ -9,17 +10,12 @@ Manage task files in `sources/tasks/`. Each task is its own markdown file — ex
 
 ## Memento root
 
-Resolve the Memento data root before reading or writing task files:
-
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
-../_shared/scripts/memento-run pwd
 ```
 
-All task paths are relative to `MEMENTO_ROOT`, not necessarily the current repo. Use
-absolute paths under `MEMENTO_ROOT` for file reads/writes and `git -C "$MEMENTO_ROOT" ...`
-for commits. Script paths are shown relative to this `SKILL.md`; if your shell
-is in another directory, invoke the same scripts by absolute path.
+See `../_shared/references/memento-root.md` for the full resolution contract.
+All task paths are relative to `MEMENTO_ROOT`.
 
 ## Modes
 

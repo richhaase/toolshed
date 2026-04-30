@@ -51,13 +51,11 @@ is the whole basis for the skill — without it, this is just rewriting.
 
 ## Memento root
 
-Resolve the Memento data root before reading or writing:
-
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
-../_shared/scripts/memento-run pwd
 ```
 
+See `../_shared/references/memento-root.md` for the full resolution contract.
 All paths below are relative to `MEMENTO_ROOT`.
 
 ## Architecture rule

@@ -14,7 +14,6 @@ description: >
 argument-hint: "<task|PR#|issue> [--codex|--claude]"
 allowed-tools:
   - Bash
-  - Agent
   - Skill
 ---
 
@@ -128,11 +127,17 @@ The two supported runtimes and their launcher commands:
    chmod +x /tmp/legate-<name>.sh
    ```
 
-3. Check if a window with this name already exists. If it does, append a short suffix
-   (e.g., `pr-123-2`) to avoid collisions:
+3. Check if a window with this name already exists. If it does, append a numeric
+   suffix and increment until a free name is found (`pr-123-2`, `pr-123-3`, ...):
 
    ```bash
-   tmux list-windows -F '#{window_name}' | grep -q "^<name>$" && name="<name>-2"
+   base="<name>"
+   name="$base"
+   suffix=2
+   while tmux list-windows -F '#{window_name}' | grep -q "^${name}$"; do
+     name="${base}-${suffix}"
+     suffix=$((suffix + 1))
+   done
    ```
 
 4. Capture your own pane id — this becomes the `@legate-parent` tag so the new
@@ -207,10 +212,18 @@ The two supported runtimes and their launcher commands:
 7. Tell the user which window was created, what agent is running, and what context was
    provided.
 
-8. Arm the watcher. Invoke `legate:watch` via the Skill tool so it records an
-   initial snapshot of this parent's children and schedules the first
-   `ScheduleWakeup` tick. Watching is implicit in dispatch — the user doesn't
-   have to ask for it. If a prior "stop watching" opt-out was recorded,
+8. Arm the watcher. Sleep ~5 seconds first so the kick-off has a moment to
+   produce stable boot output — otherwise the very first snapshot captures
+   mid-render terminal control sequences and the next tick reports a spurious
+   "Changed" delta. Then invoke `legate:watch` via the Skill tool:
+
+   ```bash
+   sleep 5
+   ```
+
+   This records an initial snapshot of this parent's children and schedules the
+   first `ScheduleWakeup` tick. Watching is implicit in dispatch — the user
+   doesn't have to ask for it. If a prior "stop watching" opt-out was recorded,
    `watch` clears it on invocation; any new dispatch re-arms the sweep.
 
 ## Sending orders to an existing session
@@ -239,8 +252,20 @@ When the user wants to send additional instructions to a running session:
    tmux send-keys -t "<name>" Enter
    ```
 
-3. Verify submission by capturing the pane and confirming the instruction is no longer
-   in the input box. Send another Enter if needed.
+3. Verify submission. After a brief pause, capture the pane and confirm the
+   instruction is no longer sitting in the input box:
+
+   ```bash
+   sleep 2
+   tmux capture-pane -t "<name>" -p | tail -10
+   ```
+
+   If the instruction text still appears next to the `❯` input marker, send
+   another Enter:
+
+   ```bash
+   tmux send-keys -t "<name>" Enter
+   ```
 
 4. Confirm to the user what was sent and to which window.
 
@@ -276,3 +301,12 @@ Short, scannable tmux window names:
 - PRs: `pr-123`
 - Issues: `task-100` (lowercase)
 - Freeform: first 2-3 words, kebab-case: `db-migration`
+
+## Brief file lifetime
+
+`/tmp/legate-<name>.md` files persist for the life of the dispatched window
+and are read by `debrief` when interpreting pane tails. Stale briefs from
+closed sessions are harmless — clean them up opportunistically (e.g.,
+`find /tmp -name 'legate-*.md' -mtime +7 -delete` from a shell), or let
+the system tmp sweep handle it. `debrief` falls back to
+`@legate-description` if the brief is gone.

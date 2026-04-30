@@ -17,18 +17,13 @@ Works on two kinds of sessions:
 
 ## Memento root
 
-Resolve the Memento data root before reading or writing Memento files:
-
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
-../_shared/scripts/memento-run pwd
 ```
 
+See `../_shared/references/memento-root.md` for the full resolution contract.
 All `sources/`, `outputs/`, `private/`, and context files below are relative to
-`MEMENTO_ROOT`, not necessarily the current repo. Use `../_shared/scripts/memento-run <command>` or
-`git -C "$MEMENTO_ROOT" ...` for Bash commands. Read and write files using absolute
-paths under `MEMENTO_ROOT`. Script paths are shown relative to this `SKILL.md`; if
-your shell is in another directory, invoke the same scripts by absolute path.
+`MEMENTO_ROOT`.
 
 ## Arguments
 

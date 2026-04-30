@@ -12,18 +12,13 @@ Audit the memory base for staleness, contradictions, gaps, and neglected items. 
 
 ## Memento root
 
-Resolve the Memento data root before auditing:
-
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
-../_shared/scripts/memento-run pwd
 ```
 
+See `../_shared/references/memento-root.md` for the full resolution contract.
 All `sources/`, `wiki/`, `private/`, and context files below are relative to
-`MEMENTO_ROOT`, not necessarily the current repo. Use `../_shared/scripts/memento-run <command>` or
-`git -C "$MEMENTO_ROOT" ...` for Bash commands. Script paths are shown relative to
-this `SKILL.md`; if your shell is in another directory, invoke the same scripts
-by absolute path. Do not read private note content.
+`MEMENTO_ROOT`. Do not read private note content.
 
 ## Arguments
 

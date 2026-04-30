@@ -16,18 +16,13 @@ Pages accumulate knowledge over time — this is additive, not destructive.
 
 ## Memento root
 
-Resolve the Memento data root before doing anything else. Use the bundled scripts:
-
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
-../_shared/scripts/memento-run pwd
 ```
 
-All Memento paths below are relative to `MEMENTO_ROOT`, not necessarily the user's current
-repo. Use `../_shared/scripts/memento-run <command>` or `git -C "$MEMENTO_ROOT" ...` for Bash
-commands. Script paths are shown relative to this `SKILL.md`; if your shell is
-in another directory, invoke the same scripts by absolute path. Read and write
-files using absolute paths under `MEMENTO_ROOT`.
+See `../_shared/references/memento-root.md` for the full resolution contract.
+All Memento paths below (`sources/`, `wiki/`, `AGENTS.md`) are relative to
+`MEMENTO_ROOT`.
 
 ## Arguments
 
@@ -171,66 +166,11 @@ Do NOT read private/. All content must come from the provided source data.
 
 ### Wiki page template
 
-Each wiki page uses the sections defined in its entity type. The frontmatter includes
-the fields specified in the entity type definition.
-
-**Do NOT add `last_compiled` or `compile_pass` to per-page frontmatter.** Page-level
-freshness lives only in the `Last Updated` column of `wiki/INDEX.md`; git history
-covers everything else. Adding per-page compile metadata churns the frontmatter on
-every run for no reader benefit.
-
-```markdown
----
-title: <Entity Name>
-type: <entity type>
-<additional frontmatter fields from entity type definition>
-sources:
-  - <relative path to source file>
-related:
-  - "[[related-entity-slug]]"
----
-
-# <Entity Name>
-
-## <Section 1 from entity type definition>
-<content>
-
-## <Section 2 from entity type definition>
-<content>
-
-...
-```
-
-For example, a `people` entity type with sections `[Overview, Current Focus, Recent Activity, Key Contributions]` produces:
-
-```markdown
----
-title: Jane Doe
-type: people
-role: Backend Engineer
-team: Platform
-sources:
-  - sources/2026-04-08-api-migration.md
-related:
-  - "[[api-migration]]"
----
-
-# Jane Doe
-
-**Role:** Backend Engineer · **Team:** Platform
-
-## Overview
-...
-
-## Current Focus
-...
-
-## Recent Activity
-...
-
-## Key Contributions
-...
-```
+See `references/templates.md` for the full page template and a worked
+example. Key invariants: frontmatter fields come from the entity type
+definition; do **not** add `last_compiled` or `compile_pass` to per-page
+frontmatter — page-level freshness lives only in the `Last Updated` column
+of `wiki/INDEX.md`.
 
 ### Writing pages
 
@@ -269,30 +209,9 @@ duplicated that and grew unboundedly. The skill commits its work as its final
 step (Step 8), and the commit message carries the synthesis that used to live in
 the comment.
 
-```markdown
----
-last_compiled: YYYY-MM-DD
-pages: <count>
-pinned:
-  - <slug>
----
-
-# Wiki Index
-
-## <Entity Type 1>
-| Page | Summary | Last Updated | Pinned |
-|------|---------|-------------|--------|
-| [[entity-slug]] | One-line summary | YYYY-MM-DD | * |
-
-## <Entity Type 2>
-...
-```
-
-The `Pinned` column shows `*` for pinned pages. The `pinned` frontmatter list is
-the machine-readable source of truth.
-
-The columns per entity type come from the key frontmatter fields defined in the
-Entity Types registry, plus Summary, Last Updated, and Pinned.
+See `references/templates.md` for the INDEX.md template. Per-type columns
+come from the key frontmatter fields defined in the Entity Types registry,
+plus Summary, Last Updated, and Pinned.
 
 ## Incremental update behavior
 
@@ -336,18 +255,7 @@ migrate to canonical `AGENTS.md` plus a thin `CLAUDE.md` entrypoint.
 
 ### Hot set format
 
-```markdown
-<!-- HOT SET START — maintained by /compile, do not edit manually -->
-
-## Quick Reference
-
-### <Entity Type>
-| Name | Summary | Details |
-|------|---------|---------|
-| Entity Name | One-line context | wiki/<type>/entity-slug.md |
-
-<!-- HOT SET END -->
-```
+See `references/templates.md` for the hot-set markdown shape.
 
 ### Safety
 
