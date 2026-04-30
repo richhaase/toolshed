@@ -1,12 +1,10 @@
 # toolshed
 
 Multi-harness distribution repo for portable Agent Skills. The same skill bodies
-are exposed to Claude Code, Codex, and Gemini CLI through harness-specific
-metadata.
+are exposed to Claude Code and Codex through harness-specific metadata.
 
 Claude Code marketplace metadata lives in `.claude-plugin/marketplace.json`.
 Codex marketplace metadata lives in `.agents/plugins/marketplace.json`.
-Gemini CLI installs or links the existing skill directories directly.
 
 Skills follow the [Agent Skills](https://agentskills.io) open format.
 
@@ -16,7 +14,6 @@ Skills follow the [Agent Skills](https://agentskills.io) open format.
 claude plugin validate .          # Validate marketplace structure
 claude plugin validate plugins/<name>  # Validate a single plugin
 codex plugin marketplace add .    # Smoke-test Codex marketplace discovery
-gemini skills link plugins/memento/skills --scope workspace --consent
 ```
 
 ## Adding a plugin
@@ -63,11 +60,11 @@ README and LICENSE edits don't need a bump.
 
 - Keep `SKILL.md` as the canonical workflow. Do not copy workflow details into
   harness manifests or install docs.
-- Treat `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` as harness-specific entrypoint
-  files for the same conceptual context.
+- Treat `CLAUDE.md` and `AGENTS.md` as harness-specific entrypoint files for the
+  same conceptual context.
 - For Memento consumer repos, treat `AGENTS.md` as the canonical shared Memento context.
-  `CLAUDE.md` and `GEMINI.md` should be thin harness entrypoints that route to
-  it, not duplicated copies of the same Memento state.
+  `CLAUDE.md` should be a thin harness entrypoint that routes to it, not a
+  duplicated copy of the same Memento state.
 - Prefer generic wording in skills: "agent entrypoint" rather than only
   `CLAUDE.md`, unless the instruction is explicitly Claude-specific.
 - Keep `memento` and `legate` separate plugins. Memento may use `legate` when installed,

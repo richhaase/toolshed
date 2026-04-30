@@ -2,7 +2,7 @@
 
 Delegated authority over tmux sessions. Legate turns your AI agent session into a command center — dispatch agents to work in parallel, check on their progress, or switch over to interact with them directly.
 
-Supports **Claude Code**, **Codex**, and **Gemini CLI**. By default, dispatch launches the same type of agent as the caller — Claude dispatches Claude, Codex dispatches Codex, etc. Override by specifying an agent explicitly.
+Supports **Claude Code** and **Codex**. By default, dispatch launches the same type of agent as the caller — Claude dispatches Claude, Codex dispatches Codex. Override by specifying an agent explicitly.
 
 Stateless by design. Tmux is the source of truth — window names, tags (`@legate-managed`, `@legate-description`, `@legate-agent`, etc.), and pane contents are the only state. No registry files, no persistent storage. Conversation context provides semantic memory.
 
@@ -17,7 +17,7 @@ Launch a new AI agent session in a tmux window with context, or send additional 
 - Gathers context automatically — PR details via `gh`, issue info from available tools, or your description as-is
 - Opens a tmux window with the selected agent runtime, tagged for discoverability
 - Sends a tailored kick-off prompt to get the agent working
-- Defaults to your own agent type; override with "dispatch to codex", "have gemini look at this", etc.
+- Defaults to your own agent type; override with "dispatch to codex", "have claude look at this", etc.
 
 **Sending orders to an existing session:**
 - Resolves natural references ("the PR session", "that migration task") to the right tmux window
@@ -84,7 +84,7 @@ Legate tags each dispatched tmux window with user options:
 | `@legate-description` | Short description of the task |
 | `@legate-source` | Source identifier (e.g., `gh:owner/repo#123`) |
 | `@legate-cwd` | Working directory of the session |
-| `@legate-agent` | Agent runtime: `claude`, `codex`, or `gemini` |
+| `@legate-agent` | Agent runtime: `claude` or `codex` |
 | `@legate-parent` | Pane id of the parent session — scopes auto-watching to its own children |
 
 These tags let `debrief`, `inspect`, and the auto-watcher discover and interact with sessions without any external state. Named Claude Code sessions (`claude -n <name>`) mean session history persists even if you need to reconnect.

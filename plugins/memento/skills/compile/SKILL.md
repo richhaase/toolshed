@@ -11,7 +11,7 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 Compile all sources into a topic-organized wiki. Each wiki page covers one entity,
 organized by entity type as defined in the canonical `AGENTS.md` Entity Types
 registry. In legacy Memento repos without `AGENTS.md`, fall back to an existing
-`CLAUDE.md` or `GEMINI.md` registry and report that the repo should be migrated.
+`CLAUDE.md` registry and report that the repo should be migrated.
 Pages accumulate knowledge over time — this is additive, not destructive.
 
 ## Memento root
@@ -79,10 +79,9 @@ Read `AGENTS.md` and parse the `## Entity Types` section. This tells you:
 - What frontmatter fields each type needs (`frontmatter`)
 - What sections each type's wiki pages should have (`sections`)
 
-If `AGENTS.md` is missing or lacks an Entity Types registry, check legacy
-entrypoints in this order: `CLAUDE.md`, then `GEMINI.md`. If neither has a
-registry, fall back to a flat `wiki/` with the generic template (Overview,
-Current State, Recent Activity, History).
+If `AGENTS.md` is missing or lacks an Entity Types registry, check the legacy
+`CLAUDE.md` entrypoint. If neither has a registry, fall back to a flat `wiki/`
+with the generic template (Overview, Current State, Recent Activity, History).
 
 ## Step 1: Determine scope
 
@@ -313,8 +312,8 @@ The entire incremental compile should be **5-6 roundtrips**: find changed files 
 ## Step 7: Distill L2 -> L1 (`AGENTS.md` hot set)
 
 After the wiki is updated, rebuild the dynamic hot set section in canonical
-`AGENTS.md`. `CLAUDE.md` and `GEMINI.md` should be thin harness entrypoints that
-point to `AGENTS.md`; do not duplicate the hot set into them.
+`AGENTS.md`. `CLAUDE.md` should be a thin harness entrypoint that points to
+`AGENTS.md`; do not duplicate the hot set into it.
 
 ### How it works
 
@@ -331,9 +330,9 @@ point to `AGENTS.md`; do not duplicate the hot set into them.
 4. For each entry, write one row: name, one-line summary, link to wiki page.
 5. Replace everything between the HOT SET markers in `AGENTS.md` with the new tables.
 
-For a legacy repo that does not have `AGENTS.md`, update the first existing
-entrypoint with hot set markers (`CLAUDE.md`, then `GEMINI.md`) and report that
-the repo should migrate to canonical `AGENTS.md` plus thin harness entrypoints.
+For a legacy repo that does not have `AGENTS.md`, update the existing
+`CLAUDE.md` entrypoint with hot set markers and report that the repo should
+migrate to canonical `AGENTS.md` plus a thin `CLAUDE.md` entrypoint.
 
 ### Hot set format
 
@@ -355,8 +354,8 @@ the repo should migrate to canonical `AGENTS.md` plus thin harness entrypoints.
 - **Only modify content between the markers.** Never touch anything outside them.
 - If the markers don't exist in `AGENTS.md`, append them at the end of the file and
   then write the hot set.
-- Do not append hot set markers to thin `CLAUDE.md` or `GEMINI.md` files when
-  `AGENTS.md` exists.
+- Do not append hot set markers to a thin `CLAUDE.md` file when `AGENTS.md`
+  exists.
 - The hot set is fully regenerated each compile — it's not an incremental edit.
 
 ## Step 8: Commit (final step — mandatory when in a git repo)
@@ -383,7 +382,7 @@ git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
    git -C "$MEMENTO_ROOT" add wiki/ AGENTS.md
    ```
    In a legacy repo without `AGENTS.md`, stage `wiki/` plus the fallback
-   entrypoint file you updated (`CLAUDE.md` or `GEMINI.md`).
+   `CLAUDE.md` entrypoint you updated.
 2. Check whether anything is actually staged:
    ```bash
    git -C "$MEMENTO_ROOT" diff --cached --quiet

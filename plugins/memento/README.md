@@ -12,9 +12,9 @@ skills are invoked from any project.
 The Memento treats knowledge like a CPU cache hierarchy:
 
 - **L1 — `AGENTS.md`** (always resident where supported): Hot set tables with
-  pointers to wiki pages. `CLAUDE.md` and `GEMINI.md` are thin harness
-  entrypoints that point to the same canonical context. Maintained
-  automatically by `/compile`.
+  pointers to wiki pages. `CLAUDE.md` is a thin harness entrypoint that
+  points to the same canonical context. Maintained automatically by
+  `/compile`.
 - **L2 — Wiki** (loaded on demand): Compiled topic pages. Read when L1 doesn't have enough detail.
 - **L3 — Sources** (cold storage): Raw ingestion — session captures, automated syncs, manual notes. Accessed when L2 doesn't resolve the question.
 - **Outputs** (outside hierarchy): Products of the system — surfaces (HTML dashboards) and reports.

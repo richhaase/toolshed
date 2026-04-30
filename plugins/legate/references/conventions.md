@@ -15,7 +15,7 @@ Every dispatched window carries these user options. Read with
 | `@legate-description` | `dispatch` | Short human-readable description of the task. |
 | `@legate-source` | `dispatch` | Source identifier, e.g. `gh:owner/repo#123`, `linear:TASK-100`, or `freeform`. |
 | `@legate-cwd` | `dispatch` | Working directory the agent was launched in. |
-| `@legate-agent` | `dispatch` | Runtime: `claude`, `codex`, or `gemini`. |
+| `@legate-agent` | `dispatch` | Runtime: `claude` or `codex`. |
 | `@legate-parent` | `dispatch` | Pane id (`#{pane_id}`, e.g. `%42`) of the session that dispatched this window. Used by `watch` to scope sweeps to its own children. |
 
 ## Parent identity

@@ -2,10 +2,9 @@
 
 A multi-harness distribution repo for portable agent tooling.
 
-Toolshed publishes the same Agent Skills to Claude Code, Codex, and Gemini CLI.
-The portable skill bodies live under `plugins/<plugin>/skills/`. Claude and Codex
-get marketplace metadata; Gemini installs or links the same skill directories
-directly.
+Toolshed publishes the same Agent Skills to Claude Code and Codex.
+The portable skill bodies live under `plugins/<plugin>/skills/`. Each harness
+loads them through its own marketplace metadata.
 
 ## Installation
 
@@ -53,31 +52,16 @@ For local development:
 codex plugin marketplace add /path/to/toolshed
 ```
 
-### Gemini CLI
-
-Install the portable skills:
-
-```bash
-gemini skills install https://github.com/richhaase/toolshed --path plugins/memento/skills
-gemini skills install https://github.com/richhaase/toolshed --path plugins/legate/skills
-```
-
-For local development:
-
-```bash
-gemini skills link /path/to/toolshed/plugins/memento/skills --scope workspace --consent
-gemini skills link /path/to/toolshed/plugins/legate/skills --scope workspace --consent
-```
-
 ## Plugins
 
 ### [Memento](plugins/memento/) — Personal Memory Base
 
 Multi-layer cache memory base with automated compilation. Treats knowledge
 like a CPU cache hierarchy: L1 (`AGENTS.md` hot set) -> L2 (wiki, loaded on
-demand) -> L3 (sources, cold storage). Claude and Gemini use thin entrypoints
-that point to `AGENTS.md`. Includes setup, compilation, session capture, task
-management, recall, remember/correct workflows, research, and health checks.
+demand) -> L3 (sources, cold storage). Claude Code uses a thin `CLAUDE.md`
+entrypoint that points to `AGENTS.md`. Includes setup, compilation, session
+capture, task management, recall, remember/correct workflows, research, and
+health checks.
 
 Memento can be installed globally while the actual wiki lives in one configured
 data root. Set `MEMENTO_ROOT=/path/to/memento` or add a `.memento-root` file to
@@ -91,9 +75,9 @@ resolved root instead of assuming the current repo is the Memento.
 
 ### [Legate](plugins/legate/) — Tmux Session Management
 
-Delegated authority over tmux sessions. Dispatch Claude Code, Codex, or Gemini
-CLI agents to work in parallel, check on their progress, or open a shell
-alongside them. Stateless by design: tmux is the source of truth.
+Delegated authority over tmux sessions. Dispatch Claude Code or Codex agents
+to work in parallel, check on their progress, or open a shell alongside them.
+Stateless by design: tmux is the source of truth.
 
 ## Distribution layout
 
@@ -101,7 +85,6 @@ alongside them. Stateless by design: tmux is the source of truth.
 | --- | --- | --- | --- |
 | Claude Code | `.claude-plugin/marketplace.json` | `plugins/*/.claude-plugin/plugin.json` | `CLAUDE.md` |
 | Codex | `.agents/plugins/marketplace.json` | `plugins/*/.codex-plugin/plugin.json` | `AGENTS.md` |
-| Gemini CLI | `gemini skills install/link --path plugins/*/skills` | n/a | `GEMINI.md` |
 
 Keep plugin behavior in `SKILL.md`; keep wrappers thin. For Memento consumer repos,
 `AGENTS.md` is the canonical shared context and vendor entrypoints should only
