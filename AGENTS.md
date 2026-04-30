@@ -6,8 +6,6 @@ Toolshed is a multi-harness distribution repo for portable Agent Skills.
 
 - `.claude-plugin/` contains Claude Code marketplace metadata.
 - `.agents/plugins/` contains Codex marketplace metadata.
-- Gemini CLI consumes the existing `plugins/<name>/skills/` directories through
-  `gemini skills install` or `gemini skills link`.
 - `plugins/<name>/skills/` contains the canonical portable skill bodies.
 - `plugins/<name>/.claude-plugin/` and `plugins/<name>/.codex-plugin/` contain
   harness-specific plugin manifests.
@@ -20,8 +18,6 @@ Toolshed is a multi-harness distribution repo for portable Agent Skills.
 - Keep harness-specific wrappers thin. They should route to the portable skill
   body, not duplicate the workflow.
 - For repos that use the Memento plugin, `AGENTS.md` is the canonical shared Memento
-  context. `CLAUDE.md` and `GEMINI.md` should be thin harness entrypoints that
-  route to it.
-- When changing plugin metadata, update the Claude and Codex manifests plus
-  Gemini installation docs together.
+  context. `CLAUDE.md` should be a thin harness entrypoint that routes to it.
+- When changing plugin metadata, update the Claude and Codex manifests together.
 - Use ASCII in manifests and docs.

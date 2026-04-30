@@ -13,7 +13,7 @@ All tags are tmux user options set on the window with `tmux set-option -w`.
 | `@legate-description` | string | dispatch | Short human-readable description of the task (e.g., "Fix pagination bug in user list API"). Used by debrief for status reports and by all skills for resolving natural language references. |
 | `@legate-source` | string | dispatch | Source identifier for the task. Format: `gh:owner/repo#123` for PRs, `issue:TASK-100` for tickets, `freeform:<slug>` for ad-hoc tasks. |
 | `@legate-cwd` | path | dispatch | Working directory of the session. Used by inspect to open shells in the right place. |
-| `@legate-agent` | string | dispatch | Agent runtime running in this window: `claude`, `codex`, or `gemini`. Used by debrief for context-aware status reporting. |
+| `@legate-agent` | string | dispatch | Agent runtime running in this window: `claude` or `codex`. Used by debrief for context-aware status reporting. |
 
 ## Window Naming
 

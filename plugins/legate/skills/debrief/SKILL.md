@@ -98,7 +98,7 @@ When the user asks for a sweep ("how's everything going", "status on all session
 
 2. For each session, read the tail bottom-up (skip noise, find the conclusion) and compare
    against the brief. Summarize concisely — one or two lines per session. Include which
-   agent runtime is running (claude, codex, gemini) so the user knows what's where.
+   agent runtime is running (claude, codex) so the user knows what's where.
 
 ## When a session is gone
 

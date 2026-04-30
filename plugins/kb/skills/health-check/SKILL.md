@@ -38,7 +38,7 @@ Arguments are passed as: $ARGUMENTS
 Run `date '+%Y-%m-%d'` via Bash to establish the current date. All age calculations use this as "now."
 
 Read the `## Entity Types` section from canonical `AGENTS.md`. In legacy repos
-without `AGENTS.md`, fall back to `CLAUDE.md`, then `GEMINI.md`. This tells you:
+without `AGENTS.md`, fall back to `CLAUDE.md`. This tells you:
 - Which entity types exist and their wiki paths
 - Which entity types have `private_notes: yes` and their `private_note_staleness` thresholds
 - What frontmatter fields wiki pages should have (for contradiction detection)
@@ -112,9 +112,9 @@ Check canonical `AGENTS.md` for hot set markers (`<!-- HOT SET START -->` /
 `wiki/INDEX.md` frontmatter. If the wiki has been compiled more recently than
 the hot set was updated, `AGENTS.md` is stale — flag it.
 
-If `CLAUDE.md` or `GEMINI.md` also contains hot set markers while `AGENTS.md`
-exists, flag that as duplicated legacy state. Those harness files should be thin
-entrypoints that point to `AGENTS.md`.
+If `CLAUDE.md` also contains hot set markers while `AGENTS.md` exists, flag that
+as duplicated legacy state. The `CLAUDE.md` file should be a thin entrypoint
+that points to `AGENTS.md`.
 
 Also check if any pinned pages in INDEX.md no longer exist as wiki pages — these are
 stale pins that should be cleaned up.

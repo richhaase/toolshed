@@ -82,9 +82,9 @@ Phase 2 will add the Entity Types registry and other customizations. If
 `AGENTS.md` already exists, never overwrite it; merge the missing KB sections
 instead.
 
-Write `CLAUDE.md` and `GEMINI.md` only as thin harness entrypoints that tell the
-harness to read `AGENTS.md`. Do not duplicate the KB operating model, Entity
-Types registry, or hot set into those files.
+Write `CLAUDE.md` only as a thin harness entrypoint that tells Claude Code to
+read `AGENTS.md`. Do not duplicate the KB operating model, Entity Types
+registry, or hot set into that file.
 
 If setting up a legacy repo that already has a full `CLAUDE.md` but no
 `AGENTS.md`, preserve the full KB context by moving or copying it into
@@ -101,7 +101,7 @@ Compilation flows upward: L3 → L2 → L1.
 
 ### L1 — This file (AGENTS.md) — Always resident
 Loaded every session automatically by agent harnesses that support `AGENTS.md`.
-Claude Code and Gemini use thin local entrypoints that point here. Contains
+Claude Code uses a thin local `CLAUDE.md` entrypoint that points here. Contains
 behavioral rules, quick lookup tables, and pointers to L2. The hot set tables
 below are maintained by `/compile`.
 
@@ -193,18 +193,9 @@ Starter `CLAUDE.md`:
 # Claude Entrypoint
 
 Read `AGENTS.md` at session start. It is the canonical shared KB context for
-Claude Code, Codex, and Gemini.
+Claude Code and Codex.
 
 Claude-specific local configuration may remain under `.claude/`.
-```
-
-Starter `GEMINI.md`:
-
-```markdown
-# Gemini Entrypoint
-
-Read `AGENTS.md` at session start. It is the canonical shared KB context for
-Claude Code, Codex, and Gemini.
 ```
 
 ### .gitignore
@@ -309,9 +300,9 @@ If yes, build a nickname decoder table in `AGENTS.md`.
 ### Apply customizations
 
 Based on interview answers, write the Entity Types registry and other
-customizations into `AGENTS.md`. `CLAUDE.md` and `GEMINI.md` should remain thin
-harness entrypoints that point to `AGENTS.md`. This is the most important
-output — all other kb skills read `AGENTS.md` to know how to operate.
+customizations into `AGENTS.md`. `CLAUDE.md` should remain a thin harness
+entrypoint that points to `AGENTS.md`. This is the most important output — all
+other kb skills read `AGENTS.md` to know how to operate.
 
 #### Entity Types registry
 
