@@ -53,7 +53,7 @@ README and LICENSE edits don't need a bump.
 
 ## Current plugins
 
-- **memento** — Memory-base workflows (setup, recall, remember, correct, compile, fin, tasks, research, health-check). `kb` remains a deprecated compatibility alias.
+- **memento** — Memory-base workflows (setup, recall, remember, correct, compile, fin, tasks, research, health-check).
 - **legate** — Stateless tmux session management (dispatch, debrief, inspect). Tmux is the source of truth; no registry files.
 
 ## Portability rules

@@ -14,10 +14,6 @@
     {
       "name": "memento",
       "source": "./plugins/memento"
-    },
-    {
-      "name": "kb",
-      "source": "./plugins/kb"
     }
   ]
 }

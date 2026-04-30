@@ -35,9 +35,7 @@ Skills resolve the Memento root in this order:
 
 1. `MEMENTO_ROOT` environment variable
 2. nearest `.memento-root` file walking upward from the current directory
-3. `KB_ROOT` environment variable (deprecated compatibility alias)
-4. nearest `.kb-root` file walking upward from the current directory (deprecated)
-5. current directory, if it already looks like a Memento
+3. current directory, if it already looks like a Memento
 
 For a global Memento, either export `MEMENTO_ROOT`:
 

@@ -13,7 +13,6 @@ Toolshed is a multi-harness distribution repo for portable Agent Skills.
 ## Development Rules
 
 - Keep `memento` and `legate` as separate plugins in the same distribution repo.
-- Keep `kb` as a deprecated compatibility plugin/path for existing users.
 - Treat `SKILL.md` files as the canonical workflow source across all harnesses.
 - Keep harness-specific wrappers thin. They should route to the portable skill
   body, not duplicate the workflow.

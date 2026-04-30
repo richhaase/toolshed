@@ -21,8 +21,6 @@ Install a plugin:
 ```bash
 claude plugin install memento@toolshed
 claude plugin install legate@toolshed
-# Deprecated compatibility alias:
-claude plugin install kb@toolshed
 ```
 
 Inside Claude Code, the equivalent commands are:
@@ -31,8 +29,6 @@ Inside Claude Code, the equivalent commands are:
 /plugin marketplace add richhaase/toolshed
 /plugin install memento@toolshed
 /plugin install legate@toolshed
-# Deprecated compatibility alias:
-/plugin install kb@toolshed
 ```
 
 ### Codex
@@ -68,10 +64,6 @@ data root. Set `MEMENTO_ROOT=/path/to/memento` or add a `.memento-root` file to
 a project repo; the bundled `skills/_shared/scripts/memento-root` and
 `skills/_shared/scripts/memento-run` helpers make each skill operate from the
 resolved root instead of assuming the current repo is the Memento.
-
-`kb` remains available as a deprecated compatibility plugin at
-[`plugins/kb/`](plugins/kb/) for existing installs, including `KB_ROOT` and
-`.kb-root`.
 
 ### [Legate](plugins/legate/) — Tmux Session Management
 
