@@ -17,17 +17,12 @@ periodic walk-through that keeps the pile honest.
 
 ## Memento root
 
-Resolve the Memento data root before reading or writing follow-ups:
-
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
-../_shared/scripts/memento-run pwd
 ```
 
-All follow-up paths are relative to `MEMENTO_ROOT`. Use absolute paths
-under `MEMENTO_ROOT` for file reads/writes and `git -C "$MEMENTO_ROOT" ...`
-for commits. Script paths are shown relative to this `SKILL.md`; if your
-shell is in another directory, invoke the same scripts by absolute path.
+See `../_shared/references/memento-root.md` for the full resolution contract.
+All follow-up paths are relative to `MEMENTO_ROOT`.
 
 ## Arguments
 
@@ -141,9 +136,11 @@ The user has the answer or new context. Two sub-options:
 
 1. **Capture-to-wiki** — the answer is durable knowledge that belongs in
    `wiki/` (e.g., a fact about an entity, a clarification about a
-   project). Hand off to the `remember` skill so it goes through the
-   normal additive-capture path. After capture, delete the follow-up
-   file (the open question is now resolved).
+   project). Append the answer as a dated source under
+   `sources/notes/<YYYY-MM-DD>-<slug>.md` with frontmatter `date` and
+   `title`, then run `/compile <topic>` to fold it into the relevant wiki
+   page on the next pass. After capture, delete the follow-up file
+   (the open question is now resolved).
 
 2. **Append-and-keep** — the answer is partial, conditional, or
    intermediate. Append a dated `## Notes` entry to the follow-up file

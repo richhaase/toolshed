@@ -9,11 +9,15 @@
   "plugins": [
     {
       "name": "legate",
-      "source": "./plugins/legate"
+      "source": "./plugins/legate",
+      "description": "Dispatch and manage tmux agent sessions for parallel work.",
+      "category": "Productivity"
     },
     {
       "name": "memento",
-      "source": "./plugins/memento"
+      "source": "./plugins/memento",
+      "description": "Personal memory base with sources, wiki, and an always-resident hot set.",
+      "category": "Productivity"
     }
   ]
 }

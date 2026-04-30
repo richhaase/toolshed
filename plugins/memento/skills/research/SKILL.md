@@ -1,7 +1,7 @@
 ---
 name: research
-description: Use when asked to research, investigate, look into, or dig into a topic, when asked what we know about something, or when about to spin up research agents autonomously
-user-invocable: false
+description: Produce dated research docs in `sources/research/` for the Memento, with frontmatter, source attribution, and staleness tracking. Use when asked to research, investigate, look into, or dig into a topic, when asked what we know about something, or when about to spin up research agents autonomously. Checks for existing/stale matches first to update rather than duplicate.
+user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 ---
 
@@ -11,17 +11,12 @@ Check existing research before doing new work. Update rather than duplicate. Enf
 
 ## Memento root
 
-Resolve the Memento data root before scanning or writing research docs:
-
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
-../_shared/scripts/memento-run pwd
 ```
 
-All `sources/` paths are relative to `MEMENTO_ROOT`, not necessarily the current repo.
-Use absolute paths under `MEMENTO_ROOT` for file reads/writes and `git -C "$MEMENTO_ROOT"
-...` for commits. Script paths are shown relative to this `SKILL.md`; if your
-shell is in another directory, invoke the same scripts by absolute path.
+See `../_shared/references/memento-root.md` for the full resolution contract.
+All `sources/` paths are relative to `MEMENTO_ROOT`.
 
 ## Process
 

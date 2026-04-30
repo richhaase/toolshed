@@ -1,0 +1,66 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r f; do
+            if ! jq empty "$f" >/dev/null 2>&1; then
+              echo "::error file=$f::invalid JSON"
+              fail=1
+            fi
+          done < <(find . -path ./node_modules -prune -o -type f \( -name 'plugin.json' -o -name 'marketplace.json' \) -print)
+          exit "$fail"
+
+      - name: Check required marketplace fields
+        run: |
+          set -euo pipefail
+          jq -e '.name and .plugins and (.plugins | length > 0)' \
+            .claude-plugin/marketplace.json >/dev/null
+          jq -e '.name and .plugins and (.plugins | length > 0)' \
+            .agents/plugins/marketplace.json >/dev/null
+
+      - name: Check version parity per plugin
+        run: |
+          set -euo pipefail
+          fail=0
+          for dir in plugins/*/; do
+            plugin=$(basename "$dir")
+            claude_v=$(jq -r '.version' "$dir/.claude-plugin/plugin.json" 2>/dev/null || echo "")
+            codex_v=$(jq -r '.version' "$dir/.codex-plugin/plugin.json" 2>/dev/null || echo "")
+            if [ -z "$claude_v" ] || [ -z "$codex_v" ]; then
+              echo "::error::$plugin missing manifest version"
+              fail=1
+              continue
+            fi
+            if [ "$claude_v" != "$codex_v" ]; then
+              echo "::error::$plugin claude=$claude_v codex=$codex_v — versions must match"
+              fail=1
+            fi
+          done
+          exit "$fail"
+
+      - name: Check skill name matches directory
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r f; do
+            dir=$(basename "$(dirname "$f")")
+            name=$(awk '/^---/{c++; next} c==1 && /^name:/{print $2; exit}' "$f")
+            if [ "$dir" != "$name" ]; then
+              echo "::error file=$f::frontmatter name '$name' does not match directory '$dir'"
+              fail=1
+            fi
+          done < <(find plugins -type f -name SKILL.md)
+          exit "$fail"

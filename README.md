@@ -73,7 +73,7 @@ Stateless by design: tmux is the source of truth.
 
 ## Distribution layout
 
-| Harness | Marketplace / extension | Plugin manifest | Context |
+| Harness | Marketplace metadata | Plugin manifest | Context |
 | --- | --- | --- | --- |
 | Claude Code | `.claude-plugin/marketplace.json` | `plugins/*/.claude-plugin/plugin.json` | `CLAUDE.md` |
 | Codex | `.agents/plugins/marketplace.json` | `plugins/*/.codex-plugin/plugin.json` | `AGENTS.md` |
