@@ -10,13 +10,11 @@ Print the configured Memento root.
 Resolution order:
   1. MEMENTO_ROOT environment variable
   2. nearest .memento-root file walking upward from the current directory
-  3. KB_ROOT environment variable (deprecated compatibility alias)
-  4. nearest .kb-root file walking upward from the current directory (deprecated)
-  5. current directory, if it already looks like a Memento
+  3. current directory, if it already looks like a Memento
 
-.memento-root and .kb-root may contain an absolute path, a ~ path, or a path
-relative to the directory containing the marker file. Blank lines and # comments
-are ignored.
+.memento-root may contain an absolute path, a ~ path, or a path relative to
+the directory containing the marker file. Blank lines and # comments are
+ignored.
 EOF
 }
 
@@ -111,12 +109,6 @@ fi
 
 find_marker_root ".memento-root"
 
-if [[ -n "${KB_ROOT:-}" ]]; then
-  print_root "$(expand_path "$KB_ROOT")"
-fi
-
-find_marker_root ".kb-root"
-
 cwd="$(pwd -P)"
 if [[ -d "$cwd/sources" && -d "$cwd/wiki" && -f "$cwd/AGENTS.md" ]]; then
   printf '%s\n' "$cwd"
@@ -128,7 +120,5 @@ memento-root: no Memento root configured.
 
 Set MEMENTO_ROOT, add a .memento-root file containing the Memento path, or run
 memento-setup in a directory that should become the Memento root.
-
-Deprecated compatibility aliases also work: KB_ROOT and .kb-root.
 EOF
 exit 69

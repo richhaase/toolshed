@@ -41,8 +41,6 @@ For global plugin use, support either configuration method:
 
 - `MEMENTO_ROOT=/path/to/memento` in the user's shell environment.
 - A `.memento-root` file in any project repo containing `/path/to/memento` or a relative path.
-- Deprecated compatibility aliases still work: `KB_ROOT` and `.kb-root`. Do not
-  remove or rewrite them unless the user explicitly asks to migrate.
 
 After choosing `MEMENTO_ROOT`, run filesystem and git commands against that directory
 with absolute paths or `git -C "$MEMENTO_ROOT" ...`. Script paths are shown relative
