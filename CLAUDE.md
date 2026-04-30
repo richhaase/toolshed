@@ -35,6 +35,15 @@ Each skill is a directory with a `SKILL.md` containing YAML frontmatter + Markdo
 - **Optional directories:** `scripts/`, `references/`, `assets/`
 - Keep `SKILL.md` under 500 lines; move detailed reference material to `references/`
 
+## Editing plugin behavior
+
+When you change anything inside a plugin directory (`plugins/<name>/SKILL.md`,
+files under `plugins/<name>/skills/`, scripts, hooks, references, assets),
+bump `version` in `plugins/<name>/.claude-plugin/plugin.json`. Claude Code's
+plugin cache keys off that version; without a bump, installed copies keep
+serving the old skill bodies after a `/plugin update`. README and LICENSE
+edits don't need a bump.
+
 ## Current plugins
 
 - **memento** — Memory-base workflows (setup, recall, remember, correct, compile, fin, tasks, research, health-check). `kb` remains a deprecated compatibility alias.
