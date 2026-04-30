@@ -64,8 +64,10 @@ sources/                # L3 — raw inputs
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/
 ├── notes/              # Manual markdown
-└── tasks/              # One file per task (existence = open)
-    └── done/           # Archived completed tasks
+├── tasks/              # One file per task — user-committed actions
+│   └── done/           # Archived completed tasks
+└── followups/          # One file per follow-up — uncommitted captures
+                        # (open questions, awareness items, loose ends)
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
@@ -75,14 +77,32 @@ outputs/                # Products
 private/                # Sensitive notes — never compiled
 ```
 
+## Tasks vs follow-ups
+
+A **task** is a user-committed action — "I will do X." Existence of the
+file means an open commitment, and tasks get urgency-graded surfacing in
+briefings.
+
+A **follow-up** is anything else worth not losing — open questions, things
+others surfaced, judgment calls awaiting clarification, loose ends from
+build sessions. Follow-ups do not represent commitments and are not
+surfaced as urgent. They live in `sources/followups/` and are walked
+periodically via `/review-followups` (oldest-first by default).
+
+`/fin` captures non-task items as follow-ups by default. Promotion
+(follow-up → task) happens via `/tasks` when the user decides to drive
+something. This split exists because conflating the two produced "urgent
+task" framings on what were actually informational items.
+
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
 | `memento-setup` | Scaffold a Memento repo and customize it via interview |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
-| `fin` | End-of-session capture — extract decisions, tasks, findings to `sources/sessions/` |
-| `tasks` | Task CRUD — create, list, update, mark done |
+| `fin` | End-of-session capture — extract decisions, tasks, follow-ups, and findings |
+| `tasks` | Task CRUD — create, list, update, complete, promote-from-follow-up |
+| `review-followups` | Walk open follow-ups one at a time and decide: promote, dismiss, keep, or answer |
 | `research` | Research with staleness tracking and source attribution |
 | `health-check` | Read-only audit for source status, staleness, gaps, contradictions, L1 freshness |
 
