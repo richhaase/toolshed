@@ -1,6 +1,14 @@
 ---
 name: health-check
-description: Audit the repo for staleness, contradictions, gaps, and neglected items. Checks research doc freshness, stale tasks, wiki currency, cross-link gaps, and private note recency. Pass `triage` to interactively walk through issues and take action on each one.
+description: >
+  Audit the memory base for staleness, contradictions, gaps, and neglected
+  items. Checks research doc freshness, stale tasks, wiki currency, cross-link
+  gaps, and private note recency. Use when the user asks "is anything stale",
+  "what needs attention", "audit my notes", "what's getting neglected", "go
+  through my repo", "health check", or otherwise wants a maintenance sweep
+  across the Memento. Pass `triage` to interactively walk through issues and
+  take action on each one; pass `embed` for a compact summary suitable for
+  embedding in a briefing.
 argument-hint: "[triage|embed]"
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Skill, Agent]
@@ -139,137 +147,14 @@ stale pins that should be cleaned up.
 
 ## Step 8: Produce output
 
-Output depends on the mode determined in the Arguments section.
+Read `assets/templates/output-modes.md` for the exact shape of each mode
+(standalone, embed, triage). It contains the section templates, the triage
+prompts for each category, and the wrap-up format. Match the template — do
+not invent your own structure.
 
-### Standalone mode (default)
-
-```
-# Health Check — YYYY-MM-DD
-
-## Source Status (N)
-Read-only validation of source lifecycle metadata and traceability.
-- **sources/path.md** — invalid `status: stale`; expected active, superseded, or archived
-- **sources/new.md** — supersedes missing file: sources/old.md
-
-## Stale Research (N)
-Only docs that are both past their staleness window AND actively referenced. Recommendation for each is **re-research**, not edit-in-place.
-- **doc-title** — dated YYYY-MM-DD, staleness: X (Y days overdue) · referenced from: <wiki-page or task-slug>
-
-## Stagnant Tasks (N)
-- **task-slug** — open since YYYY-MM-DD, last touched YYYY-MM-DD
-
-## Outdated Wiki Pages (N)
-- **page-name** — compiled YYYY-MM-DD, sources updated since
-
-## Wiki Gaps (N)
-- [[page-name]] — referenced from page-name.md but doesn't exist
-
-## Wiki Contradictions (N)
-- **entity** — page-a.md says X, page-b.md says Y
-
-## Private Notes (N issues)
-- **file** — last updated YYYY-MM-DD (N days ago)
-- **entity** — no private note file (expected by <entity-type> definition)
-
-## Summary
-X source status issues, Y stale research docs, Z stagnant tasks, W outdated wiki pages, V wiki gaps, U contradictions, T private note issues.
-```
-
-### Embed mode
-
-Single section, counts + top items only:
-
-```
-## Health Check
-N source status issues, N stale research docs, N stagnant tasks, N outdated wiki pages, N wiki gaps, N private note issues.
-- Most urgent: <1-3 most important items across all categories>
-```
-
-Omit categories with zero issues from the summary line. If everything is clean, say "All clear — no issues found."
-
-### Triage mode
-
-Print the full standalone report first so the user sees the landscape. Then walk through actionable issues interactively, one category at a time. Skip categories with zero issues.
-
-For each issue, present the item and offer concrete actions. **Wait for the user's response before moving to the next item.** The user can always say "skip" to move on or "stop" to end the triage early.
-
-#### Stale research docs
-
-For each stale, referenced research doc:
-
-> **<doc-title>** — dated YYYY-MM-DD, <N> days overdue, referenced from <location>.
-> - **Re-research** — I'll dispatch a legate to refresh this
-> - **Skip** — leave it for now
-
-If the user picks re-research, invoke the research skill via `/research` with the original topic as context, specifying it's an update to the existing doc. Then continue to the next item.
-
-#### Stagnant tasks
-
-For each stagnant task:
-
-> **<task-slug>** — open since YYYY-MM-DD, last touched YYYY-MM-DD.
-> - **Update** — what's the latest? (captures the user's response and appends it to the task file)
-> - **Close** — mark it done
-> - **Skip**
-
-If the user picks "update," ask a short follow-up: "What's the current status?" Append their response as a dated entry to the task file. If "close," move the task to `sources/tasks/done/`.
-
-#### Outdated wiki pages
-
-If any wiki pages are outdated:
-
-> **<N> wiki pages** have sources newer than their last compile.
-> - **Recompile** — I'll run a compile to bring the wiki current
-> - **Skip**
-
-If the user picks recompile, invoke the compile skill via `/compile`. Only offer this once (not per page).
-
-#### Missing private notes
-
-For each entity that should have a private note but doesn't:
-
-> **<entity-name>** (<entity-type>) — no private note file.
-> - **Add a note** — anything to capture? (writes the user's response to `private/<filename>`)
-> - **Skip**
-
-If the user provides a note, create the private note file using the entity type's filename pattern and write a dated entry.
-
-#### Stale private notes
-
-For each private note past its staleness threshold:
-
-> **<entity-name>** — last updated YYYY-MM-DD (<N> days ago).
-> - **Add a note** — anything new? (appends to the existing file)
-> - **Skip**
-
-If the user provides a note, append a dated entry to the existing private note file.
-
-#### Wiki gaps and contradictions
-
-These are informational — no inline action. List them at the end:
-
-> **Wiki gaps:** [[page-a]], [[page-b]] — these are referenced but don't exist. They'll resolve on the next compile if sources mention these entities.
->
-> **Contradictions:** <entity> described differently in <page-a> vs <page-b>. Worth checking manually.
-
-#### Wrap-up
-
-After all categories are triaged (or the user says "stop"), print a summary of actions taken:
-
-```
-## Triage Complete
-- Dispatched N re-research tasks
-- Updated N tasks, closed N tasks
-- Captured N private notes
-- Recompiled wiki: yes/no
-```
-
-If any files were written or modified during triage, commit them:
-
-```bash
-git -C "$MEMENTO_ROOT" add sources/ private/
-git -C "$MEMENTO_ROOT" commit -m "health-check triage: <brief summary of actions>"
-```
+In triage mode, after walking through actionable categories, commit any
+files written during triage with the exact `git add` / `git commit` invocation
+in the template's wrap-up.
 
 ## Guidelines
 

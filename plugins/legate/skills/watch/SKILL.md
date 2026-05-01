@@ -1,15 +1,15 @@
 ---
 name: watch
 description: >
-  Internal sweep-and-report skill for auto-watching dispatched legate children.
-  Armed by `legate:dispatch` at launch time and fired on a cadence by
-  `ScheduleWakeup`. Sweeps only the children tagged `@legate-parent = <my pane
-  id>`, hashes each pane tail, reports deltas via `legate:debrief`, and
-  re-schedules the next tick. Also handles user utterances that stop or
-  confirm watching: "stop watching", "cancel the watcher", "enough watching",
-  "are you still watching?", "watch my legates" (confirmation when children
-  exist; a hint to dispatch when none do). Do NOT invoke for "start watching"
-  — watching is implicit in dispatch.
+  Auto-watch dispatched legate children and surface deltas when they make
+  progress, finish, or get launched. Armed by `legate:dispatch` at launch
+  time and fired on a cadence by `ScheduleWakeup` — sweeps only the children
+  tagged with this parent's pane id, hashes each pane tail, reports deltas
+  via `legate:debrief`, and re-schedules the next tick. Also handles user
+  utterances that stop or confirm watching: "stop watching", "cancel the
+  watcher", "enough watching", "are you still watching?", "watch my legates"
+  (confirmation when children exist; a hint to dispatch when none do). Do
+  NOT invoke for "start watching" — watching is implicit in dispatch.
 argument-hint: "[stop]"
 allowed-tools:
   - Bash

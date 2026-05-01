@@ -9,6 +9,24 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
 
 Check existing research before doing new work. Update rather than duplicate. Enforce consistent format with dating and sourcing.
 
+## Gotchas
+
+- **Recall before research.** Always Phase 1 first. A matching doc that's
+  current means stop and surface it — do not start fresh.
+- **Update beats duplicate.** A stale match becomes the basis for an update,
+  not a new doc. Bump `date`, revise content, append new sources, preserve
+  old sources with their original access dates.
+- **Stale ≠ rewrite-in-place.** When a stale doc is referenced and worth
+  refreshing, prefer **re-research** (run the investigation against current
+  data) over editing the old body. Patching mixes vintages.
+- **Dispatch via legate when available.** If `legate:dispatch` exists, hand
+  research off to a legate session — don't do it inline. Frees the main
+  conversation for other work.
+- **`staleness` is required.** Every research doc must declare `high`,
+  `medium`, or `low`. Missing the field means the doc isn't a research doc.
+- **Filename always `YYYY-MM-DD-HHmm-topic-slug.md`.** 24-hour time avoids
+  collisions when a topic is revisited the same day.
+
 ## Memento root
 
 ```bash

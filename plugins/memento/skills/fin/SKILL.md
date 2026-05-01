@@ -15,6 +15,25 @@ Works on two kinds of sessions:
 1. **Legate sessions** — capture the tmux pane output, extract value, write to sources, kill the window.
 2. **Main conversation** — scan the current conversation, extract value, write to sources, commit.
 
+## Gotchas
+
+- **No arguments = fin the current (main) conversation.** Do NOT check on,
+  debrief, or interact with legates. Legates are independent sessions. Touch
+  them only if a name is passed or `all` is given.
+- **Default mode writes immediately** — no approval step. `ask` is opt-in.
+  This applies to `fin all` too: it proceeds without confirmation.
+- **Empty capture plan ⇒ stop.** Don't create empty files, don't commit, don't
+  emit a "nothing to do" commit. Print the reason and exit.
+- **Bright line: tasks vs follow-ups.** Tasks are commitments the user made
+  *in this session* ("I'll send the email tomorrow"). Everything else worth
+  not losing is a follow-up. When in doubt, file as follow-up — promotion is
+  cheap, demotion is expensive because the misclassified task has already
+  shaped the next briefing.
+- **Sensitive observations route to `private/`, never `sources/` or `wiki/`.**
+  The Entity Types registry decides which entity types have this boundary.
+- Don't capture content that's already persisted (PRs, issue trackers, files
+  written during the session).
+
 ## Memento root
 
 ```bash
@@ -194,69 +213,13 @@ Build a capture plan — for each item:
 
 ## Step 5: Write files
 
-### Tasks
-Use the tasks skill for creation. For updates to existing tasks, edit the file directly.
+Read `assets/templates/file-formats.md` for the exact frontmatter and body
+shape of each destination (follow-up, decision, research, analysis, private
+note). Tasks go through the `tasks` skill — do not template them here.
 
-### Follow-ups
-
-Write directly to `sources/followups/<topic-slug>.md`. Frontmatter mirrors
-tasks so the two are easy to convert:
-
-```markdown
----
-date: YYYY-MM-DD
-kind: followup
-origin: <what surfaced this — meeting, session, person, etc.>
----
-
-# <Short title — what's open>
-
-<One or two paragraphs: what the thing is, why it might matter, what would
-move it forward. Do not phrase as a directive.>
-```
-
-For updates to existing follow-ups, append a dated note under a `## Notes`
-section rather than rewriting the body.
-
-### Decisions
-```markdown
----
-date: YYYY-MM-DD
-topic: Short description
----
-
-# Decision: [Topic]
-
-## Context
-## Decision
-## Alternatives considered
-## Implications
-```
-
-### Research
-Dated filename, YAML frontmatter with topic/tags/sources/staleness.
-
-### Analyses
-```markdown
----
-date: YYYY-MM-DD
-topic: Short description
----
-
-# [Topic]
-
-[Content]
-```
-
-### Private notes
-Append dated entry to the appropriate `private/<filename>` file under a `## Notes`
-section. Create the file if it doesn't exist. Never overwrite existing content.
-
-```markdown
-## <date>
-
-<Observation or note>
-```
+For updates to existing follow-ups, append a dated entry under a `## Notes`
+section rather than rewriting the body. For tasks, edit the file directly.
+Private notes always append; never overwrite.
 
 ## Step 6: Close down
 

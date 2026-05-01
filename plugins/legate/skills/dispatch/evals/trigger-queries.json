@@ -1,0 +1,37 @@
+[
+  {
+    "query": "spin up a separate session to work on PR 42 — the reviewer wants the migration retried",
+    "should_trigger": true,
+    "rationale": "explicit dispatch language + PR reference"
+  },
+  {
+    "query": "can you have another agent work on the auth refactor while we keep going here?",
+    "should_trigger": true,
+    "rationale": "implicit parallel work — no 'dispatch' keyword"
+  },
+  {
+    "query": "send the PR session new instructions: also run the integration tests after fixing the lint",
+    "should_trigger": true,
+    "rationale": "follow-up orders to existing dispatched session"
+  },
+  {
+    "query": "have codex investigate this ticket in its own window",
+    "should_trigger": true,
+    "rationale": "agent-runtime override + new window"
+  },
+  {
+    "query": "let me look at the dispatched PR session",
+    "should_trigger": false,
+    "rationale": "near-miss: keyword 'dispatched' but the user wants inspect, not a new dispatch"
+  },
+  {
+    "query": "what's happening with the auth refactor session?",
+    "should_trigger": false,
+    "rationale": "near-miss: status check belongs to debrief"
+  },
+  {
+    "query": "stop watching the dispatched sessions",
+    "should_trigger": false,
+    "rationale": "near-miss: belongs to watch (stop intent)"
+  }
+]

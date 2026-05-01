@@ -32,8 +32,11 @@ Arguments are passed as: $ARGUMENTS
 - `full` → full rebuild (recompile everything from scratch)
 - `<topic>` → recompile a single wiki page (e.g., `compile auth-service`, `compile jane-doe`)
 
-## Safety rules
+## Gotchas
 
+Hard rules — environment-specific facts the agent will get wrong without these.
+
+**Safety:**
 - **NEVER read files in `private/`** — that directory is a privacy boundary.
 - **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs. The only exception is a legacy repo without `AGENTS.md`, where you may update the existing entrypoint that owns the hot set and report the migration need.
 - **All Memento paths are relative to the resolved Memento root** — `sources/`, not the caller's current repo.
@@ -42,6 +45,25 @@ Arguments are passed as: $ARGUMENTS
   `status: archived` from current-state synthesis and from L1 hot-set promotion,
   but preserve them in source traces when an active source's `supersedes` field
   points to them.
+- **Never `--amend`.** Always create new commits. Pre-commit hook failure
+  means the commit didn't happen — fix the issue, re-stage, new commit.
+- **Never push.** The skill commits locally only.
+
+**Performance — speed is a hard constraint:**
+- **Batch all reads in parallel.** Never read files one at a time. Issue all
+  Read calls for a step in a single message so they execute concurrently.
+  17 source files = ONE message with 17 Read tool calls, not 17 messages.
+- **Batch all writes in parallel.** Same rule for Edit/Write.
+- **No unnecessary reads.** Skip wiki pages for entities not mentioned in the
+  changed sources. Don't re-read `AGENTS.md` if entity types are in context.
+- **Target: under 3 minutes for incremental compiles.** If you're slower,
+  you're sequential where you should be parallel.
+
+**Output:**
+- **No `<!-- Compile run ... -->` HTML comments in INDEX.md.** The git log is
+  the durable record. Step 8's commit message carries the synthesis.
+- **`last_compiled` lives only in `wiki/INDEX.md`** — never in per-page
+  frontmatter. Page-level freshness is the `Last Updated` column in INDEX.md.
 
 ## Source status metadata
 
@@ -94,15 +116,6 @@ For incremental updates, use file modification times to detect changes:
 After reading changed files, discard sources whose frontmatter status is
 `superseded` or `archived`. If no active source files remain, report "wiki is
 current — no active source changes since last compile" and stop.
-
-## Performance rules
-
-**Speed is a hard constraint.** Follow these rules:
-
-1. **Batch all reads in parallel.** Never read files one at a time. Issue all Read calls for a step in a single message so they execute concurrently. If you need to read 17 source files, that's ONE message with 17 Read tool calls — not 17 sequential messages.
-2. **Batch all writes in parallel.** Same rule. If you're updating 10 wiki pages, issue all 10 Edit/Write calls in one message.
-3. **No unnecessary reads.** Don't read wiki pages for entities that aren't mentioned in the changed sources. Don't re-read `AGENTS.md` if you already have the entity types in context.
-4. **Target: under 3 minutes for incremental compiles.** If you're taking longer, you're doing too much sequentially.
 
 ## Step 2: Gather all sources
 

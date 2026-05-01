@@ -1,16 +1,16 @@
 ---
 name: dispatch
 description: >
-  Launch a new tmux window with an AI agent session for a task, or send additional
-  instructions to an existing dispatched session. Supports Claude Code and Codex —
-  defaults to launching the same agent type as the caller. Use when the user says
-  "dispatch", "spin up", "new session", "launch a window for", "send instructions to",
-  "farm this out", "get someone on this", "can you handle that in a separate window",
-  "have codex look at this", "send this to claude", or references a PR, issue, or task
-  they want worked on in a separate window. Also handles follow-up orders like "tell that
-  session to also run the tests" or "send new instructions to the PR session." Trigger
-  this skill whenever the user wants work done in parallel or outside the current
-  conversation, even if they don't use the word "dispatch."
+  Launch a new tmux window with an AI agent session for a task, or send
+  additional instructions to an existing dispatched session. Supports Claude
+  Code and Codex — defaults to launching the same agent type as the caller.
+  Use when the user wants work done in parallel or outside the current
+  conversation: "dispatch", "spin up", "new session", "farm this out", "have
+  <agent> handle this", or any reference to a PR, issue, or task they want
+  worked on in a separate window. Also handles follow-up orders to an
+  existing session (e.g., "send new instructions to the PR session"). Trigger
+  whenever parallel or out-of-band work is implied, even if the user doesn't
+  say "dispatch."
 argument-hint: "<task|PR#|issue> [--codex|--claude]"
 allowed-tools:
   - Bash
