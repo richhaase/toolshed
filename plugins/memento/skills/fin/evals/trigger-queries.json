@@ -1,0 +1,42 @@
+[
+  {
+    "query": "we're done here, wrap this up",
+    "should_trigger": true,
+    "rationale": "explicit close-out of main conversation"
+  },
+  {
+    "query": "fin",
+    "should_trigger": true,
+    "rationale": "direct skill invocation"
+  },
+  {
+    "query": "anything worth capturing from this session before I move on?",
+    "should_trigger": true,
+    "rationale": "implicit session-finish — no 'fin' keyword"
+  },
+  {
+    "query": "fin the pr-42 legate when it's done",
+    "should_trigger": true,
+    "rationale": "named legate target"
+  },
+  {
+    "query": "fin all open sessions",
+    "should_trigger": true,
+    "rationale": "all-target sweep"
+  },
+  {
+    "query": "I'm going to drive the auth migration — add it as a task",
+    "should_trigger": false,
+    "rationale": "near-miss: explicit task creation belongs to tasks skill, not fin"
+  },
+  {
+    "query": "what's still open from yesterday's session?",
+    "should_trigger": false,
+    "rationale": "near-miss: review-followups, not capture"
+  },
+  {
+    "query": "kill the pr-42 window",
+    "should_trigger": false,
+    "rationale": "near-miss: pure tmux kill, no capture intent"
+  }
+]

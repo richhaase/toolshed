@@ -48,6 +48,18 @@ Markdown instructions:
 - Keep `SKILL.md` under 500 lines; move detailed reference material to
   `references/`.
 
+## Authoring references
+
+Beyond the [spec](https://agentskills.io/specification), the
+[agentskills/agentskills](https://github.com/agentskills/agentskills) repo has
+deeper author-facing guidance:
+
+- [Best practices](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/best-practices.mdx)
+- [Optimizing descriptions](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/optimizing-descriptions.mdx) — description quality drives whether a skill gets triggered
+- [Evaluating skills](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/evaluating-skills.mdx)
+- [Using scripts](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/using-scripts.mdx)
+- [Reference SDK](https://github.com/agentskills/agentskills/tree/main/skills-ref)
+
 ## Editing plugin behavior
 
 When you change anything inside a plugin directory (`plugins/<name>/SKILL.md`,
