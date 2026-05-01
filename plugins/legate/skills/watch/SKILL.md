@@ -174,5 +174,5 @@ naturally when children are gone or the user opts out.
 
 ## Conventions
 
-See `references/conventions.md` for the full tag contract, parent-identity
+See `../_shared/references/conventions.md` for the full tag contract, parent-identity
 semantics, and snapshot block format.
