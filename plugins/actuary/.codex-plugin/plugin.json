@@ -1,0 +1,27 @@
+{
+  "name": "actuary",
+  "version": "0.1.0",
+  "description": "Audit and evaluate Agent Skills against the agentskills.io spec and authoring best practices. First skill: skill-audit (layered L1 spec / L2 structural / L3 craft report).",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": ["agent-skills", "audit", "lint", "evaluation", "best-practices", "review", "quality"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Actuary",
+    "shortDescription": "Audit and evaluate Agent Skills",
+    "longDescription": "Audit Agent Skills (SKILL.md files) against the agentskills.io specification and authoring best practices. Produces a layered report covering spec compliance, structural metrics, and craft-level recommendations. Read-only — never modifies the audited skills.",
+    "developerName": "Rich Haase",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "websiteURL": "https://github.com/richhaase/toolshed",
+    "defaultPrompt": [
+      "Audit the skills in this plugin.",
+      "Check this SKILL.md against agentskills best practices.",
+      "Triage every skill in the toolshed marketplace."
+    ]
+  }
+}
