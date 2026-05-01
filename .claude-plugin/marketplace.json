@@ -18,6 +18,12 @@
       "source": "./plugins/memento",
       "description": "Personal memory base with sources, wiki, and an always-resident hot set.",
       "category": "Productivity"
+    },
+    {
+      "name": "actuary",
+      "source": "./plugins/actuary",
+      "description": "Audit and evaluate Agent Skills against the agentskills.io spec and authoring best practices.",
+      "category": "Developer Tools"
     }
   ]
 }

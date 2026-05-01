@@ -85,6 +85,9 @@ README and LICENSE edits don't need a bump.
   tasks, review-followups, research, health-check).
 - **legate** — Stateless tmux session management (dispatch, debrief, inspect,
   watch). Tmux is the source of truth; no registry files.
+- **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
+  and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
+  layered report). Designed to grow with additional evaluator skills.
 
 ## Portability rules
 

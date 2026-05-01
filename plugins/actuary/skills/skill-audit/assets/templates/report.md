@@ -1,0 +1,70 @@
+# Skill audit report — `<target>`
+
+`<target>` = single skill path | plugin path | repo / marketplace root.
+Date: YYYY-MM-DD. Auditor: actuary/skill-audit.
+
+**Finding format:** every finding line begins with `- [<layer> <severity>] rule: <rule-key> —`
+where `<rule-key>` is one of the canonical keys in
+`references/criteria.md` § Rule catalog. The format keeps reports
+machine-parseable for any future eval runner — do not paraphrase it.
+
+## Inventory
+
+| Skill | Body lines | Body tokens (~) | Description chars | refs/ | scripts/ | assets/ |
+|---|---:|---:|---:|:-:|:-:|:-:|
+| <plugin>/<skill> | N | N | N | ✓/– | ✓/– | ✓/– |
+
+(One row per `SKILL.md`. Token estimate at ~4 chars/token.)
+
+## L1 — Spec compliance
+
+For each skill, list defects. If none, write `OK`.
+
+### <plugin>/<skill>
+- **OK** *(or)*
+- [L1 high] rule: name-matches-directory — frontmatter `name` is `foo`, directory is `foo-bar`.
+- [L1 high] rule: description-length-max — description is 1187 chars (limit 1024).
+- [L1 medium] rule: allowed-tools-shape — `allowed-tools` is a YAML list; spec calls for a space-separated string.
+
+## L2 — Structural metrics
+
+For each skill, list flags only — don't repeat values that are within
+guidance.
+
+### <plugin>/<skill>
+- **OK** *(or)*
+- [L2 medium] rule: body-lines-soft-max — body is 612 lines (>500 guideline).
+- [L2 medium] rule: description-length-min-soft — description is 92 chars; under-specified for reliable triggering.
+- [L2 medium] rule: inline-large-template — 3 fenced blocks ≥ 30 lines at lines 234, 412, 580 — candidates for `assets/templates/`.
+
+## L3 — Craft recommendations
+
+For each skill, list ranked findings. Each finding has:
+- **Severity** (`high` / `medium` / `low`)
+- **Rule key** from the catalog (kebab-case)
+- One-line **what**, quoting SKILL.md where possible
+- One-line **why** referencing the best-practice
+- One-line **fix sketch** — direction only, do not prescribe wording
+
+### <plugin>/<skill>
+- [L3 high] rule: description-no-triggers — "Process CSV files." Per optimizing-descriptions, descriptions need to enumerate user intents the skill should activate on. Fix: add 3–5 casual paraphrases ("clean up this csv", "what's the pattern in my sales data").
+- [L3 medium] rule: template-not-extracted — Inline 80-line wiki page template (lines 234–315). Best-practices recommends moving long templates to `assets/`. Fix: extract to `assets/templates/wiki-page.md` and reference.
+- [L3 medium] rule: gotchas-missing — No `## Gotchas` section in a 410-line skill. Best-practices recommends a consolidated gotchas block for non-obvious environment facts.
+- [L3 low] rule: options-without-default — "Use pdfplumber, pypdf, or PyMuPDF…" presents a menu. Pick a default and demote alternatives.
+
+## Quick-wins shortlist
+
+Cross-cutting recommendations sorted by ratio of impact to effort.
+
+1. **Add Gotchas to `<a>`, `<b>`, `<c>`.** Single-section addition, high
+   triggering value.
+2. **Extract `<skill>` templates to `assets/templates/`.** Frees N tokens
+   per skill; pure mechanical move.
+3. **Tune `<skill>` description to add trigger phrases.** Single-string
+   change; biggest activation lever.
+
+## What this audit did not check
+
+- Trigger rate (would require running the skill against a query set).
+- Output quality (would require an eval harness with assertions).
+- Script behavior (would require running the scripts).
