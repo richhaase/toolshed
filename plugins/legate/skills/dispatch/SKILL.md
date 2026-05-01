@@ -293,7 +293,7 @@ the details. A bloated brief wastes system prompt space and buries the signal.
 ## Conventions
 
 For the full tag contract and naming conventions shared across all legate skills, see
-`references/conventions.md`.
+`../_shared/references/conventions.md`.
 
 ## Naming convention
 
