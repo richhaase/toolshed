@@ -81,8 +81,10 @@ README and LICENSE edits don't need a bump.
 
 ## Current plugins
 
-- **memento** — Memory-base workflows (memento-setup, compile, correct, fin,
-  tasks, review-followups, research, health-check).
+- **memento** — Memory-base workflows (memento-config, compile, fin, ama,
+  followups). Five-skill core: idempotent setup/config, sources -> wiki ->
+  AGENTS.md hot set compilation, passive session capture, active LLM-driven
+  interview, and queue review.
 - **legate** — Stateless tmux session management (dispatch, debrief, inspect,
   watch). Tmux is the source of truth; no registry files.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec

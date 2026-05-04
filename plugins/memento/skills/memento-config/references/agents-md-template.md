@@ -1,8 +1,9 @@
 # Starter AGENTS.md template
 
-Used by `memento-setup` Phase 1 to scaffold the canonical `AGENTS.md` at the
+Used by `memento-config` Phase 1 to scaffold the canonical `AGENTS.md` at the
 Memento root. Phase 2 customizes the Entity Types registry and (optionally)
-nickname tables.
+nickname tables. The Update branch (existing-Memento mode) edits sections of
+this template in place rather than re-writing it.
 
 ```markdown
 # Memory Base
@@ -67,7 +68,7 @@ All inputs that feed the wiki. Organized by origin:
 - **`tasks/`** — User-committed actions. Existence = open, deletion = done.
 - **`followups/`** — Uncommitted captures: open questions, awareness items,
   things others surfaced, loose ends. Default destination for non-task
-  `/fin` captures. Walked periodically via `/review-followups` and either
+  `/fin` captures. Walked periodically via `/followups` and either
   promoted to `tasks/`, dismissed, or kept. Briefings do not surface
   follow-ups as urgent.
 

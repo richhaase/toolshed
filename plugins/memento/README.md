@@ -24,10 +24,13 @@ Compilation flows upward: L3 -> L2 -> L1. The `/compile` skill handles the full 
 ## Quick start
 
 ```
-/memento-setup
+/memento-config
 ```
 
-This scaffolds the directory structure and walks you through customizing the Memento for your use case.
+On a fresh directory, this scaffolds the structure and walks you through
+customizing entity types, profile, and nicknames. On an existing Memento,
+it detects current state and offers a targeted update branch (add an entity
+type, modify an entity type, update profile, update nicknames).
 
 ## Memento root configuration
 
@@ -85,10 +88,10 @@ A **follow-up** is anything else worth not losing — open questions, things
 others surfaced, judgment calls awaiting clarification, loose ends from
 build sessions. Follow-ups do not represent commitments and are not
 surfaced as urgent. They live in `sources/followups/` and are walked
-periodically via `/review-followups` (oldest-first by default).
+periodically via `/followups` (oldest-first by default).
 
 `/fin` captures non-task items as follow-ups by default. Promotion
-(follow-up → task) happens via `/tasks` when the user decides to drive
+(follow-up → task) happens via `/followups` when the user decides to drive
 something. This split exists because conflating the two produced "urgent
 task" framings on what were actually informational items.
 
@@ -96,18 +99,17 @@ task" framings on what were actually informational items.
 
 | Skill | Description |
 |-------|-------------|
-| `memento-setup` | Scaffold a Memento repo and customize it via interview |
+| `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
-| `fin` | End-of-session capture — extract decisions, tasks, follow-ups, and findings |
-| `tasks` | Task CRUD — create, list, update, complete, promote-from-follow-up |
-| `review-followups` | Walk open follow-ups one at a time and decide: promote, dismiss, keep, or answer |
-| `research` | Research with staleness tracking and source attribution |
-| `health-check` | Read-only audit for source status, staleness, gaps, contradictions, L1 freshness |
+| `fin` | Passive end-of-session capture — extract decisions, tasks, follow-ups, research, analyses, private notes |
+| `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
+| `followups` | Walk open tasks and follow-ups one item at a time: keep, dismiss, mark done, promote, demote, or note |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
-descend into `wiki/` and `sources/` as needed). For capture, edit files under
-`sources/` directly or use `fin` for session-end captures. Supersession is a
-manual frontmatter edit (see Source status below).
+descend into `wiki/` and `sources/` as needed). For passive capture, edit
+files under `sources/` directly or use `/fin` at session end. For active
+capture, run `/ama` to let the agent interview you on what's missing.
+Supersession is a manual frontmatter edit (see Source status below).
 
 ## Source status
 
@@ -125,9 +127,8 @@ correction_note: "What changed and why"
 ---
 ```
 
-`compile` ignores `superseded` and `archived` sources for current-state wiki and
-hot-set synthesis. `health-check` validates status consistency, broken
-supersession links, stale index entries, and private leakage.
+`compile` ignores `superseded` and `archived` sources for current-state wiki
+and hot-set synthesis.
 
 ## Design principles
 
@@ -136,7 +137,7 @@ supersession links, stale index entries, and private leakage.
 - **Local-first.** Git repo, no remote required.
 - **Additive.** Wiki compilation never destroys historical content.
 - **Private by default.** `private/` is never compiled or referenced externally.
-- **Opinionated defaults, customizable.** Works immediately; `memento-setup` interview tunes it.
+- **Opinionated defaults, customizable.** Works immediately; `memento-config` interview tunes it on first run, and updates it on subsequent runs.
 
 ## File conventions
 

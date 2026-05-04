@@ -1,14 +1,17 @@
 ---
-name: memento-setup
+name: memento-config
 description: >
-  Set up and scaffold a personal memory base repository. Creates the directory structure
-  (sources, wiki, outputs, private), generates canonical AGENTS.md context plus
-  thin harness entrypoints, then
-  interviews the user to customize the Memento for their use case. Use when the user says "set up a knowledge
-  base", "create a Memento", "scaffold my notes repo", "initialize my wiki", "memento setup",
-  "start a new memory base", "I want to track my notes", or otherwise wants to create
-  a structured personal knowledge management system. This is the entry point for the memento
-  plugin — run this first before using other memento skills.
+  Set up a new Memento or update the configuration of an existing one — idempotent
+  surface for both. Creates the directory structure (sources, wiki, outputs, private)
+  on first run, generates canonical AGENTS.md context plus thin harness entrypoints,
+  and interviews the user to customize entity types, profile, nicknames, and labels.
+  On an existing Memento, detects current state and offers a targeted update branch
+  (add an entity type, modify an entity type, update profile, update nicknames,
+  re-scaffold missing dirs). Use when the user says "set up a knowledge base",
+  "create a Memento", "scaffold my notes repo", "initialize my wiki", "memento setup",
+  "memento config", "configure my memento", "add an entity type", "update my memento
+  config", "modify my memento", or otherwise wants to bootstrap or tune the Memento.
+  This is the entry point for the memento plugin.
 allowed-tools:
   - Bash
   - Read
@@ -19,13 +22,15 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-# Memento Setup
+# Memento Config
 
-Two-phase skill: scaffold the directory structure, then interview the user to customize.
+Idempotent setup-and-update surface for the Memento. On a fresh directory,
+scaffolds and interviews. On an existing Memento, detects current state and
+offers a targeted update menu.
 
 ## Memento root
 
-`memento-setup` is the entry point that creates or selects the Memento data root.
+`memento-config` is the entry point that creates or selects the Memento data root.
 
 Use the bundled resolver when a root may already be configured:
 
@@ -46,6 +51,32 @@ After choosing `MEMENTO_ROOT`, run filesystem and git commands against that dire
 with absolute paths or `git -C "$MEMENTO_ROOT" ...`. Script paths are shown relative
 to this `SKILL.md`; if your shell is in another directory, invoke the same
 scripts by absolute path.
+
+## Phase 0: Detect mode
+
+Before scaffolding, check whether `MEMENTO_ROOT` already looks like a
+configured Memento. The signal is a canonical `AGENTS.md` containing an
+`## Entity Types` section (legacy repos may have it in `CLAUDE.md`).
+
+```bash
+if grep -q '^## Entity Types' "$MEMENTO_ROOT/AGENTS.md" 2>/dev/null \
+   || grep -q '^## Entity Types' "$MEMENTO_ROOT/CLAUDE.md" 2>/dev/null; then
+  MODE=update
+else
+  MODE=new
+fi
+```
+
+- **`MODE=new`** → run Phase 1 (scaffold) followed by Phase 2 (full
+  interview). This is the original setup flow.
+- **`MODE=update`** → skip Phase 1's scaffold writes (they're already
+  there) but still run the idempotent `mkdir -p` to backfill any
+  missing directories. Then enter the **Update branch** below instead
+  of the full interview.
+
+In any mode, never overwrite existing `AGENTS.md`, `CLAUDE.md`,
+`.gitignore`, or wiki content. Edits are surgical — add what's missing,
+amend what the user changes — never replace the file wholesale.
 
 ## Phase 1: Scaffold
 
@@ -207,7 +238,7 @@ other memento skills read `AGENTS.md` to know how to operate.
 #### Entity Types registry
 
 Add an `## Entity Types` section to `AGENTS.md`. This is a machine-readable registry
-that compile, fin, health-check, and other skills reference. Each entity type defines:
+that `compile`, `fin`, `ama`, and `followups` reference. Each entity type defines:
 
 ```markdown
 ## Entity Types
@@ -218,7 +249,6 @@ that compile, fin, health-check, and other skills reference. Each entity type de
 - **frontmatter:** title, type, role, team, last_compiled, sources, related
 - **sections:** Overview, Current Focus, Recent Activity, Key Contributions
 - **private_notes:** yes — route to `private/firstname-lastname.md`
-- **private_note_staleness:** 14 days
 
 ### projects
 - **wiki_path:** `wiki/projects/`
@@ -248,7 +278,6 @@ Key properties per entity type:
 - **frontmatter** — YAML frontmatter fields for wiki pages (always includes title, type, last_compiled, sources, related)
 - **sections** — markdown sections each wiki page of this type should have
 - **private_notes** (optional) — if `yes`, this entity type has private observations that route to `private/` instead of wiki. Include the filename pattern.
-- **private_note_staleness** (optional) — how many days before a private note is flagged as stale by health-check. Defaults to 30 if omitted.
 
 #### Other `AGENTS.md` additions
 
@@ -311,7 +340,65 @@ git -C "$MEMENTO_ROOT" commit -m "Customize Memento: <brief summary of entity ty
 
 Suggest they:
 - Add notes to `sources/`
-- Create tasks with `/tasks`
-- Run `/compile` after adding source material
-- Use `/fin` at end of sessions to capture value
-- Run `/health-check` to audit Memento state
+- Use `/fin` at end of sessions to capture value (decisions, tasks,
+  follow-ups, research, analyses, private notes)
+- Use `/ama` when they want the agent to interview them and fill gaps
+  in the wiki
+- Run `/compile` after adding source material to refresh the wiki and
+  the `AGENTS.md` hot set
+- Run `/followups` periodically to walk open tasks and follow-ups
+
+## Update branch (entered when MODE=update)
+
+The Memento already has an `## Entity Types` registry. Don't re-run
+the full new-Memento interview. Instead, ask one top-level question:
+
+> "What would you like to change?"
+
+Offer these options via `AskUserQuestion`:
+
+- **Add an entity type** — collect type name, `wiki_path`, `filename`
+  pattern, `frontmatter` fields, `sections`, optional
+  `private_notes`. Append the new entity to the `## Entity Types`
+  registry in `AGENTS.md`. Create the matching `wiki/<type>/`
+  directory. Add a section header for the type to `wiki/INDEX.md`
+  if not already present. Suggest `/compile full` so existing
+  sources get reorganized.
+- **Modify an entity type** — read the existing registry, ask which
+  type to change, ask what changes (rename type, add/remove
+  frontmatter fields, add/remove sections, toggle `private_notes`).
+  Edit the registry in place. Surgical edit only — do not rewrite
+  surrounding content.
+- **Update the Memento Profile** — purpose statement, data sources,
+  privacy rules. Edit the `Memento Profile` section in `AGENTS.md`.
+- **Update nicknames / labels** — edit the corresponding tables in
+  `AGENTS.md`. Add, remove, or change rows surgically.
+- **Re-scaffold missing directories** — run the idempotent `mkdir -p`
+  pass against the canonical structure. No-op if everything is
+  already present.
+
+After the targeted edit, commit:
+
+```bash
+git -C "$MEMENTO_ROOT" add -A
+git -C "$MEMENTO_ROOT" commit -m "config: <one-line summary of what changed>"
+```
+
+If the user wants more changes, loop the top-level question. When
+they're done, exit.
+
+### Update-branch guidelines
+
+- **Surgical, not destructive.** Existing wiki pages, sources, and
+  hot set tables stay intact. Updates touch only the registry, profile,
+  or nickname/label tables they target.
+- **Show before applying.** For modifications, show the current entity
+  type definition and the proposed change side-by-side before
+  editing. Confirm with the user.
+- **Dropping an entity type is heavy.** Ask explicitly whether to also
+  delete the corresponding `wiki/<type>/` directory or leave it as
+  legacy data. Default to leaving it alone.
+- **Renaming an entity type** affects every wiki page, source
+  reference, and hot set entry of that type. Treat as heavy. Confirm
+  the user actually wants to do this and recommend running
+  `/compile full` after.

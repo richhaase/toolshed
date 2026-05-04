@@ -1,13 +1,13 @@
 {
   "name": "memento",
-  "version": "0.8.5",
-  "description": "Multi-layer cache memory base with configurable data root. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with progressive disclosure, task tracking, research docs, session finishing, and health checks.",
+  "version": "0.9.0",
+  "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with passive session capture (fin), active LLM-driven interview (ama), and lightweight queue review (followups).",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["memory", "memento", "agent-memory", "knowledge-preservation", "wiki", "notes", "tasks", "research", "compile", "personal-knowledge-management"],
+  "keywords": ["memory", "memento", "agent-memory", "knowledge-preservation", "wiki", "notes", "tasks", "compile", "interview", "personal-knowledge-management"],
   "skills": "./skills/"
 }
