@@ -119,6 +119,6 @@ cat >&2 <<'EOF'
 memento-root: no Memento root configured.
 
 Set MEMENTO_ROOT, add a .memento-root file containing the Memento path, or run
-memento-setup in a directory that should become the Memento root.
+memento-config in a directory that should become the Memento root.
 EOF
 exit 69

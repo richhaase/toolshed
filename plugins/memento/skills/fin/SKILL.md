@@ -164,7 +164,7 @@ were actually informational items.
   user has not committed to drive it. Default destination for captures.
 
 When in doubt, file as a follow-up. Promotion (follow-up → task) is cheap
-and happens via the `tasks` skill when the user decides to drive it.
+and happens via the `followups` skill when the user decides to drive it.
 Demoting a misclassified task is more painful — it has already shaped the
 next briefing.
 
@@ -192,7 +192,7 @@ configured filename pattern, not to `sources/`.
 
 Legates often produce specific kinds of value:
 
-- **Research legates**: Findings should already be written to `sources/` by the research skill. Check if the doc exists; if not, capture the findings.
+- **Research legates**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere.
 - **Investigation legates**: Findings may warrant a research doc or analysis if substantive.
 - **Interactive task legates**: May have produced code changes (already committed) or surfaced new tasks/blockers.
 
@@ -214,8 +214,9 @@ Build a capture plan — for each item:
 ## Step 5: Write files
 
 Read `assets/templates/file-formats.md` for the exact frontmatter and body
-shape of each destination (follow-up, decision, research, analysis, private
-note). Tasks go through the `tasks` skill — do not template them here.
+shape of each destination (task, follow-up, decision, research, analysis,
+private note). Tasks are templated inline — that file has the canonical
+simple/complex shapes.
 
 For updates to existing follow-ups, append a dated entry under a `## Notes`
 section rather than rewriting the body. For tasks, edit the file directly.
