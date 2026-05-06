@@ -122,8 +122,11 @@ defects per skill. A skill with zero defects gets `OK`.
 
 Common defects to test:
 - `name` missing, malformed, or not matching directory.
+- `name` contains `<`/`>` or the substrings `anthropic`/`claude`.
 - `description` missing, empty, or > 1024 chars.
+- `description` contains `<`/`>`.
 - `compatibility` > 500 chars.
+- `license` not a string when present.
 - `allowed-tools` present but not a string (YAML list ≠ spec — flag as warn).
 
 ### Step 4: L2 structural metrics
