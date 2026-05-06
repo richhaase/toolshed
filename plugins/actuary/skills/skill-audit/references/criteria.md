@@ -164,12 +164,22 @@ produce a single craft "score" — list the findings.
   past 100 lines without a `## Contents` (or equivalent) section.
 
 ### Gotchas section
-- **Presence.** Flag missing `## Gotchas` (or equivalently named) section
-  when the skill body is long enough (>200 lines) that the agent will
-  benefit from a consolidated callout.
-- **Quality.** Gotchas should be specific, environment-bound facts the agent
-  will get wrong without them. Generic advice ("handle errors appropriately")
-  is anti-gotcha and should be flagged.
+
+Best-practices frames Gotchas as a *pattern*, not a spec rule. The parent
+section explicitly notes "not every skill needs all of them — use the ones
+that fit your task." There is no body-length trigger in canonical.
+
+- **Presence (judgment-based).** Fire `gotchas-missing` only when the
+  auditor can name specific environment-bound traps in the body that the
+  agent will get wrong without being told (scattered env invariants,
+  "this command silently fails" warnings, schema/identifier mismatches,
+  TUI/paste hazards, etc.) and those traps are not consolidated into a
+  `## Gotchas` block. Do not fire on body length alone. Quote the traps
+  in the finding.
+- **Quality.** Gotchas should be specific, environment-bound facts the
+  agent will get wrong without them. Generic advice ("handle errors
+  appropriately") is anti-gotcha and should be flagged. Canonical
+  contrasts gotchas with "general advice" using exactly that phrasing.
 
 ### Templates and validation
 - **Templates for output format.** When the skill expects specific output
@@ -190,7 +200,7 @@ produce a single craft "score" — list the findings.
 
 | Severity | When to use |
 |---|---|
-| `high` | L1 violation, missing description triggers, body well over guidance ceilings, scripts with interactive prompts, missing Gotchas in long skills with non-obvious behavior |
+| `high` | L1 violation, missing description triggers, body well over guidance ceilings, scripts with interactive prompts, missing Gotchas when the body contains multiple specific environment-bound traps that aren't consolidated |
 | `medium` | L2 flags, weak description (no trigger phrases or implementation-led lead), inline templates ≥30 lines, missing defaults in option lists |
 | `low` | Minor wording, optional sections missing in short skills, style preferences |
 
@@ -256,7 +266,7 @@ Adding a new detection means adding a new key here.
 | `mcp-tool-unqualified` | MCP tool referenced without `ServerName:tool_name` qualification |
 | `nested-references` | File reference is more than 1 level deep from SKILL.md |
 | `large-reference-no-toc` | Reference file > 100 lines without a table of contents |
-| `gotchas-missing` | Long body (>200 lines) lacks an explicit `## Gotchas` section |
+| `gotchas-missing` | Body contains specific environment-bound traps that aren't consolidated into a `## Gotchas` section (judgment-based, not length-gated) |
 | `gotchas-generic` | Gotchas section contains generic advice rather than specific facts |
 | `template-not-extracted` | Output-format template is inline when it could move to `assets/` |
 | `validation-loop-missing` | Destructive/batch ops lack a plan-validate-execute pattern |

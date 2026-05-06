@@ -1,6 +1,6 @@
 {
   "name": "actuary",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Audit and evaluate Agent Skills against the agentskills.io spec and authoring best practices. First skill: skill-audit (layered L1 spec / L2 structural / L3 craft report).",
   "author": {
     "name": "Rich Haase",
