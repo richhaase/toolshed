@@ -41,8 +41,21 @@ from the Sources table. These are the anchor points.
 
 ### Step 2: Fetch upstream state
 
+Resolve `gh` first — the Bash tool runs in a non-interactive shell that
+may not have Homebrew's PATH on macOS. Use `$GH` for every subsequent
+`gh` invocation in this skill:
+
 ```bash
-HEAD=$(gh api repos/agentskills/agentskills/commits/main --jq .sha)
+GH=$(command -v gh || for p in /opt/homebrew/bin/gh /usr/local/bin/gh; do
+  [ -x "$p" ] && echo "$p" && break
+done)
+[ -n "$GH" ] || { echo "gh not found — install with brew install gh"; exit 1; }
+```
+
+Fetch HEAD:
+
+```bash
+HEAD=$($GH api repos/agentskills/agentskills/commits/main --jq .sha)
 echo "Upstream HEAD: $HEAD"
 ```
 
@@ -58,7 +71,7 @@ for path in \
   docs/skill-creation/using-scripts.mdx \
   docs/skill-creation/quickstart.mdx \
   docs/client-implementation/adding-skills-support.mdx; do
-  sha=$(gh api "repos/agentskills/agentskills/contents/$path?ref=$HEAD" --jq .sha)
+  sha=$($GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD" --jq .sha)
   echo "$path  $sha"
 done
 ```
@@ -67,7 +80,7 @@ Also list the contents of `docs/skill-creation/` to detect new files
 not currently pinned:
 
 ```bash
-gh api "repos/agentskills/agentskills/contents/docs/skill-creation?ref=$HEAD" --jq '.[].path'
+$GH api "repos/agentskills/agentskills/contents/docs/skill-creation?ref=$HEAD" --jq '.[].path'
 ```
 
 ### Step 3: Identify what changed
@@ -77,8 +90,8 @@ criteria.md. For any file whose blob SHA changed, fetch the new content
 and the pinned content:
 
 ```bash
-gh api "repos/agentskills/agentskills/contents/$path?ref=$HEAD"        --jq .content | base64 -d > /tmp/upstream-new.mdx
-gh api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF"  --jq .content | base64 -d > /tmp/upstream-pinned.mdx
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD"        --jq .content | base64 -d > /tmp/upstream-new.mdx
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF"  --jq .content | base64 -d > /tmp/upstream-pinned.mdx
 diff -u /tmp/upstream-pinned.mdx /tmp/upstream-new.mdx
 ```
 
