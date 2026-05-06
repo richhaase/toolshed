@@ -5,9 +5,10 @@ Canonical agent context for this repo, shared across Claude Code and Codex.
 
 ## Repo purpose
 
-Multi-harness distribution repo for portable Agent Skills. The same skill
-bodies are exposed to Claude Code and Codex through harness-specific
-metadata.
+Rich's personal Agent Skills toolkit, distributed to Claude Code and Codex
+through harness-specific metadata. Treat it like dotfiles — updated when
+Rich chooses, breaking changes are normal, no stability or compatibility
+promises. The same skill bodies are exposed to both harnesses.
 
 - `.claude-plugin/marketplace.json` — Claude Code marketplace metadata.
 - `.agents/plugins/marketplace.json` — Codex marketplace metadata.

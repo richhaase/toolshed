@@ -1,10 +1,13 @@
 # toolshed
 
-A multi-harness distribution repo for portable agent tooling.
+My personal Agent Skills for Claude Code and Codex. Treat it like
+dotfiles: I update it when I choose, breaking changes are normal, and
+there are no stability or compatibility promises. You're welcome to
+clone it, fork it, install plugins, or copy any piece into your own
+setup — just don't expect anything in here to stay still.
 
-Toolshed publishes the same Agent Skills to Claude Code and Codex.
-The portable skill bodies live under `plugins/<plugin>/skills/`. Each harness
-loads them through its own marketplace metadata.
+The portable skill bodies live under `plugins/<plugin>/skills/`. Each
+harness loads them through its own marketplace metadata.
 
 ## Installation
 
