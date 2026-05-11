@@ -106,26 +106,66 @@ with the generic template (Overview, Current State, Recent Activity, History).
 
 Run `date '+%Y-%m-%d'` to get today's date.
 
+Capture the HEAD SHA observed at compile-start — this is the baseline the next
+incremental run will diff against. Record it now so Step 6 can write it to
+INDEX.md after the wiki is rebuilt:
+
+```bash
+COMPILE_BASE_SHA="$(git -C "$MEMENTO_ROOT" rev-parse HEAD 2>/dev/null || echo "")"
+```
+
 Check if `wiki/INDEX.md` exists:
 - If it **does not exist** → treat as a full build regardless of arguments.
-- If it **does exist** → get its modification time and find source files changed since then.
+- If it **does exist** → determine the change set per the rules below.
 
-For incremental updates, use file modification times to detect changes:
+### Change detection (incremental, git-backed Memento)
+
+When `COMPILE_BASE_SHA` is non-empty (the Memento is a git working tree), use
+git as the change-detection source of truth. Read `last_compile_commit` from
+INDEX.md frontmatter and apply these rules:
+
+- **Field missing, empty, or not a 40-char hex SHA** → full build. Write the
+  field on success (backfill path for legacy INDEX.md files compiled before
+  this skill tracked SHAs).
+- **`git cat-file -e <sha>^{commit}` fails** → full build, log the reason
+  (stale, rebased away, or the clone is shallow and doesn't carry the commit).
+- **Otherwise** → the change set is the union of three queries against
+  `sources/`, with `tasks/done/` excluded:
+  ```bash
+  # Committed changes since baseline (rename-aware, drops deletes).
+  git -C "$MEMENTO_ROOT" diff --name-only --diff-filter=AMR -M \
+    "$last_compile_commit"..HEAD -- sources/ ':!sources/tasks/done/'
+  # Unstaged working-tree changes.
+  git -C "$MEMENTO_ROOT" diff --name-only HEAD -- sources/ ':!sources/tasks/done/'
+  # Untracked files honoring .gitignore.
+  git -C "$MEMENTO_ROOT" ls-files --others --exclude-standard \
+    sources/ ':!sources/tasks/done/'
+  ```
+  The read loop must guard each path with `[ -f "$path" ]` so deletes that
+  slip through (e.g., a rename's old path) are skipped safely rather than
+  erroring on the Read.
+
+### Change detection (incremental, non-git Memento)
+
+When `COMPILE_BASE_SHA` is empty, fall back to filesystem mtime — this is the
+legacy path and stays supported for scratch dirs and non-git Mementos:
+
 ```bash
 # Find source files modified after last compile (sessions, syncs, notes, tasks)
 ../_shared/scripts/memento-run find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null
 ```
-After reading changed files, discard sources whose frontmatter status is
-`superseded` or `archived`. If no active source files remain, report "wiki is
-current — no active source changes since last compile" and stop.
+
+After reading changed files (either path), discard sources whose frontmatter
+status is `superseded` or `archived`. If no active source files remain, report
+"wiki is current — no active source changes since last compile" and stop.
 
 ## Step 2: Gather all sources
 
 ### For incremental updates
 
-1. Run `../_shared/scripts/memento-run find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null` to get the list of changed source files.
-2. **In a single message**, issue parallel Read calls for ALL changed source files AND `wiki/INDEX.md`. This is one batch — not sequential reads.
-3. After reading all changed sources, identify which entities are mentioned and which entity type each belongs to.
+1. Use the change set from Step 1 (git-diff union or mtime fallback) as the list of changed source files.
+2. **In a single message**, issue parallel Read calls for ALL changed source files AND `wiki/INDEX.md`. This is one batch — not sequential reads. Guard each path with `[ -f "$path" ]` so rename-old-paths and deletes are skipped instead of failing the Read.
+3. Run Step 3 on the gathered sources to identify affected entities (honoring per-source `touches` frontmatter where present).
 4. **In a single message**, issue parallel Read calls for ALL affected wiki pages that need updating.
 
 ### For full builds
@@ -145,6 +185,15 @@ from the Entity Types registry. Build a mapping:
 Also detect **new entities** not yet tracked — if a topic or name appears 3+ times
 across sources, it likely deserves its own page. Assign it to the most appropriate
 entity type.
+
+**Per-source `touches` short-circuit.** If a source's frontmatter declares
+`touches: [entity-name, ...]`, treat that list as the canonical affected
+set for that source and skip the scan on its body. The field is a one-way
+read — compile consumes it when present, never writes it. Writers (sync
+skills or hand-authored sources) opt in by emitting `touches` themselves;
+compile must not require it, must not modify sync skills to produce it, and
+must not special-case any specific source by name. Sources without
+`touches` fall back to the scan above, unchanged.
 
 ## Step 4: Compile wiki pages
 
@@ -233,8 +282,14 @@ Preserve the existing `pinned` list from the INDEX.md frontmatter — don't drop
 manual pins. Add any new pages to the table but don't auto-pin them.
 
 INDEX.md is the wiki's single source of compile metadata: it carries
-`last_compiled` in its own frontmatter (the wiki-wide freshness indicator) and a
-`Last Updated` column per page row. Update both on every compile.
+`last_compiled` (date) and `last_compile_commit` (the `COMPILE_BASE_SHA`
+captured at the start of Step 1) in its own frontmatter, plus a
+`Last Updated` column per page row. Update all three on every successful
+compile. `last_compile_commit` is the baseline the next incremental run
+diffs against; recording the start-of-run SHA (not a post-commit SHA) keeps
+the semantics clean — if Step 8 is skipped (no changes, not a git repo), the
+field still describes the tree the wiki was synthesized from. Omit
+`last_compile_commit` only when the Memento is not a git working tree.
 
 **Do NOT append `<!-- Compile run ... -->` HTML comments to INDEX.md.** The git
 log is the durable record of what each compile pass did; the inline log
@@ -250,16 +305,16 @@ plus Summary, Last Updated, and Pinned.
 
 When running incrementally (not a full build):
 
-1. Find changed source files. If none, stop — wiki is current.
-2. **Read ALL changed source files in one parallel batch.**
-3. Extract entity mentions by type. Build the list of affected wiki pages.
+1. Capture `COMPILE_BASE_SHA` from `git rev-parse HEAD`, read `last_compile_commit` from INDEX.md, and resolve the change set (git-diff union when both SHAs are valid, mtime fallback when the Memento is not a git repo). If empty, stop — wiki is current.
+2. **Read ALL changed source files in one parallel batch.** Honor any `touches` frontmatter to skip mention-extraction on those sources.
+3. Extract entity mentions by type for sources without `touches`. Build the list of affected wiki pages.
 4. **Read ALL affected wiki pages in one parallel batch.**
-5. Synthesize updates. **Write ALL updated wiki pages + INDEX.md in one parallel batch.**
+5. Synthesize updates. **Write ALL updated wiki pages + INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`) in one parallel batch.**
 6. **Read `AGENTS.md`, rebuild the hot set between markers, write `AGENTS.md`.**
 7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
 8. **Commit (Step 8).** Always the last action. Skip cleanly when not in a git repo or when nothing is staged.
 
-The entire incremental compile should be **5-6 roundtrips**: find changed files → read sources → read wiki pages → write wiki updates → write L1 hot set → commit.
+The entire incremental compile should be **5-6 roundtrips**: resolve change set → read sources → read wiki pages → write wiki updates → write L1 hot set → commit.
 
 ## Step 7: Distill L2 -> L1 (`AGENTS.md` hot set)
 

@@ -73,6 +73,7 @@ related:
 ```markdown
 ---
 last_compiled: YYYY-MM-DD
+last_compile_commit: <40-char sha of HEAD captured at compile-start; omit on non-git Mementos>
 pages: <count>
 pinned:
   - <slug>
