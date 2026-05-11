@@ -1,9 +1,9 @@
 ---
 name: compile
-description: Compile wiki pages from all sources — tasks, decisions, research. Reads sources/**/*.md and synthesizes into wiki/ organized by topic/entity, then refreshes the AGENTS.md hot set. First run builds full wiki; subsequent runs do incremental updates. Use when the user says "compile", "update the wiki", "build wiki", "compile wiki", or wants to refresh the memory base.
+description: Use when the user says "compile", "update the wiki", "build wiki", "compile wiki", or wants to refresh the memory base. Reads sources/**/*.md and synthesizes into wiki/ organized by topic/entity, then refreshes the AGENTS.md hot set. First run builds full wiki; subsequent runs do incremental updates. Not for browsing open items (see `followups`), closing a session (see `fin`), or filling gaps (see `ama`).
 argument-hint: "[full|<topic>]"
 user-invocable: true
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
+allowed-tools: Read Write Edit Glob Grep Bash Agent
 ---
 
 # Wiki Compiler
@@ -37,33 +37,35 @@ Arguments are passed as: $ARGUMENTS
 Hard rules — environment-specific facts the agent will get wrong without these.
 
 **Safety:**
-- **NEVER read files in `private/`** — that directory is a privacy boundary.
-- **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs. The only exception is a legacy repo without `AGENTS.md`, where you may update the existing entrypoint that owns the hot set and report the migration need.
+- **NEVER read files in `private/`** — that directory is a privacy boundary, and reading it can surface content the user has explicitly walled off from synthesis.
+- **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs; writing back into `sources/` corrupts the audit trail the wiki is derived from. The only exception is a legacy repo without `AGENTS.md`, where you may update the existing entrypoint that owns the hot set and report the migration need.
 - **All Memento paths are relative to the resolved Memento root** — `sources/`, not the caller's current repo.
 - **Only active sources shape current state.** Treat source files with no `status`
   frontmatter as `active`. Exclude files marked `status: superseded` or
   `status: archived` from current-state synthesis and from L1 hot-set promotion,
   but preserve them in source traces when an active source's `supersedes` field
   points to them.
-- **Never `--amend`.** Always create new commits. Pre-commit hook failure
-  means the commit didn't happen — fix the issue, re-stage, new commit.
-- **Never push.** The skill commits locally only.
+- **Always create new commits — never `--amend`.** Pre-commit hook failure
+  means the commit didn't happen; fix the issue, re-stage, new commit.
+- **The skill commits locally only — never push.** Pushing is the user's call.
 
 **Performance — speed is a hard constraint:**
-- **Batch all reads in parallel.** Never read files one at a time. Issue all
-  Read calls for a step in a single message so they execute concurrently.
-  17 source files = ONE message with 17 Read tool calls, not 17 messages.
-- **Batch all writes in parallel.** Same rule for Edit/Write.
-- **No unnecessary reads.** Skip wiki pages for entities not mentioned in the
-  changed sources. Don't re-read `AGENTS.md` if entity types are in context.
+- **Batch reads in one message — this runs them concurrently.** 17 source
+  files = ONE message with 17 Read tool calls, not 17 messages. Same rule
+  for Glob/Grep when you have a known list of paths.
+- **Batch writes in one message.** Same rule for Edit/Write — issue the
+  full set of updated pages in one parallel batch.
+- **Read only what's affected.** Skip wiki pages for entities not mentioned
+  in the changed sources. Keep `AGENTS.md` in context once read; don't
+  re-read it.
 - **Target: under 3 minutes for incremental compiles.** If you're slower,
   you're sequential where you should be parallel.
 
 **Output:**
-- **No `<!-- Compile run ... -->` HTML comments in INDEX.md.** The git log is
-  the durable record. Step 8's commit message carries the synthesis.
 - **`last_compiled` lives only in `wiki/INDEX.md`** — never in per-page
   frontmatter. Page-level freshness is the `Last Updated` column in INDEX.md.
+- **No `<!-- Compile run ... -->` HTML comments in INDEX.md.** The git log is
+  the durable record. Step 8's commit message carries the synthesis.
 
 ## Source status metadata
 
@@ -151,6 +153,24 @@ entity type.
 Do NOT launch subagents — the overhead isn't worth it for updating a subset of pages.
 After reading all sources and wiki pages (Steps 2-3), synthesize all updates in your
 context and write them all in one parallel batch of Edit/Write calls.
+
+**Hard cap on affected pages.** A typical incremental run (≈13 changed sources)
+should touch fewer than 25 wiki pages. If you're loading more than that, you're
+over-reading — re-check the entity-graph from Step 3 and prune entities that
+were only incidentally mentioned (passing reference, no new content).
+
+**Prefer `Write` over multi-`Edit` when >2 sections of a page change.** Chained
+Edits incur diff-search overhead and emit the surrounding context tokens for
+each hunk. When a wiki page needs updates to more than two distinct sections,
+rewrite the whole page with a single `Write` call — one full write costs fewer
+output tokens than 3+ Edits. Use targeted `Edit` only for narrow updates (one
+or two sections, frontmatter tweaks).
+
+**Cap accumulating sections.** `Recent Activity` / `Activity Log` sections keep
+the last 30 days inline. Older entries collapse to one-line per-week summaries
+(or per-month, for entries older than 90 days). The full source files remain
+under `sources/` for re-derivation if deeper history is ever needed — the wiki
+is a synthesized view, not an archive.
 
 ### For full builds
 
@@ -285,60 +305,17 @@ The compile run is not finished until its output is committed. The git log is th
 durable record of what each compile pass did, so this step replaces the inline
 `<!-- Compile run ... -->` log that earlier versions wrote into INDEX.md.
 
-### Detect the git context
+See `references/commit-flow.md` for the full flow: git-context detection,
+staging, the commit subject/body shape, and failure handling. Headline rules:
 
-```bash
-git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
-```
-
-- Output `true` → in a git working tree, proceed with the commit flow below.
-- Anything else (non-zero exit, empty output) → no git context. Skip this step
-  silently and report `commit: skipped (not a git repo)` in the user-facing
-  summary. Do **not** error out; `/compile` must work in non-git scratch dirs.
-
-### Commit flow (when in a git repo)
-
-1. Stage compile output:
-   ```bash
-   git -C "$MEMENTO_ROOT" add wiki/ AGENTS.md
-   ```
-   In a legacy repo without `AGENTS.md`, stage `wiki/` plus the fallback
-   `CLAUDE.md` entrypoint you updated.
-2. Check whether anything is actually staged:
-   ```bash
-   git -C "$MEMENTO_ROOT" diff --cached --quiet
-   ```
-   If exit code is `0` (no staged changes), skip the commit — there is nothing
-   to record. Report `commit: skipped (no changes)`.
-3. Commit. Subject and body together replace the old HTML compile-run comment.
-   - **Subject** (≤ 72 chars): `compile: update wiki — <brief synthesis>`
-     where `<brief synthesis>` is the one-line theme of the run (e.g.
-     `IH deploy trigger investigation, AT-498/AT-407 DONE`).
-   - **Body** (multi-line): the synthesis that previously went in the inline
-     HTML comment — sources processed, pages updated, hot-set
-     promotions/demotions, any sources that couldn't be processed. Use a
-     HEREDOC to preserve formatting:
-     ```bash
-     git -C "$MEMENTO_ROOT" commit -m "$(cat <<'EOF'
-     compile: update wiki — <brief synthesis>
-
-     Sources processed (N): <one-line list or grouped summary>
-     Pages updated (N): <one-line list>
-     Hot set: <promoted X, demoted Y, no change>
-     Notes: <anything that couldn't be processed, or "none">
-     EOF
-     )"
-     ```
-4. Never push. The skill only commits locally — pushing is the user's call,
-   not the skill's.
-
-### Failure handling
-
-- If `git add` or `git commit` fails for an unexpected reason (hooks, locked
-  index, etc.), surface the exact stderr to the user and stop. Do not retry,
-  do not `--no-verify`, do not amend prior commits.
-- Pre-commit hook failure means the commit did not happen — fix the underlying
-  issue, re-stage, and create a new commit. Never amend.
+- Skip silently when not in a git repo; report `commit: skipped (not a git repo)`.
+- Stage `wiki/` and `AGENTS.md` (or the legacy `CLAUDE.md` entrypoint).
+- Skip cleanly if nothing is staged; report `commit: skipped (no changes)`.
+- Subject: `compile: update wiki — <brief synthesis>` (≤ 72 chars).
+- Body lists sources processed, pages updated, hot-set deltas, and any
+  unprocessed sources.
+- Never push, never `--amend`. Pre-commit hook failure means the commit did
+  not happen — fix, re-stage, new commit.
 
 ## Post-compile
 
