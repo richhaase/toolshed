@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Run manifest validation before pushing if any plugin or marketplace files
+# changed in the commits being pushed. Catches the bump-only-one-side mistake
+# locally so we don't push broken state to main.
+#
+# Enable via: git config core.hooksPath .githooks
+# (Done once per clone; the hook lives in-repo so it's discoverable.)
+
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+
+# Read refs being pushed from stdin.
+# Format per line: <local-ref> <local-sha> <remote-ref> <remote-sha>
+# If remote-sha is all zeros, the remote ref doesn't exist yet.
+zero="0000000000000000000000000000000000000000"
+touched_relevant=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ -z "$local_sha" ]; then
+    continue
+  fi
+  if [ "$remote_sha" = "$zero" ]; then
+    # New branch — diff against main if it exists, else skip.
+    base=$(git rev-parse --verify --quiet main 2>/dev/null || echo "")
+  else
+    base="$remote_sha"
+  fi
+  if [ -z "$base" ]; then
+    files=$(git -C "$repo_root" diff-tree --no-commit-id --name-only -r "$local_sha")
+  else
+    files=$(git -C "$repo_root" diff --name-only "$base" "$local_sha")
+  fi
+  if echo "$files" | grep -qE '^(plugins/|\.claude-plugin/|\.agents/plugins/)'; then
+    touched_relevant=1
+    break
+  fi
+done
+
+if [ "$touched_relevant" -eq 0 ]; then
+  exit 0
+fi
+
+echo "pre-push: validating manifests..." >&2
+if ! bash "$repo_root/scripts/validate-manifests.sh"; then
+  echo "" >&2
+  echo "pre-push: validation failed — fix the errors above and re-push." >&2
+  echo "pre-push: bypass with --no-verify only if you know what you're doing." >&2
+  exit 1
+fi

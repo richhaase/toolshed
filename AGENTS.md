@@ -80,6 +80,19 @@ keep all per-harness `plugin.json` versions identical for a given release.
 
 README and LICENSE edits don't need a bump.
 
+### Local validation (enable once per clone)
+
+`scripts/validate-manifests.sh` is the single source of truth for the
+manifest/version-parity/skill-name checks. CI runs it; the in-repo
+`.githooks/pre-push` runs it locally when any `plugins/`, `.claude-plugin/`,
+or `.agents/plugins/` files are in the push. Enable hooks once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This catches the bump-only-one-side mistake before it leaves your machine.
+
 ## Current plugins
 
 - **memento** — Memory-base workflows (memento-config, compile, fin, ama,
