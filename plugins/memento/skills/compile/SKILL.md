@@ -195,6 +195,17 @@ compile must not require it, must not modify sync skills to produce it, and
 must not special-case any specific source by name. Sources without
 `touches` fall back to the scan above, unchanged.
 
+**Per-source `<provider>_users` enrichment maps.** Sources may emit a
+frontmatter map keyed `<provider>_users: { Full Name: <stable-id> }` —
+e.g., `slack_users:`, `github_users:`, `linear_users:`. Each entry declares
+that the named person has a known stable identifier in that provider, and
+Step 4 uses these maps to enrich `wiki/people/*.md` frontmatter (see the
+person-enrichment merge rule in Step 4). Like `touches:`, this is a one-way
+read — compile consumes the field when present, never writes it back to
+sources. Writers opt in by emitting the map themselves; compile must not
+require it and must not special-case any specific provider name. Sources
+without the field are unaffected.
+
 ## Step 4: Compile wiki pages
 
 ### For incremental updates
@@ -262,7 +273,9 @@ For each entity to compile:
 
 2. **New page** — Generate from template. Fill in from source material. Sparse pages are fine — they'll fill in over subsequent compiles.
 
-3. Write pages in parallel where possible.
+3. **Person enrichment merge.** For each `wiki/people/<slug>.md` being written (existing or new), scan the gathered sources' frontmatter for any `<provider>_users:` maps (Step 3) and look up the page's full name against each map's keys. For every hit, set the corresponding `<provider>_id: <stable-id>` field in the page's frontmatter — *only* when the field is currently absent or already equal. Never overwrite a manually-set value: if the existing value differs from the source map, leave it and surface the drift in the post-compile report. The entity-type registry must declare the `<provider>_id` field on the person row for it to be emitted; entries from a provider not declared in the registry are ignored.
+
+4. Write pages in parallel where possible.
 
 ## Step 5: Cross-link pages
 
@@ -376,7 +389,9 @@ staging, the commit subject/body shape, and failure handling. Headline rules:
 
 Report to user: pages created / updated / unchanged, new entities discovered,
 hot set changes (promoted/demoted), superseded/archived sources skipped, any
-sources that couldn't be processed, and the commit SHA (or `skipped` reason).
+sources that couldn't be processed, any `<provider>_id` drift between sources
+and existing wiki frontmatter (manual value left in place), and the commit
+SHA (or `skipped` reason).
 
 ## Guidelines
 
