@@ -68,9 +68,10 @@ All inputs that feed the wiki. Organized by origin:
 - **`tasks/`** — User-committed actions. Existence = open, deletion = done.
 - **`followups/`** — Uncommitted captures: open questions, awareness items,
   things others surfaced, loose ends. Default destination for non-task
-  `/fin` captures. Walked periodically via `/followups` and either
-  promoted to `tasks/`, dismissed, or kept. Briefings do not surface
-  follow-ups as urgent.
+  `/fin` captures. Reviewed periodically via `/followups` (lists by
+  default, or `/followups walk` to triage) and either promoted to
+  `tasks/`, dismissed, or kept. Briefings do not surface follow-ups as
+  urgent.
 
 All source docs require YAML frontmatter with at least `date`.
 

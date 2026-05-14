@@ -87,8 +87,10 @@ briefings.
 A **follow-up** is anything else worth not losing — open questions, things
 others surfaced, judgment calls awaiting clarification, loose ends from
 build sessions. Follow-ups do not represent commitments and are not
-surfaced as urgent. They live in `sources/followups/` and are walked
-periodically via `/followups` (oldest-first by default).
+surfaced as urgent. They live in `sources/followups/` and are reviewed
+periodically via `/followups` — which lists open items by default,
+shows one item read-only with `/followups <slug>`, and walks the queue
+interactively with `/followups walk`.
 
 `/fin` captures non-task items as follow-ups by default. Promotion
 (follow-up → task) happens via `/followups` when the user decides to drive
@@ -103,7 +105,7 @@ task" framings on what were actually informational items.
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
 | `fin` | Passive end-of-session capture — extract decisions, tasks, follow-ups, research, analyses, private notes |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
-| `followups` | Walk open tasks and follow-ups one item at a time: keep, dismiss, mark done, promote, demote, or note |
+| `followups` | Review open tasks and follow-ups: `list` (default) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, done, promote, demote, note) |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
 descend into `wiki/` and `sources/` as needed). For passive capture, edit
