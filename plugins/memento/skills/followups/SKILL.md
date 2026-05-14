@@ -1,16 +1,17 @@
 ---
 name: followups
-description: Walk open commitments and loose ends one at a time — both tasks (committed actions in sources/tasks/) and follow-ups (uncommitted captures in sources/followups/). For each item the user decides keep, dismiss, mark done, promote (follow-up → task), demote (task → follow-up), or add a note. Use when the user says "review followups", "review tasks", "what's open", "go through my open items", "triage my queue", "walk follow-ups", or "walk tasks".
-argument-hint: "[tasks|followups|all] [oldest|newest]"
+description: Inventory, view, or triage open commitments and loose ends — both tasks (committed actions in sources/tasks/) and follow-ups (uncommitted captures in sources/followups/). Subcommands list (default; print open items), show (display one item read-only), and walk (interactive triage one at a time — keep, dismiss, mark done, promote, demote, note). Use when the user says "list my open items", "what's open", "show me followup X", "review followups", "review tasks", "go through my open items", "triage my queue", "walk follow-ups", or "walk tasks".
+argument-hint: "[list|show|walk] [tasks|followups|all|<slug> ...] [oldest|newest]"
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 ---
 
 # Followups
 
-Walk the open queues — `sources/tasks/` (committed actions) and
-`sources/followups/` (uncommitted captures) — one item at a time.
-Per item, decide what to do.
+Surface open work — `sources/tasks/` (committed actions) and
+`sources/followups/` (uncommitted captures) — at three levels of
+engagement: see what's open (`list`), look at one item (`show`), or
+triage one-by-one (`walk`).
 
 This is the unified review surface that replaces the older `tasks` and
 `review-followups` skills. Task creation now happens in `/fin`; this
@@ -29,21 +30,47 @@ contract. All `sources/` paths below are relative to `MEMENTO_ROOT`.
 
 Arguments are passed as: $ARGUMENTS
 
-Scope (pick one):
+Shape:
 
-- No arguments or `all` → walk both queues, interleaved by date.
-- `tasks` → walk only `sources/tasks/` (excludes `sources/tasks/done/`).
-- `followups` → walk only `sources/followups/`.
+```
+[list|show|walk] [tasks|followups|all|<slug> ...] [oldest|newest]
+```
 
-Order modifier (optional):
+Subcommand (first token):
+
+- `list` (default) — print an inventory of open items, no triage.
+- `show` — render a single item end-to-end, read-only.
+- `walk` — interactive triage, one item per turn.
+
+Scope / target tokens (after the subcommand):
+
+- `tasks` → only `sources/tasks/` (excludes `sources/tasks/done/`).
+- `followups` → only `sources/followups/`.
+- `all` → both queues.
+- `<slug>` (one or more) → specific items, resolved as
+  `sources/tasks/<slug>.md` first, then `sources/followups/<slug>.md`.
+
+Order modifier (optional, last token):
 
 - `oldest` (default) → oldest first by frontmatter `date`.
 - `newest` → newest first.
+- Ignored when explicit slugs are passed (the slug order wins).
 
-A bare slug is also accepted to jump to a single item:
+Defaults:
 
-- `<slug>` → look up `sources/tasks/<slug>.md` first, then
-  `sources/followups/<slug>.md`. Walks just that one file.
+- No arguments → `list all oldest`.
+- A bare slug with no subcommand (`<slug>`) → `show <slug>`. Both
+  default surfaces are read-only; triage is opt-in via `walk`.
+
+Examples:
+
+- `/followups` → list everything open.
+- `/followups list tasks` → list only open tasks.
+- `/followups my-slug` → show that one item read-only.
+- `/followups show my-slug` → same.
+- `/followups walk` → triage the full queue.
+- `/followups walk followups newest` → triage follow-ups, newest first.
+- `/followups walk a b c` → triage just those three items, in order.
 
 ## Gotchas
 
@@ -51,18 +78,19 @@ A bare slug is also accepted to jump to a single item:
   follow-ups are everything else. Promotion (follow-up → task)
   requires explicit user confirmation that the item is a real
   commitment, not "we should think about it." Demotion is cheap.
-- **One item per turn.** Present a single file at a time and wait
-  for the decision before moving on.
+- **One item per turn (walk only).** Present a single file at a time
+  and wait for the decision before moving on. `list` and `show` are
+  not interactive — print and exit.
 - **Empty queue ⇒ stop.** If the worklist is empty, say so and exit.
   No commit.
-- **Default to keep.** When the user is non-committal or distracted,
-  the honest action is `keep`, not `dismiss`. Dismissal should be a
-  deliberate "no, this doesn't matter."
-- **Never push.** Local commit only.
+- **Default to keep (walk only).** When the user is non-committal or
+  distracted, the honest action is `keep`, not `dismiss`. Dismissal
+  should be a deliberate "no, this doesn't matter."
+- **Never push.** Local commit only, and only `walk` ever commits.
 
 ## Step 1: Build the worklist
 
-Glob according to scope:
+Used by all three subcommands. Glob according to scope:
 
 ```bash
 # all
@@ -82,10 +110,14 @@ queue: tasks|followups
 date: YYYY-MM-DD
 slug: my-slug
 title: First H1
+path: sources/<queue>/<slug>.md
 ```
 
-Sort by `date` per the order modifier. If a single slug was passed,
-the worklist is just that file.
+Sort by `date` per the order modifier. If explicit slugs were passed,
+the worklist is exactly those files in the given order; resolve each
+slug as `sources/tasks/<slug>.md` first, then
+`sources/followups/<slug>.md`. Error on any slug that resolves
+nowhere.
 
 If the worklist is empty, print:
 
@@ -95,17 +127,47 @@ No open items in <scope>.
 
 and stop. Do not commit.
 
-If the worklist has more than 10 items, tell the user the count
-up front:
+## Subcommand: list
+
+After Step 1, print one line per item:
 
 ```
-14 open items (8 tasks, 6 follow-ups). Walking oldest-first. Say
-"stop" any time to bail.
+<queue>  <date>  <slug>  <title>
 ```
 
-## Step 2: Walk one at a time
+Group by queue (tasks first, then followups) so the user can see the
+split at a glance. If both queues are present, prefix with totals:
 
-For each item:
+```
+3 tasks, 5 follow-ups (8 open):
+
+tasks
+  2026-04-12  ship-onboarding-doc  Ship the onboarding doc
+  2026-04-30  rotate-prod-creds    Rotate prod credentials
+  2026-05-08  q2-okr-draft         Draft Q2 OKRs
+
+follow-ups
+  2026-03-22  s3-egress-question   Why is S3 egress so high?
+  ...
+```
+
+If only one queue is in scope, drop the group headers and the totals
+line — just print the rows.
+
+Exit after printing. No `AskUserQuestion`, no commit.
+
+## Subcommand: show
+
+Resolve the single slug via Step 1 (or error if not found). Render the
+item exactly as `walk` would render it (see "render block" in Step 2),
+then exit. Read-only — no `AskUserQuestion`, no commit.
+
+If multiple slugs are passed to `show`, render each one in turn,
+separated by `---`, then exit.
+
+## Step 2: Walk one at a time (walk subcommand)
+
+For each item, render the block:
 
 ```
 ---
@@ -115,6 +177,14 @@ File: sources/<queue>/<slug>.md
 <origin field if present>
 
 <full body of the file — not a summary>
+```
+
+If the worklist has more than 10 items, tell the user the count up
+front before the first render:
+
+```
+14 open items (8 tasks, 6 follow-ups). Walking oldest-first. Say
+"stop" any time to bail.
 ```
 
 Then ask via `AskUserQuestion`. Options depend on queue:
@@ -257,7 +327,7 @@ section:
 
 Do not rewrite the body.
 
-## Step 3: Wrap up
+## Step 3: Wrap up (walk subcommand)
 
 After the walk completes (or the user says `stop`), summarize:
 
@@ -282,16 +352,17 @@ git -C "$MEMENTO_ROOT" add sources/tasks/ sources/followups/ sources/notes/
 git -C "$MEMENTO_ROOT" commit -m "followups: review — <one-line summary>"
 ```
 
-Skip the commit if nothing changed.
+Skip the commit if nothing changed. `list` and `show` never commit.
 
 ## Guidelines
 
-- **One at a time.** Do not present the whole worklist at once and ask
-  for batched decisions. Walking is the point — it forces a decision
-  per item.
-- **Show the full body.** Items are usually short. Don't summarize —
-  paste the body so the user has the same context that was captured
-  originally.
+- **One at a time (walk).** Do not present the whole worklist at once
+  and ask for batched decisions. Walking is the point — it forces a
+  decision per item. Use `list` if the user just wants to see what's
+  open.
+- **Show the full body (show / walk).** Items are usually short.
+  Don't summarize — paste the body so the user has the same context
+  that was captured originally.
 - **Default to keep.** Dismissal is deliberate, not the easy path.
 - **Promotion requires real commitment.** The whole point of the
   task vs follow-up split is that tasks shape briefings as urgent
