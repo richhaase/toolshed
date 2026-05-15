@@ -18,6 +18,12 @@ promises. The same skill bodies are exposed to both harnesses.
 
 Skills follow the [Agent Skills](https://agentskills.io) open format.
 
+## Workflow
+
+This repo and `~/src/dotfiles` are Rich's personal cross-machine tooling repos.
+They do not use the normal PR workflow. When a fix is complete, verified, and
+docs are current, commit directly and push the branch.
+
 ## Commands
 
 ```bash
@@ -95,10 +101,11 @@ This catches the bump-only-one-side mistake before it leaves your machine.
 
 ## Current plugins
 
-- **memento** — Memory-base workflows (memento-config, compile, fin, ama,
-  followups). Five-skill core: idempotent setup/config, sources -> wiki ->
-  AGENTS.md hot set compilation, passive session capture, active LLM-driven
-  interview, and queue review.
+- **memento** — Memory-base workflows (memento-config, compile, health-check,
+  fin, ama, followups). Six-skill core: idempotent setup/config, sources ->
+  wiki -> AGENTS.md hot set compilation, read-only cache/provenance/privacy
+  diagnostics, passive session capture, active LLM-driven interview, and queue
+  review.
 - **legate** — Stateless tmux session management (dispatch, debrief, inspect,
   watch). Tmux is the source of truth; no registry files.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec

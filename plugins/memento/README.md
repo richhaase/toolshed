@@ -97,12 +97,26 @@ interactively with `/followups walk`.
 something. This split exists because conflating the two produced "urgent
 task" framings on what were actually informational items.
 
+## Health and eval discipline
+
+L1 and L2 are generated projections over L3 sources, not authority. Use
+`health-check` before adding retrieval machinery: it audits cache freshness,
+broken evidence paths, compile metadata drift, public-surface privacy risks,
+open queue visibility, and eval readiness without reading `private/` or writing
+repairs.
+
+If lookup quality needs measurement, start with local golden-query fixtures:
+expected evidence paths, forbidden paths, freshness dates, and abstention cases.
+Public memory benchmarks can inform the taxonomy, but local questions decide
+whether this Memento is working.
+
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
+| `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness |
 | `fin` | Passive end-of-session capture — extract decisions, tasks, follow-ups, research, analyses, private notes |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open tasks and follow-ups: `list` (default) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, done, promote, demote, note) |

@@ -58,9 +58,8 @@ codex plugin marketplace add /path/to/toolshed
 Multi-layer cache memory base with automated compilation. Treats knowledge
 like a CPU cache hierarchy: L1 (`AGENTS.md` hot set) -> L2 (wiki, loaded on
 demand) -> L3 (sources, cold storage). Claude Code uses a thin `CLAUDE.md`
-entrypoint that points to `AGENTS.md`. Includes setup, compilation, session
-capture, task management, recall, remember/correct workflows, research, and
-health checks.
+entrypoint that points to `AGENTS.md`. Includes setup, compilation, read-only
+health checks, session capture, active interview, and follow-up queue review.
 
 Memento can be installed globally while the actual wiki lives in one configured
 data root. Set `MEMENTO_ROOT=/path/to/memento` or add a `.memento-root` file to
