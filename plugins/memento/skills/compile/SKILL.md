@@ -1,6 +1,6 @@
 ---
 name: compile
-description: Use when the user says "compile", "update the wiki", "build wiki", "compile wiki", or wants to refresh the memory base. Reads sources/**/*.md and synthesizes into wiki/ organized by topic/entity, then refreshes the AGENTS.md hot set. First run builds full wiki; subsequent runs do incremental updates. Not for browsing open items (see `followups`), closing a session (see `fin`), or filling gaps (see `ama`).
+description: Use when the user says "compile", "update the wiki", "build wiki", "compile wiki", or wants to refresh the memory base. Reads sources/**/*.md and synthesizes into wiki/ organized by topic/entity, then refreshes the AGENTS.md hot set. First run builds full wiki; subsequent runs do incremental updates. Not for browsing open items (see `followups`), closing a session (see `save`), or filling gaps (see `ama`).
 argument-hint: "[full|<topic>]"
 user-invocable: true
 allowed-tools: Read Write Edit Glob Grep Bash Agent

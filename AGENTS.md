@@ -102,12 +102,13 @@ This catches the bump-only-one-side mistake before it leaves your machine.
 ## Current plugins
 
 - **memento** — Memory-base workflows (memento-config, compile, health-check,
-  fin, ama, followups). Six-skill core: idempotent setup/config, sources ->
+  save, ama, followups). Six-skill core: idempotent setup/config, sources ->
   wiki -> AGENTS.md hot set compilation, read-only cache/provenance/privacy
   diagnostics, passive session capture, active LLM-driven interview, and queue
   review.
-- **legate** — Stateless tmux session management (dispatch, debrief, inspect,
-  watch). Tmux is the source of truth; no registry files.
+- **legate** — Delegated work orchestration (dispatch, debrief, watch, logs,
+  stop, attach). Uses native Codex/Claude agent primitives when available and
+  keeps tmux as a compatibility backend for visible terminal sessions.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.

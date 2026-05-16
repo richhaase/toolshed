@@ -61,7 +61,7 @@ Bundled scripts:
 
 ```
 sources/                # L3 — raw inputs
-├── sessions/           # /fin captures from conversations
+├── sessions/           # /save captures from conversations
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/
 ├── notes/              # Manual markdown
@@ -92,7 +92,7 @@ periodically via `/followups` — which lists open items by default,
 shows one item read-only with `/followups <slug>`, and walks the queue
 interactively with `/followups walk`.
 
-`/fin` captures non-task items as follow-ups by default. Promotion
+`/save` captures non-task items as follow-ups by default. Promotion
 (follow-up → task) happens via `/followups` when the user decides to drive
 something. This split exists because conflating the two produced "urgent
 task" framings on what were actually informational items.
@@ -117,13 +117,13 @@ whether this Memento is working.
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
 | `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness |
-| `fin` | Passive end-of-session capture — extract decisions, tasks, follow-ups, research, analyses, private notes |
+| `save` | Passive end-of-session capture — extract decisions, tasks, follow-ups, research, analyses, private notes |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open tasks and follow-ups: `list` (default) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, done, promote, demote, note) |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
 descend into `wiki/` and `sources/` as needed). For passive capture, edit
-files under `sources/` directly or use `/fin` at session end. For active
+files under `sources/` directly or use `/save` at session end. For active
 capture, run `/ama` to let the agent interview you on what's missing.
 Supersession is a manual frontmatter edit (see Source status below).
 

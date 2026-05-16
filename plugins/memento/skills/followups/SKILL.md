@@ -14,7 +14,7 @@ engagement: see what's open (`list`), look at one item (`show`), or
 triage one-by-one (`walk`).
 
 This is the unified review surface that replaces the older `tasks` and
-`review-followups` skills. Task creation now happens in `/fin`; this
+`review-followups` skills. Task creation now happens in `/save`; this
 skill is for periodic triage of what already exists.
 
 ## Memento root

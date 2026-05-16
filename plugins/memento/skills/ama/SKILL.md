@@ -12,7 +12,7 @@ Read the Memento, find the highest-value gaps, and interview the user to
 fill them. Captures the Q&A as a session source. The next `/compile`
 folds the answers into the wiki.
 
-This is the active-capture counterpart to `/fin`. Where `/fin` extracts
+This is the active-capture counterpart to `/save`. Where `/save` extracts
 what already happened, `/ama` pulls knowledge that has not yet been
 written down.
 
@@ -214,7 +214,7 @@ If an answer is an observation about an entity flagged
 `private_notes: yes` in the registry (typical example: people), append
 it to the configured `private/<filename-pattern>` path under a dated
 heading instead of writing it into the session capture. Use the same
-append-only rule fin uses — never overwrite. The session file is still
+append-only rule save uses — never overwrite. The session file is still
 written for the non-private answers.
 
 If every answer is private, write only to `private/` and skip the

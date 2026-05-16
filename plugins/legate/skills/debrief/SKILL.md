@@ -1,123 +1,94 @@
 ---
 name: debrief
 description: >
-  Check on dispatched tmux sessions and pull status back into the current conversation.
-  Use when the user asks to "check on", "how's it going with", "status of", "debrief",
-  "any updates from", "is that done yet", "what's happening with", "report back on",
-  or otherwise wants to know what a dispatched session is doing. Can target a specific
-  session or sweep all legate-managed sessions. Trigger this skill whenever the user
-  asks about the state of work happening in other sessions, even casually.
-argument-hint: "[session-name|all]"
-allowed-tools:
-  - Bash
+  Check on delegated Legate work and pull status or results back into the
+  current conversation. Works across Codex native agents, Claude background
+  agents/subagents, and tmux sessions. Use when the user asks to "check on",
+  "how's it going with", "status of", "debrief", "any updates from", "is that
+  done yet", "what's happening with", "report back on", or otherwise wants to
+  know the state of delegated work. Can target one handle or sweep all known
+  handles.
+argument-hint: "[handle|all]"
+allowed-tools: Bash Agent
 ---
 
 # Debrief
 
-Pull status from dispatched sessions back into the current conversation. Tmux is the
-source of truth — capture pane output, read window tags, assess what's happening.
+Bring delegated-work state back into the current conversation. Do not assume a
+terminal session exists: each backend has its own observation surface.
 
-## Targeting a session
+Read `../_shared/references/backends.md` for backend capabilities and
+`../_shared/references/conventions.md` for handle resolution.
 
-Resolve which session the user means:
+## Targeting
 
-1. **Conversation context first** — you likely remember what was dispatched and can match
-   natural references ("the auth PR", "that cleanup task") to window names.
+Resolve the user's target in this order:
 
-2. **If ambiguous**, list legate-managed windows:
+1. Recent conversation context and the `<!-- legate:handles -->` block.
+2. Backend discovery, when available:
+   - Codex native agent handles in the parent conversation.
+   - Claude background agent ids or state under the Claude config directory.
+   - Tmux windows tagged with `@legate-managed`.
+3. Ask the user only if the target remains ambiguous.
 
-   ```bash
-   for w in $(tmux list-windows -F '#{window_name}'); do
-     desc=$(tmux show-option -wv -t "$w" @legate-description 2>/dev/null)
-     if [ -n "$desc" ]; then
-       echo "$w: $desc"
-     fi
-   done
-   ```
+For "all", sweep every known handle plus any discoverable tmux or Claude
+background sessions that look Legate-managed.
 
-3. Ask the user to clarify only if you genuinely can't resolve it.
+## Backend reads
 
-## Debriefing a single session
+### Codex native
 
-### Know what was asked
+Use the native agent handle. If the agent is still running, report that it is
+working and include any latest known status. If it completed, summarize its
+final response and changed files. If the handle is gone, say so plainly.
 
-Before looking at pane output, read the context brief written at dispatch time:
+### Claude background agent
+
+Prefer the Claude CLI:
+
+```bash
+claude logs <id>
+```
+
+If a lightweight status snapshot is enough, read the job state when present:
+
+```bash
+jq . ~/.claude/jobs/<id>/state.json
+```
+
+Respect `CLAUDE_CONFIG_DIR` if it is set. Summarize the task state, whether it
+needs input, and any result or PR/check status visible in the logs/state.
+
+### Claude subagent
+
+Report the final returned summary. If no final result is available in the
+parent conversation, say that the subagent has no durable status surface.
+
+### Tmux
+
+Read the brief first:
 
 ```bash
 cat /tmp/legate-<name>.md 2>/dev/null
 ```
 
-If the file is gone (reboot, manual cleanup), fall back to the description tag:
-
-```bash
-tmux show-option -wv -t "<name>" @legate-description 2>/dev/null
-```
-
-Either way, anchor on what the task was — this is the frame for interpreting pane output.
-
-### Capture and read the tail
+Then capture the pane tail:
 
 ```bash
 tmux capture-pane -t "<name>" -p -S -50
 ```
 
-The signal is at the bottom. Read the captured output from the last line upward:
-
-1. Skip blank lines, prompt lines, and idle cursors (`❯`, `>`, `$`)
-2. Skip tool-call noise — file paths being read, grep results, diff hunks, progress bars
-3. Find the agent's last substantive prose block — that's the conclusion or current status
-4. Compare it against the original task brief
-
-If 50 lines isn't enough context, capture more — but resist going wider than necessary.
-More lines means more noise to sift through.
-
-```bash
-tmux capture-pane -t "<name>" -p -S -200
-```
-
-## Debriefing all sessions
-
-When the user asks for a sweep ("how's everything going", "status on all sessions"):
-
-1. Find all legate-managed windows and read each context brief:
-
-   ```bash
-   for w in $(tmux list-windows -F '#{window_name}'); do
-     managed=$(tmux show-option -wv -t "$w" @legate-managed 2>/dev/null)
-     if [ "$managed" = "true" ]; then
-       agent=$(tmux show-option -wv -t "$w" @legate-agent 2>/dev/null)
-       echo "=== $w [$agent] ==="
-       echo "--- brief ---"
-       cat /tmp/legate-$w.md 2>/dev/null || tmux show-option -wv -t "$w" @legate-description 2>/dev/null
-       echo "--- tail ---"
-       tmux capture-pane -t "$w" -p -S -20
-       echo ""
-     fi
-   done
-   ```
-
-2. For each session, read the tail bottom-up (skip noise, find the conclusion) and compare
-   against the brief. Summarize concisely — one or two lines per session. Include which
-   agent runtime is running (claude, codex) so the user knows what's where.
-
-## When a session is gone
-
-If `tmux capture-pane` fails or the window no longer exists, the session has ended or
-been closed. Report this clearly — "that session is gone" is a useful status. Check the
-`@legate-description` tag if it's still readable to remind the user what it was working on.
-Don't treat a missing window as an error in *your* workflow — it's just a fact to report.
+Read from the bottom upward. Skip prompts, tool noise, progress bars, and raw
+diffs. Find the last substantive prose block and compare it with the brief.
 
 ## Reporting style
 
-Structure reports around the task arc, not the raw output:
+Report the task arc, not the raw transcript:
 
-- **What was asked** — one line from the context brief
-- **Current state** — working / idle / errored / done
-- **Conclusion** (if idle or done) — what the agent concluded or delivered
-- **Needs intervention?** — only if something looks stuck or wrong
+- **Handle** - name and backend.
+- **What was asked** - one concise line.
+- **Current state** - working, waiting, done, failed, stopped, or unknown.
+- **Result** - conclusion or delivered change, when available.
+- **Needs intervention** - only when the backend is blocked or likely stuck.
 
-Be concise. The user wants the arc, not a transcript.
-
-- "pr-123 was asked to address review feedback. Done — applied all three suggestions and pushed. Idle."
-- "db-migration was asked to add the new index. Still working — running the test suite."
-- "task-100 was asked to investigate the config bug. Errored — can't find the expected config file. Needs a nudge."
+Keep each handle to one or two lines in an all-hands sweep.

@@ -1,13 +1,13 @@
 {
   "name": "legate",
-  "version": "0.3.9",
-  "description": "Delegated authority over tmux sessions. Dispatch AI agents (Claude Code, Codex) to work in parallel, debrief them for status, inspect their workspace yourself, or watch them for changes.",
+  "version": "0.4.0",
+  "description": "Delegated work orchestration for agent sessions. Dispatch work to native Codex or Claude backends with tmux as a compatibility fallback, then debrief, watch, show logs, stop, or attach when supported.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["tmux", "session", "workflow", "parallel", "agent", "dispatch", "claude-code", "codex", "multi-agent"],
+  "keywords": ["delegation", "workflow", "parallel", "agent", "dispatch", "claude-code", "codex", "multi-agent", "tmux"],
   "skills": "./skills/"
 }

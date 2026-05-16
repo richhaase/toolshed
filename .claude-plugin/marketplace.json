@@ -10,7 +10,7 @@
     {
       "name": "legate",
       "source": "./plugins/legate",
-      "description": "Dispatch and manage tmux agent sessions for parallel work.",
+      "description": "Dispatch, watch, and debrief delegated agent work across native backends and tmux fallback.",
       "category": "Productivity"
     },
     {

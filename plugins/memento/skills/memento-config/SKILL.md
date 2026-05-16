@@ -87,7 +87,7 @@ never overwrite existing content.
 
 ```
 sources/                # L3 — raw inputs, cold storage
-├── sessions/           # /fin captures from conversations
+├── sessions/           # /save captures from conversations
 ├── syncs/              # Automated pulls from external services
 │   └── <provider>/     # One dir per source (concept2/, github/, etc.)
 ├── notes/              # Manual markdown Rich drops in
@@ -238,7 +238,7 @@ other memento skills read `AGENTS.md` to know how to operate.
 #### Entity Types registry
 
 Add an `## Entity Types` section to `AGENTS.md`. This is a machine-readable registry
-that `compile`, `fin`, `ama`, and `followups` reference. Each entity type defines:
+that `compile`, `save`, `ama`, and `followups` reference. Each entity type defines:
 
 ```markdown
 ## Entity Types
@@ -340,7 +340,7 @@ git -C "$MEMENTO_ROOT" commit -m "Customize Memento: <brief summary of entity ty
 
 Suggest they:
 - Add notes to `sources/`
-- Use `/fin` at end of sessions to capture value (decisions, tasks,
+- Use `/save` at end of sessions to capture value (decisions, tasks,
   follow-ups, research, analyses, private notes)
 - Use `/ama` when they want the agent to interview them and fill gaps
   in the wiki

@@ -48,7 +48,7 @@ Path: `sources/sessions/YYYY-MM-DDTHHmmss-topic.md`
 Dated filename, YAML frontmatter with `topic`, `tags`, `sources`, `staleness`.
 Bundle research findings into the session capture; for long-form
 investigation work prefer dispatching a separate research session and
-finning it afterward.
+saving it afterward.
 
 ## Analysis
 

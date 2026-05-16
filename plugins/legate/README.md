@@ -1,93 +1,123 @@
 # Legate
 
-Delegated authority over tmux sessions. Legate turns your AI agent session into a command center — dispatch agents to work in parallel, check on their progress, or switch over to interact with them directly.
+Delegated work orchestration for agent sessions. Legate turns the current agent
+conversation into a coordinator: dispatch work elsewhere, watch for meaningful
+state changes, bring results back, and capture raw logs when the backend has
+them.
 
-Supports **Claude Code** and **Codex**. By default, dispatch launches the same type of agent as the caller — Claude dispatches Claude, Codex dispatches Codex. Override by specifying an agent explicitly.
+Supports **Codex** and **Claude Code** through multiple backends:
 
-Stateless by design. Tmux is the source of truth — window names, tags (`@legate-managed`, `@legate-description`, `@legate-agent`, etc.), and pane contents are the only state. No registry files, no persistent storage. Conversation context provides semantic memory.
+- `codex-native` for Codex internal explorer/worker agents.
+- `claude-bg` for Claude Code background agents.
+- `claude-subagent` for scoped Claude subagent work.
+- `tmux` as the visible terminal-session compatibility backend.
+
+Tmux is no longer the conceptual model. It remains a useful backend when the
+user wants an attachable terminal session or when native dispatch primitives
+are unavailable.
+
+Legate is intentionally adjacent to Memento rather than merged into it:
+Legate runs delegated work; Memento preserves useful outcomes, decisions, and
+follow-ups.
 
 ## Skills
 
 ### dispatch
 
-Launch a new AI agent session in a tmux window with context, or send additional instructions to an existing session.
+Delegate work to a native agent backend or tmux fallback, or send follow-up
+instructions to an existing delegated handle.
 
-**Launching a session:**
-- Accepts PR numbers (`#123`, `my-org/my-repo#45`), issue tracker tickets (`TASK-100`), or freeform descriptions
-- Gathers context automatically — PR details via `gh`, issue info from available tools, or your description as-is
-- Opens a tmux window with the selected agent runtime, tagged for discoverability
-- Sends a tailored kick-off prompt to get the agent working
-- Defaults to your own agent type; override with "dispatch to codex", "have claude look at this", etc.
+**Launching work:**
+- Accepts PR numbers (`#123`, `my-org/my-repo#45`), issue tracker tickets
+  (`TASK-100`), or freeform descriptions.
+- Gathers concise context: PR details via `gh`, issue info from available
+  tools, or the current conversation.
+- Chooses the best backend unless the user specifies one.
+- Records a handle so later skills can debrief, watch, stop, or show logs.
 
-**Sending orders to an existing session:**
-- Resolves natural references ("the PR session", "that migration task") to the right tmux window
-- Sends instructions via `tmux send-keys`
-
-**Auto-watching:**
-- Every dispatch arms an automatic watcher for its children. The parent
-  session sweeps its own children roughly every 5 minutes via `ScheduleWakeup`
-  and speaks up only when a pane tail changes, a new child appears, or one
-  disappears. No `/loop`, no explicit opt-in — it just happens.
-- To stop: say "stop watching". The watcher goes silent; children keep
-  running. The next dispatch re-arms it.
+**Backend routing:**
+- In Codex, prefer native agents for bounded sidecar investigation,
+  verification, review, or isolated implementation.
+- In Claude Code, prefer background agents for durable delegated work when
+  available.
+- Use tmux for visible terminal sessions, cross-runtime launch, or fallback.
 
 ```
-dispatch a session for #123
-tell the PR session to also run the tests
 dispatch a task to investigate the flaky CI
-stop watching
+dispatch #123 with --claude-bg
+dispatch this refactor with --codex-native
+tell the PR handle to also run the tests
 ```
 
 ### debrief
 
-Check on one or all dispatched sessions and pull status back into the current conversation.
+Check on one or all delegated handles and pull status or results back into the
+current conversation.
 
-- Captures pane output via `tmux capture-pane`
-- Reports what the agent is doing: working, idle, errored, waiting for input
-- Can target a single session or sweep all legate-managed windows at once
+- Reads backend-native status: Codex agent results, Claude logs/state, Claude
+  subagent summaries, or tmux pane output.
+- Reports the task arc: what was asked, current state, result, and whether
+  intervention is needed.
+- Can target one handle or sweep all known delegated work.
 
 ```
-debrief the PR session
+debrief the PR handle
 how's everything going?
-status on all sessions
+status on all delegated work
 ```
 
-### inspect
+### watch
 
-Switch focus to a dispatched session's tmux window so you can interact with the agent directly.
+Auto-watch delegated work and surface meaningful deltas.
 
-- Resolves natural references ("the PR session") to the right window
-- Switches your tmux focus there — you're now talking to that agent
+- Armed by `dispatch`.
+- Reports new handles, completions, failures, needs-input states, or tmux pane
+  tail changes.
+- To stop status notifications, say "stop watching". Delegated work keeps
+  running.
 
-```
-inspect the migration task
-take me to the PR session
-```
+### logs
 
-## Shared sessions
+Show raw or near-raw backend detail when available.
 
-Dispatched sessions are not black boxes. The user can switch to any session and interact
-with the agent directly — giving instructions, asking follow-ups, or taking over entirely.
-This is a core part of the model: dispatch starts the work, but anyone can pick it up.
+- Claude background agents: `claude logs <id>`.
+- Tmux: recent pane output.
+- Codex native agents and Claude subagents: latest known status or final
+  summary only.
 
-When debriefing or otherwise reading pane output, look for user prompt markers (`❯`) to
-distinguish between user-driven actions and autonomous agent behavior. Report what happened
-factually based on who initiated it.
+### stop
+
+Stop or cancel delegated work without disabling the watcher globally.
+
+- Codex native: close/cancel the native agent handle when supported.
+- Claude background: `claude stop <id>`.
+- Tmux: graceful interrupt first.
+
+### attach
+
+Optional backend-specific escape hatch. Attach is not part of the portable
+Legate contract.
+
+- Claude background agents may support `claude attach <id>`.
+- Tmux can switch to the target window.
+- Codex native agents and Claude subagents are mediated through the parent
+  conversation; use `debrief`, `logs`, or follow-up instructions instead.
+
+Legacy "inspect" language routes here when the backend supports direct control.
 
 ## How it works
 
-Legate tags each dispatched tmux window with user options:
+Every dispatch records a logical handle:
 
-| Tag | Purpose |
-|-----|---------|
-| `@legate-managed` | Marks the window as legate-managed |
-| `@legate-description` | Short description of the task |
-| `@legate-source` | Source identifier (e.g., `gh:owner/repo#123`) |
-| `@legate-cwd` | Working directory of the session |
-| `@legate-agent` | Agent runtime: `claude` or `codex` |
-| `@legate-parent` | Pane id of the parent session — scopes auto-watching to its own children |
+```text
+<!-- legate:handles -->
+- <name>|backend=<backend>|id=<backend-id>|cwd=<path>|source=<source>|desc=<description>
+```
 
-These tags let `debrief`, `inspect`, and the auto-watcher discover and interact with sessions without any external state. Named Claude Code sessions (`claude -n <name>`) mean session history persists even if you need to reconnect.
+Backends provide their own state surfaces. Claude background agents expose
+CLI commands and state files, Codex native agents expose parent-conversation
+handles, Claude subagents return summaries, and tmux windows carry Legate
+metadata tags.
 
 ## Installation
 
@@ -97,6 +127,6 @@ claude plugin install legate@toolshed
 
 Or inside Claude Code:
 
-```
+```text
 /plugin install legate@toolshed
 ```

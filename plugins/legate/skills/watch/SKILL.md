@@ -1,152 +1,108 @@
 ---
 name: watch
 description: >
-  Auto-watch dispatched legate children and surface deltas when they make
-  progress, finish, or get launched. Armed by `legate:dispatch` at launch
-  time and fired on a cadence by `ScheduleWakeup` — sweeps only the children
-  tagged with this parent's pane id, hashes each pane tail, reports deltas
-  via `legate:debrief`, and re-schedules the next tick. Also handles user
-  utterances that stop or confirm watching: "stop watching", "cancel the
-  watcher", "enough watching", "are you still watching?", "watch my legates"
-  (confirmation when children exist; a hint to dispatch when none do). Do
-  NOT invoke for "start watching" — watching is implicit in dispatch.
+  Auto-watch delegated Legate work and surface meaningful changes: new handles,
+  completions, failures, needs-input states, or changed tmux pane tails. Armed
+  by `legate:dispatch` and fired on a cadence by `ScheduleWakeup`. Also handles
+  user utterances that stop or confirm watching: "stop watching", "cancel the
+  watcher", "enough watching", "are you still watching?", "watch my legates".
+  Do NOT invoke for "start watching"; watching is implicit in dispatch.
 argument-hint: "[stop]"
-allowed-tools:
-  - Bash
-  - Skill
-  - ScheduleWakeup
+allowed-tools: Bash Skill Agent ScheduleWakeup
 ---
 
 # Watch
 
-Auto-watcher for dispatched legate children. Runs in the **parent conversation**
-(the session that dispatched the children). Tmux is the source of truth — the
-parent's pane id identifies it, `@legate-parent` tags identify its children,
-and pane-tail hashes detect change.
+Watch delegated work from the parent conversation. The watcher compares a small
+backend-neutral snapshot across ticks and reports only meaningful deltas.
 
-This skill is not typically user-invoked. `legate:dispatch` invokes it at
-launch to record an initial snapshot and schedule the first tick. Subsequent
-ticks fire via `ScheduleWakeup` with a sentinel prompt that routes back here.
-The only user-facing triggers are stop/confirm utterances (see Step 6).
+Read `../_shared/references/backends.md` for backend status surfaces,
+`../_shared/references/conventions.md` for snapshot format, and
+`references/rendering.md` before rendering a delta report.
 
 ## Procedure
 
-### Step 1: Identify yourself
+### 1. Check opt-out
 
-Get your own tmux pane id. This is the `@legate-parent` value you sweep on:
+Look back for the most recent snapshot block. If it starts with:
 
-```bash
-MY_PANE=$(tmux display-message -p -t "$TMUX_PANE" '#{pane_id}')
+```text
+<!-- legate:watch snapshot opt-out -->
 ```
 
-If `$TMUX_PANE` is unset (not running inside tmux), watching is not meaningful
-— report that and exit.
+the user has opted out. Do not sweep or schedule unless the current message is
+an explicit confirmation request.
 
-### Step 2: Check for opt-out
+Accept the legacy tmux-only `<!-- legate:watch hashes opt-out -->` as opt-out
+too.
 
-Look back in conversation history for the most recent snapshot block. If its
-header is `<!-- legate:watch hashes opt-out -->`, the user has opted out of
-watching. Do not sweep, do not schedule. Exit silently unless this invocation
-is a user-driven confirmation check (Step 6).
+### 2. Build the current snapshot
 
-When `dispatch` invokes this skill, the opt-out is cleared — any new dispatch
-re-arms the sweep. Clear the flag by writing the new snapshot with the
-non-opt-out header in Step 5.
+Resolve known handles from conversation history and backend discovery.
 
-### Step 3: Sweep your children
+For each handle, produce:
 
-Enumerate every window whose `@legate-parent` matches your pane id and hash
-the last 20 lines:
-
-```bash
-for w in $(tmux list-windows -F '#{window_name}'); do
-  parent=$(tmux show-option -wv -t "$w" @legate-parent 2>/dev/null)
-  if [ "$parent" = "$MY_PANE" ]; then
-    hash=$(tmux capture-pane -t "$w" -p -S -20 2>/dev/null | shasum -a 1 | cut -c1-8)
-    desc=$(tmux show-option -wv -t "$w" @legate-description 2>/dev/null)
-    echo "$w|$hash|$desc"
-  fi
-done
+```text
+- <name>|backend=<backend>|state=<state-or-hash>|desc=<description>
 ```
 
-20 lines is wide enough to catch the agent's most recent substantive output
-block and narrow enough that intermediate tool scrolling usually doesn't trip
-the hash.
+Backend-specific state:
 
-If the sweep finds no children, this parent has nothing to watch. Skip to
-Step 5 (record an empty snapshot), do not schedule a wakeup, and exit.
+- `codex-native`: latest native agent state if available, otherwise `working`,
+  `done`, `failed`, or `unknown` from the parent handle.
+- `claude-bg`: lightweight state from `~/.claude/jobs/<id>/state.json` when
+  present, respecting `CLAUDE_CONFIG_DIR`; otherwise a short hash of
+  `claude logs <id>` tail.
+- `claude-subagent`: `done` once a final summary has returned; otherwise
+  `working` or `unknown`.
+- `tmux`: hash the last 20 pane lines, preserving the old pane-tail behavior.
 
-### Step 4: Diff against the prior snapshot
+If there are no handles, record an empty snapshot, do not schedule, and exit.
 
-Find the most recent prior snapshot in your conversation history in this
-format (set by Step 5):
+### 3. Diff against the prior snapshot
 
-```
-<!-- legate:watch hashes -->
-- <window>|<hash>|<description>
-- <window>|<hash>|<description>
-```
+Compute:
 
-Compute three diffs against the current state:
+- **Appeared** - present now, absent before.
+- **Disappeared** - present before, absent now.
+- **Changed** - present in both with different state.
 
-- **Appeared** — windows present now, absent then (a new dispatch).
-- **Disappeared** — windows present then, absent now (child closed).
-- **Changed** — windows present in both, hash different (child made progress).
+Unchanged handles are not interesting. If no diff exists, report nothing.
 
-Unchanged windows are not interesting. **If all three diffs are empty, report
-nothing.**
+For appeared and changed handles, invoke `legate:debrief <handle>` through the
+Skill tool to get a one-line synthesis. For disappeared handles, just note the
+name and backend.
 
-If any diff is non-empty, render the **entire** report inside an ASCII box
-so it stands out from surrounding model output. See
-`references/rendering.md` for the exact shape, the 78-char border rule, the
-gutter convention, and the wrap/breathing-room rules. The box is the only
-rendering — never print plain-text recaps outside it.
+Render any report entirely inside the ASCII box described in
+`references/rendering.md`. Do not print extra watch narration outside the box.
 
-For changed and appeared windows, invoke `legate:debrief <window>` via the
-Skill tool to get a one-line synthesis. For disappeared windows, just note
-the name.
+### 4. Record the snapshot
 
-### Step 5: Record the new snapshot
+Always emit the new snapshot:
 
-Whether you reported deltas or not, emit the new snapshot so the next tick
-has state to compare against. Use this exact format:
-
-```
-<!-- legate:watch hashes -->
-- <window>|<hash>|<description>
-- <window>|<hash>|<description>
+```text
+<!-- legate:watch snapshot -->
+- <name>|backend=<backend>|state=<state-or-hash>|desc=<description>
 ```
 
-Use the opt-out header `<!-- legate:watch hashes opt-out -->` only when Step 6
-recorded a stop intent this turn.
+Use the opt-out header only when the user stopped watching this turn.
 
-### Step 6: Handle user stop/confirm intent
+### 5. Handle user stop/confirm intent
 
-If the current invocation was triggered by a user message (not by `dispatch`
-and not by a wakeup sentinel), check the message for intent:
+For user-driven messages:
 
-- **Stop** — "stop watching", "cancel the watcher", "enough watching",
-  "stop auto-watching", etc. Write the snapshot with the opt-out header. Do
-  not schedule the next wakeup. Confirm the watcher is off.
-- **Confirm** — "are you still watching?", "watch my legates", "keep an eye
-  on them". If children exist, confirm the count and that watching is active.
-  If no children exist, tell the user there's nothing to watch yet and suggest
-  they dispatch something.
+- Stop intent: record the snapshot with the opt-out header, do not schedule,
+  and confirm the watcher is off.
+- Confirm intent: if handles exist, confirm the count and that watching is
+  active. If none exist, say there is nothing to watch yet.
 
-Otherwise (invoked by `dispatch` or a wakeup sentinel), skip this step.
+Skip this step for dispatch-triggered or wakeup-triggered runs.
 
-### Step 7: Schedule the next tick
+### 6. Schedule the next tick
 
-If all of the following hold, schedule the next tick:
+If at least one handle exists and the user did not opt out, schedule:
 
-- At least one child exists (Step 3 returned non-empty).
-- The user did not opt out this turn (Step 6 did not record a stop).
-- The parent is not already running inside `/loop` — if it is, `/loop`'s
-  cadence drives the ticks and a second scheduler would conflict.
-
-Call:
-
-```
+```text
 ScheduleWakeup(
   delaySeconds=270,
   reason="legate:watch idle sweep",
@@ -154,25 +110,11 @@ ScheduleWakeup(
 )
 ```
 
-270s keeps us inside the 5-minute prompt-cache TTL (300s is the worst-of-both
-— pays a cache miss without amortizing it). If the user types before the
-wakeup fires, their message supersedes the scheduled tick.
-
-If any of the conditions above fails, do not schedule. Watching quiesces
-naturally when children are gone or the user opts out.
+Do not schedule a second watcher if the parent is already in a loop mechanism
+that will run watch ticks.
 
 ## Scope
 
-- Sweeps only `@legate-managed` windows whose `@legate-parent` matches this
-  parent's pane id. Other parents' children are invisible here; use
-  `legate:debrief all` for on-demand cross-parent sweeps.
-- Cross-skill reads go through the Skill tool. `watch` invokes
-  `legate:debrief` for synthesizing changed-window status. It does not read
-  debrief's files or scripts, even though they share a plugin.
-- Only reads tmux state and its own prior conversation history. No external
-  state file.
-
-## Conventions
-
-See `../_shared/references/conventions.md` for the full tag contract, parent-identity
-semantics, and snapshot block format.
+Watch is an attention filter, not a transcript reader. It notices state
+changes, invokes `debrief` for synthesis, records the next snapshot, and
+quiesces when no delegated work remains.

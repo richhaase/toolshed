@@ -1,27 +1,27 @@
 {
   "name": "legate",
-  "version": "0.3.9",
-  "description": "Delegated authority over tmux sessions. Dispatch AI agents (Claude Code, Codex) to work in parallel, debrief them for status, inspect their workspace yourself, or watch them for changes.",
+  "version": "0.4.0",
+  "description": "Delegated work orchestration for agent sessions. Dispatch work to native Codex or Claude backends with tmux as a compatibility fallback, then debrief, watch, show logs, stop, or attach when supported.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["tmux", "session", "workflow", "parallel", "agent", "dispatch", "claude-code", "codex", "multi-agent"],
+  "keywords": ["delegation", "workflow", "parallel", "agent", "dispatch", "claude-code", "codex", "multi-agent", "tmux"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Legate",
-    "shortDescription": "Dispatch and manage tmux agent sessions",
-    "longDescription": "Launch Claude Code or Codex sessions in tmux windows, send follow-up instructions, debrief their progress, inspect sessions directly, and watch them for changes.",
+    "shortDescription": "Dispatch and manage delegated agent work",
+    "longDescription": "Dispatch work to native Codex or Claude backends with tmux as a compatibility fallback. Debrief progress, watch for meaningful changes, show logs where available, stop delegated work, and attach only when the backend supports it.",
     "developerName": "Rich Haase",
     "category": "Productivity",
     "capabilities": ["Interactive"],
     "websiteURL": "https://github.com/richhaase/toolshed",
     "defaultPrompt": [
-      "Dispatch a separate agent session for this task.",
-      "Debrief all delegated sessions.",
-      "Inspect the active delegated session."
+      "Dispatch delegated agent work for this task.",
+      "Debrief all delegated handles.",
+      "Show logs for the active delegated handle."
     ]
   }
 }

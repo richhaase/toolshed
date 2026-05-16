@@ -1,27 +1,27 @@
 ---
-name: fin
-description: Finish a session — extract useful data, persist to sources, close down. Works on legate sessions and the main conversation. Use when wrapping up any session ("we're done", "wrap up", "fin", "close out"), when closing a legate, or as the final step before killing a legate window. Also triggers on "session-log", "log this", "anything to capture?". Default action is immediate — pass `ask` to review the capture plan before writing.
+name: save
+description: Save a session by extracting useful data, persisting it to sources, and closing down. Works on Legate delegated handles and the main conversation. Use when wrapping up any session ("we're done", "wrap up", "save", "close out"), when closing delegated work, or when the user wants session context captured. Also triggers on "session-log", "log this", "anything to capture?". Default action is immediate; pass `ask` to review the capture plan before writing.
 argument-hint: "[session-name|all] [ask]"
 user-invocable: true
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
+allowed-tools: Read Write Edit Glob Grep Bash Agent Skill
 ---
 
-# Fin
+# Save
 
-Finish a session. Extract anything worth keeping, persist it, close down.
+Save a session. Extract anything worth keeping, persist it, close down.
 
 Works on two kinds of sessions:
 
-1. **Legate sessions** — capture the tmux pane output, extract value, write to sources, kill the window.
+1. **Legate delegated handles** — debrief/log the delegated work, extract value, write to sources, then stop/close the handle when supported.
 2. **Main conversation** — scan the current conversation, extract value, write to sources, commit.
 
 ## Gotchas
 
-- **No arguments = fin the current (main) conversation.** Do NOT check on,
-  debrief, or interact with legates. Legates are independent sessions. Touch
+- **No arguments = save the current (main) conversation.** Do NOT check on,
+  debrief, or interact with Legate handles. Delegated work is independent. Touch
   them only if a name is passed or `all` is given.
 - **Default mode writes immediately** — no approval step. `ask` is opt-in.
-  This applies to `fin all` too: it proceeds without confirmation.
+  This applies to `save all` too: it proceeds without confirmation.
 - **Empty capture plan ⇒ stop.** Don't create empty files, don't commit, don't
   emit a "nothing to do" commit. Print the reason and exit.
 - **Bright line: tasks vs follow-ups.** Tasks are commitments the user made
@@ -50,29 +50,33 @@ Arguments are passed as: $ARGUMENTS
 
 Target selector (pick one):
 
-- No arguments → fin the current (main) conversation
-- A legate window name (e.g., `pr-52`, `research-auth`) → fin that legate session
-- `all` → fin all open legate sessions, then the main conversation
+- No arguments → save the current (main) conversation
+- A Legate handle name (e.g., `pr-52`, `research-auth`) → save that delegated handle
+- `all` → save all open Legate handles, then the main conversation
 
 Mode modifier (optional, combines with any target):
 
 - `approve` (or omitted) → **default.** Extract → write → commit → report. No prompt.
 - `ask` → Extract → show capture plan → wait for user approval → write → commit → report.
 
-Examples: `fin`, `fin ask`, `fin pr-52`, `fin pr-52 ask`, `fin all`, `fin all ask`.
+Examples: `save`, `save ask`, `save pr-52`, `save pr-52 ask`, `save all`, `save all ask`.
 
 ## Step 0: Determine the target and mode
 
-**No arguments = fin the main conversation in default (no-approval) mode. Do NOT check on, debrief, or interact with legates.** Legates are independent sessions — they keep running. Only touch them if explicitly named or `all` is passed.
+**No arguments = save the main conversation in default (no-approval) mode. Do NOT check on, debrief, or interact with Legate handles.** Delegated work keeps running. Only touch it if explicitly named or `all` is passed.
 
-Parse `$ARGUMENTS`: the mode is `ask` if the tokens contain `ask`; otherwise `approve` (default). The remaining token (if any) is the target — a legate name or `all`. Remember the mode for Step 4.
+Parse `$ARGUMENTS`: the mode is `ask` if the tokens contain `ask`; otherwise `approve` (default). The remaining token (if any) is the target — a Legate handle name or `all`. Remember the mode for Step 4.
 
-If a legate name is given, verify the window exists:
+If a Legate handle is given, resolve it from conversation history first. For
+tmux-backed legacy handles, verify the window exists:
+
 ```bash
 tmux show-option -wv -t "<name>" @legate-managed 2>/dev/null
 ```
 
-If `all`, list all legate-managed windows:
+If `all`, collect known Legate handles from conversation history. Also list
+tmux-managed windows as a compatibility fallback:
+
 ```bash
 for w in $(tmux list-windows -F '#{window_name}'); do
   managed=$(tmux show-option -wv -t "$w" @legate-managed 2>/dev/null)
@@ -85,9 +89,13 @@ done
 
 ## Step 1: Gather session content
 
-### For a legate session
+### For a Legate handle
 
-Start with what was asked — read the context brief written at dispatch time:
+Start with what was asked. Prefer Legate's own status surfaces:
+
+1. Invoke `legate:debrief <handle>` via the Skill tool for the task arc.
+2. Invoke `legate:logs <handle>` via the Skill tool when raw detail is needed.
+3. For tmux-backed legacy handles, fall back to the original pane capture flow:
 
 ```bash
 cat /tmp/legate-<name>.md 2>/dev/null
@@ -100,7 +108,7 @@ tmux show-option -wv -t "<name>" @legate-description
 tmux show-option -wv -t "<name>" @legate-source
 ```
 
-Then capture the tail — the conclusion and recent activity:
+Then capture the tail for tmux handles:
 
 ```bash
 tmux capture-pane -t "<name>" -p -S -80
@@ -190,11 +198,11 @@ configured filename pattern, not to `sources/`.
 
 ### Legate-specific patterns
 
-Legates often produce specific kinds of value:
+Delegated work often produces specific kinds of value:
 
-- **Research legates**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere.
-- **Investigation legates**: Findings may warrant a research doc or analysis if substantive.
-- **Interactive task legates**: May have produced code changes (already committed) or surfaced new tasks/blockers.
+- **Research handles**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere.
+- **Investigation handles**: Findings may warrant a research doc or analysis if substantive.
+- **Task handles**: May have produced code changes, commits, PRs, or surfaced new tasks/blockers.
 
 ## Step 4: Capture plan (and optional approval)
 
@@ -207,9 +215,9 @@ Build a capture plan — for each item:
 
 **Default mode (no arg, `approve`):** print the plan as a record of what's about to happen, then proceed directly to Step 5. Do not wait for confirmation.
 
-**Ask mode (`ask`):** print the plan and wait for explicit user approval before proceeding to Step 5. For `fin all ask`, batch plans across all targets into a single prompt and get one approval.
+**Ask mode (`ask`):** print the plan and wait for explicit user approval before proceeding to Step 5. For `save all ask`, batch plans across all targets into a single prompt and get one approval.
 
-`fin all` in default mode proceeds without approval — Rich triggered it deliberately.
+`save all` in default mode proceeds without approval — Rich triggered it deliberately.
 
 ## Step 5: Write files
 
@@ -224,8 +232,12 @@ Private notes always append; never overwrite.
 
 ## Step 6: Close down
 
-### For a legate session
-Kill the tmux window:
+### For a Legate handle
+Close the delegated work after capture:
+
+1. Prefer `legate:stop <handle>` via the Skill tool.
+2. For tmux-backed legacy handles, kill the tmux window only after capture:
+
 ```bash
 tmux kill-window -t "<name>"
 ```
@@ -234,13 +246,13 @@ tmux kill-window -t "<name>"
 Commit all written files:
 ```bash
 git -C "$MEMENTO_ROOT" add sources/ outputs/ private/
-git -C "$MEMENTO_ROOT" commit -m "fin: capture session — <brief summary>"
+git -C "$MEMENTO_ROOT" commit -m "save: capture session — <brief summary>"
 ```
 
 `sources/` includes `sources/followups/` automatically.
 
-### For `fin all`
-Fin each legate (extract + kill), then fin the main conversation (extract + commit everything together).
+### For `save all`
+Save each Legate handle (extract + close), then save the main conversation (extract + commit everything together).
 
 ## Sensitivity rules
 

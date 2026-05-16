@@ -67,11 +67,12 @@ a project repo; the bundled `skills/_shared/scripts/memento-root` and
 `skills/_shared/scripts/memento-run` helpers make each skill operate from the
 resolved root instead of assuming the current repo is the Memento.
 
-### [Legate](plugins/legate/) — Tmux Session Management
+### [Legate](plugins/legate/) — Delegated Work Orchestration
 
-Delegated authority over tmux sessions. Dispatch Claude Code or Codex agents
-to work in parallel, check on their progress, or open a shell alongside them.
-Stateless by design: tmux is the source of truth.
+Delegated work orchestration for agent sessions. Dispatch Claude Code or Codex
+work to native agent backends or the tmux compatibility backend, debrief
+results, watch for meaningful changes, show logs where available, and attach
+only when the backend supports it.
 
 ## Distribution layout
 

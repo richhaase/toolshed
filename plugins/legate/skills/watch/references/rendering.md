@@ -9,12 +9,12 @@ and any contextual notes — lives inside the box.
 ```
 ┌─ legate:watch ──────────────────────────────────────────────────────────────
 │
-│ Appeared:    <window> — <one-line synthesis>
-│ Changed:     <window> — <one-line synthesis>
-│              <window> — <one-line synthesis>
-│ Disappeared: <window>
+│ Appeared:    <handle> [<backend>] — <one-line synthesis>
+│ Changed:     <handle> [<backend>] — <one-line synthesis>
+│              <handle> [<backend>] — <one-line synthesis>
+│ Disappeared: <handle> [<backend>]
 │
-│ Unchanged:   <window>, <window>, <window>
+│ Unchanged:   <handle>, <handle>, <handle>
 │
 └─────────────────────────────────────────────────────────────────────────────
 ```
@@ -50,16 +50,16 @@ Prior renderings violated these and the box "leaked":
 
 ## Synthesis sourcing
 
-For changed and appeared windows, invoke `legate:debrief <window>` via the
+For changed and appeared handles, invoke `legate:debrief <handle>` via the
 Skill tool to get a one-line synthesis — debrief already knows how to
-interpret a pane tail against a brief. For disappeared windows, just note
-the name.
+interpret backend status against the original brief. For disappeared handles,
+just note the name and backend.
 
-The optional `Unchanged:` line is a single comma-separated list of window
+The optional `Unchanged:` line is a single comma-separated list of handle
 names that did not change this tick — included for scan context so the user
 can see "everything else is steady". Skip it if there are no unchanged
-windows or if it would overflow ~80 chars even after wrapping inside the
+handles or if it would overflow ~80 chars even after wrapping inside the
 gutter.
 
-Keep each window's line to one or two lines. Consistency across ticks
+Keep each handle's line to one or two lines. Consistency across ticks
 matters more than the specific glyphs.

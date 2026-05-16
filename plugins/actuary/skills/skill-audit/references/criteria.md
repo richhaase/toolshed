@@ -28,6 +28,16 @@ Additional sources:
 - <https://help.openai.com/en/articles/9358033>
 - <https://developers.openai.com/codex/skills>
 
+## Contents
+
+- L1 — Spec compliance: hard frontmatter and body checks.
+- L2 — Structural metrics: size, progressive disclosure, and scripts.
+- L3 — Craft recommendations: description quality, body craft, references,
+  gotchas, templates, validation, and scripts.
+- Severity assignment: how to rank findings.
+- Rule catalog: stable keys every finding must cite.
+- Deliberate non-goals: what this audit does not do.
+
 ## L1 — Spec compliance (hard pass/fail)
 
 Every finding here is a defect. Block the skill from claiming "spec-conformant."

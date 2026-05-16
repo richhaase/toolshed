@@ -12,7 +12,7 @@ description: >
   "audit" if they're asking for a structured quality review of skill files.
 argument-hint: "[<skill-path>|<plugin-path>|<repo>] [--quick-wins-only]"
 user-invocable: true
-allowed-tools: [Read, Glob, Grep, Bash]
+allowed-tools: Read Glob Grep Bash
 ---
 
 # Skill Audit
@@ -33,8 +33,8 @@ Plus a prioritized quick-wins shortlist.
 - **Every finding must cite a rule key from the catalog.** Format:
   `- [<layer> <severity>] rule: <rule-key> — <one-line what>`. The rule key
   is what makes the report machine-parseable later — keep the format stable.
-  If you need to flag something the catalog doesn't cover, add the key to
-  the catalog first; don't invent ad-hoc strings.
+  If the catalog doesn't cover a concern, put it in open questions or
+  residual risk instead of inventing ad-hoc strings.
 - **Read-only.** Never edit the audited skills, never write into the audit
   target's directory tree. The report is the only output.
 - **L1 and L2 are quantitative; L3 is judgment.** Do not produce a single

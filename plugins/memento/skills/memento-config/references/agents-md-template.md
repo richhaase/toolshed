@@ -35,7 +35,7 @@ served over HTTP. `outputs/reports/` are generated briefings and analyses.
 
 ```
 sources/                # L3 — raw inputs
-├── sessions/           # /fin captures from conversations
+├── sessions/           # /save captures from conversations
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/ — timestamped files
 ├── notes/              # Manual markdown
@@ -62,13 +62,13 @@ private/                # Sensitive notes — never compiled
 
 ### Sources (`sources/`)
 All inputs that feed the wiki. Organized by origin:
-- **`sessions/`** — Extracted from conversations via `/fin`
+- **`sessions/`** — Extracted from conversations via `/save`
 - **`syncs/<provider>/`** — Automated pulls from external services
 - **`notes/`** — Manual markdown dropped in directly
 - **`tasks/`** — User-committed actions. Existence = open, deletion = done.
 - **`followups/`** — Uncommitted captures: open questions, awareness items,
   things others surfaced, loose ends. Default destination for non-task
-  `/fin` captures. Reviewed periodically via `/followups` (lists by
+  `/save` captures. Reviewed periodically via `/followups` (lists by
   default, or `/followups walk` to triage) and either promoted to
   `tasks/`, dismissed, or kept. Briefings do not surface follow-ups as
   urgent.
