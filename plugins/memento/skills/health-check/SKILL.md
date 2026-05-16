@@ -51,12 +51,13 @@ Arguments are passed as: $ARGUMENTS
 For the core doctor pass, prefer the deterministic helper when available:
 
 ```bash
-skills/health-check/scripts/doctor.sh
+scripts/doctor.sh
 ```
 
-Use the scripted output as a first pass, then apply the judgment rules below to
-filter false positives and explain the findings. If the script is unavailable,
-run the checks manually.
+Resolve this path relative to the `health-check` skill directory. Use the
+scripted output as a first pass, then apply the judgment rules below to filter
+false positives and explain the findings. If the script is unavailable, run the
+checks manually.
 
 Start with the public root files:
 

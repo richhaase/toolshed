@@ -99,6 +99,17 @@ history but are excluded from current-state compile output.
 - Topic-organized, not date-organized
 - `INDEX.md` tracks every page with freshness and pinned status
 
+## Cache Integrity
+
+L1 (`AGENTS.md`) and L2 (`wiki/`) are generated projections over L3 sources,
+not authority. Treat them as convenient caches. When freshness, provenance, or
+privacy classification is in doubt, inspect L3 sources and source policy before
+trusting compiled summaries.
+
+Run `/health-check` when you need a read-only doctor pass for stale projections,
+broken evidence paths, compile metadata drift, public-surface privacy risks, or
+golden-query eval readiness. The health check must not read `private/`.
+
 ### Outputs (`outputs/`)
 - **`surfaces/`** — HTML dashboards, may be served via HTTP
 - **`reports/`** — Generated content, write-once

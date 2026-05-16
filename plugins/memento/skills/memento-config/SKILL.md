@@ -246,26 +246,26 @@ that `compile`, `save`, `ama`, and `followups` reference. Each entity type defin
 ### people
 - **wiki_path:** `wiki/people/`
 - **filename:** `firstname-lastname.md`
-- **frontmatter:** title, type, role, team, last_compiled, sources, related
+- **frontmatter:** title, type, role, team, sources, related
 - **sections:** Overview, Current Focus, Recent Activity, Key Contributions
 - **private_notes:** yes — route to `private/firstname-lastname.md`
 
 ### projects
 - **wiki_path:** `wiki/projects/`
 - **filename:** `project-slug.md`
-- **frontmatter:** title, type, status, last_compiled, sources, related
+- **frontmatter:** title, type, status, sources, related
 - **sections:** Overview, Current Status, Key Decisions, Open Questions, Timeline
 
 ### customers
 - **wiki_path:** `wiki/customers/`
 - **filename:** `customer-slug.md`
-- **frontmatter:** title, type, status, last_compiled, sources, related
+- **frontmatter:** title, type, status, sources, related
 - **sections:** Overview, Integration Status, Recent Activity, Key Contacts
 
 ### topics
 - **wiki_path:** `wiki/topics/`
 - **filename:** `topic-slug.md`
-- **frontmatter:** title, type, last_compiled, sources, related
+- **frontmatter:** title, type, sources, related
 - **sections:** Overview, Current State, History
 ```
 
@@ -275,7 +275,7 @@ an example — adapt to what the user actually needs.
 Key properties per entity type:
 - **wiki_path** — subdirectory under `wiki/` for this type's pages
 - **filename** — naming pattern for wiki pages of this type
-- **frontmatter** — YAML frontmatter fields for wiki pages (always includes title, type, last_compiled, sources, related)
+- **frontmatter** — YAML frontmatter fields for wiki pages (always includes title, type, sources, related; do not include `last_compiled`, because freshness belongs in `wiki/INDEX.md`)
 - **sections** — markdown sections each wiki page of this type should have
 - **private_notes** (optional) — if `yes`, this entity type has private observations that route to `private/` instead of wiki. Include the filename pattern.
 
