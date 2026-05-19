@@ -70,9 +70,8 @@ resolved root instead of assuming the current repo is the Memento.
 ### [Legate](plugins/legate/) — Delegated Work Orchestration
 
 Delegated work orchestration for agent sessions. Dispatch Claude Code or Codex
-work to native agent backends or the tmux compatibility backend, debrief
-results, watch for meaningful changes, show logs where available, and attach
-only when the backend supports it.
+work into a tagged tmux window, debrief results, watch for meaningful
+pane-tail changes, show recent pane output, stop the session, or attach to it.
 
 ## Distribution layout
 

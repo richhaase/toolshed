@@ -9,10 +9,10 @@ and any contextual notes — lives inside the box.
 ```
 ┌─ legate:watch ──────────────────────────────────────────────────────────────
 │
-│ Appeared:    <handle> [<backend>] — <one-line synthesis>
-│ Changed:     <handle> [<backend>] — <one-line synthesis>
-│              <handle> [<backend>] — <one-line synthesis>
-│ Disappeared: <handle> [<backend>]
+│ Appeared:    <handle> — <one-line synthesis>
+│ Changed:     <handle> — <one-line synthesis>
+│              <handle> — <one-line synthesis>
+│ Disappeared: <handle>
 │
 │ Unchanged:   <handle>, <handle>, <handle>
 │
@@ -52,8 +52,8 @@ Prior renderings violated these and the box "leaked":
 
 For changed and appeared handles, invoke `legate:debrief <handle>` via the
 Skill tool to get a one-line synthesis — debrief already knows how to
-interpret backend status against the original brief. For disappeared handles,
-just note the name and backend.
+interpret pane state against the original brief. For disappeared handles,
+just note the name.
 
 The optional `Unchanged:` line is a single comma-separated list of handle
 names that did not change this tick — included for scan context so the user

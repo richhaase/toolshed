@@ -10,7 +10,7 @@
     {
       "name": "legate",
       "source": "./plugins/legate",
-      "description": "Dispatch, watch, and debrief delegated agent work across native backends and tmux fallback.",
+      "description": "Dispatch, watch, and debrief delegated agent work running in tagged tmux windows.",
       "category": "Productivity"
     },
     {

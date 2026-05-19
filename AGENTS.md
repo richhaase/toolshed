@@ -107,8 +107,8 @@ This catches the bump-only-one-side mistake before it leaves your machine.
   diagnostics, passive session capture, active LLM-driven interview, and queue
   review.
 - **legate** — Delegated work orchestration (dispatch, debrief, watch, logs,
-  stop, attach). Uses native Codex/Claude agent primitives when available and
-  keeps tmux as a compatibility backend for visible terminal sessions.
+  stop, attach). A thin coordination layer over tmux: each handle is a
+  tagged tmux window running an agent runtime (`claude` or `codex`).
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.

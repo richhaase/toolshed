@@ -1,20 +1,14 @@
 # Legate
 
-Delegated work orchestration for agent sessions. Legate turns the current agent
-conversation into a coordinator: dispatch work elsewhere, watch for meaningful
-state changes, bring results back, and capture raw logs when the backend has
-them.
+Delegated work orchestration for agent sessions. Legate turns the current
+agent conversation into a coordinator: dispatch work into a tmux window,
+watch for meaningful state changes, bring results back, and capture raw pane
+output when you need detail.
 
-Supports **Codex** and **Claude Code** through multiple backends:
-
-- `codex-native` for Codex internal explorer/worker agents.
-- `claude-bg` for Claude Code background agents.
-- `claude-subagent` for scoped Claude subagent work.
-- `tmux` as the visible terminal-session compatibility backend.
-
-Tmux is no longer the conceptual model. It remains a useful backend when the
-user wants an attachable terminal session or when native dispatch primitives
-are unavailable.
+Every Legate handle is a tmux window running an agent runtime (`claude` or
+`codex`), tagged with `@legate-*` user options so other skills can find it.
+There is no other backend — Legate is intentionally a thin coordination layer
+over `tmux`.
 
 Legate is intentionally adjacent to Memento rather than merged into it:
 Legate runs delegated work; Memento preserves useful outcomes, decisions, and
@@ -24,38 +18,30 @@ follow-ups.
 
 ### dispatch
 
-Delegate work to a native agent backend or tmux fallback, or send follow-up
-instructions to an existing delegated handle.
+Delegate work into a new tmux window, or send a follow-up to an existing
+delegated handle.
 
 **Launching work:**
 - Accepts PR numbers (`#123`, `my-org/my-repo#45`), issue tracker tickets
   (`TASK-100`), or freeform descriptions.
 - Gathers concise context: PR details via `gh`, issue info from available
   tools, or the current conversation.
-- Chooses the best backend unless the user specifies one.
+- Launches a tmux window running the chosen agent runtime, tags it, and
+  sends the kickoff prompt.
 - Records a handle so later skills can debrief, watch, stop, or show logs.
-
-**Backend routing:**
-- In Codex, prefer native agents for bounded sidecar investigation,
-  verification, review, or isolated implementation.
-- In Claude Code, prefer background agents for durable delegated work when
-  available.
-- Use tmux for visible terminal sessions, cross-runtime launch, or fallback.
 
 ```
 dispatch a task to investigate the flaky CI
-dispatch #123 with --claude-bg
-dispatch this refactor with --codex-native
+dispatch #123
 tell the PR handle to also run the tests
 ```
 
 ### debrief
 
-Check on one or all delegated handles and pull status or results back into the
-current conversation.
+Check on one or all delegated handles and pull status or results back into
+the current conversation.
 
-- Reads backend-native status: Codex agent results, Claude logs/state, Claude
-  subagent summaries, or tmux pane output.
+- Reads the tmux window's brief file and pane tail.
 - Reports the task arc: what was asked, current state, result, and whether
   intervention is needed.
 - Can target one handle or sweep all known delegated work.
@@ -71,39 +57,32 @@ status on all delegated work
 Auto-watch delegated work and surface meaningful deltas.
 
 - Armed by `dispatch`.
-- Reports new handles, completions, failures, needs-input states, or tmux pane
-  tail changes.
+- Compares pane-tail hashes across ticks and reports appeared, changed, or
+  disappeared handles.
 - To stop status notifications, say "stop watching". Delegated work keeps
   running.
 
 ### logs
 
-Show raw or near-raw backend detail when available.
+Show recent pane output for a delegated window.
 
-- Claude background agents: `claude logs <id>`.
-- Tmux: recent pane output.
-- Codex native agents and Claude subagents: latest known status or final
-  summary only.
+```
+logs pr-123
+logs pr-123 --tail 40
+```
 
 ### stop
 
-Stop or cancel delegated work without disabling the watcher globally.
-
-- Codex native: close/cancel the native agent handle when supported.
-- Claude background: `claude stop <id>`.
-- Tmux: graceful interrupt first.
+Send `C-c` to a delegated window. Does not kill the window unless explicitly
+asked, so the user can re-attach and inspect.
 
 ### attach
 
-Optional backend-specific escape hatch. Attach is not part of the portable
-Legate contract.
+Switch tmux focus to a delegated window.
 
-- Claude background agents may support `claude attach <id>`.
-- Tmux can switch to the target window.
-- Codex native agents and Claude subagents are mediated through the parent
-  conversation; use `debrief`, `logs`, or follow-up instructions instead.
-
-Legacy "inspect" language routes here when the backend supports direct control.
+```
+attach pr-123
+```
 
 ## How it works
 
@@ -111,13 +90,12 @@ Every dispatch records a logical handle:
 
 ```text
 <!-- legate:handles -->
-- <name>|backend=<backend>|id=<backend-id>|cwd=<path>|source=<source>|desc=<description>
+- <name>|id=<window-name>|cwd=<path>|source=<source>|desc=<description>
 ```
 
-Backends provide their own state surfaces. Claude background agents expose
-CLI commands and state files, Codex native agents expose parent-conversation
-handles, Claude subagents return summaries, and tmux windows carry Legate
-metadata tags.
+State lives in two places: the tagged tmux window (pane contents, user
+options) and the conversation history (handle block, watch snapshots).
+There is no external registry.
 
 ## Installation
 

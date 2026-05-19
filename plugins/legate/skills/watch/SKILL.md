@@ -1,23 +1,22 @@
 ---
 name: watch
 description: >
-  Auto-watch delegated Legate work and surface meaningful changes: new handles,
-  completions, failures, needs-input states, or changed tmux pane tails. Armed
-  by `legate:dispatch` and fired on a cadence by `ScheduleWakeup`. Also handles
+  Auto-watch delegated Legate work in tmux windows and surface meaningful
+  changes: new handles, disappeared handles, or changed pane tails. Armed by
+  `legate:dispatch` and fired on a cadence by `ScheduleWakeup`. Also handles
   user utterances that stop or confirm watching: "stop watching", "cancel the
   watcher", "enough watching", "are you still watching?", "watch my legates".
   Do NOT invoke for "start watching"; watching is implicit in dispatch.
 argument-hint: "[stop]"
-allowed-tools: Bash Skill Agent ScheduleWakeup
+allowed-tools: Bash Skill ScheduleWakeup
 ---
 
 # Watch
 
-Watch delegated work from the parent conversation. The watcher compares a small
-backend-neutral snapshot across ticks and reports only meaningful deltas.
+Watch delegated tmux windows from the parent conversation. The watcher
+compares a small snapshot across ticks and reports only meaningful deltas.
 
-Read `../_shared/references/backends.md` for backend status surfaces,
-`../_shared/references/conventions.md` for snapshot format, and
+Read `../_shared/references/conventions.md` for snapshot format and
 `references/rendering.md` before rendering a delta report.
 
 ## Procedure
@@ -33,31 +32,32 @@ Look back for the most recent snapshot block. If it starts with:
 the user has opted out. Do not sweep or schedule unless the current message is
 an explicit confirmation request.
 
-Accept the legacy tmux-only `<!-- legate:watch hashes opt-out -->` as opt-out
-too.
+The legacy header `<!-- legate:watch hashes opt-out -->` is accepted as
+opt-out too.
 
 ### 2. Build the current snapshot
 
-Resolve known handles from conversation history and backend discovery.
+Discover legate-managed windows:
 
-For each handle, produce:
-
-```text
-- <name>|backend=<backend>|state=<state-or-hash>|desc=<description>
+```bash
+tmux list-windows -a -F '#{window_name} #{@legate-managed}' \
+  | awk '$2 == "yes" {print $1}'
 ```
 
-Backend-specific state:
+For each window, compute a stable hash of the last 20 pane lines:
 
-- `codex-native`: latest native agent state if available, otherwise `working`,
-  `done`, `failed`, or `unknown` from the parent handle.
-- `claude-bg`: lightweight state from `~/.claude/jobs/<id>/state.json` when
-  present, respecting `CLAUDE_CONFIG_DIR`; otherwise a short hash of
-  `claude logs <id>` tail.
-- `claude-subagent`: `done` once a final summary has returned; otherwise
-  `working` or `unknown`.
-- `tmux`: hash the last 20 pane lines, preserving the old pane-tail behavior.
+```bash
+tmux capture-pane -t "<name>" -p -S -20 | shasum | awk '{print $1}'
+```
 
-If there are no handles, record an empty snapshot, do not schedule, and exit.
+Emit one line per handle:
+
+```text
+- <name>|hash=<sha1>|desc=<description>
+```
+
+Pull `<description>` from `@legate-description`. If there are no
+legate-managed windows, record an empty snapshot, do not schedule, and exit.
 
 ### 3. Diff against the prior snapshot
 
@@ -65,13 +65,13 @@ Compute:
 
 - **Appeared** - present now, absent before.
 - **Disappeared** - present before, absent now.
-- **Changed** - present in both with different state.
+- **Changed** - present in both with a different hash.
 
 Unchanged handles are not interesting. If no diff exists, report nothing.
 
-For appeared and changed handles, invoke `legate:debrief <handle>` through the
-Skill tool to get a one-line synthesis. For disappeared handles, just note the
-name and backend.
+For appeared and changed handles, invoke `legate:debrief <handle>` through
+the Skill tool to get a one-line synthesis. For disappeared handles, just
+note the name.
 
 Render any report entirely inside the ASCII box described in
 `references/rendering.md`. Do not print extra watch narration outside the box.
@@ -82,7 +82,7 @@ Always emit the new snapshot:
 
 ```text
 <!-- legate:watch snapshot -->
-- <name>|backend=<backend>|state=<state-or-hash>|desc=<description>
+- <name>|hash=<sha1>|desc=<description>
 ```
 
 Use the opt-out header only when the user stopped watching this turn.
@@ -115,6 +115,6 @@ that will run watch ticks.
 
 ## Scope
 
-Watch is an attention filter, not a transcript reader. It notices state
+Watch is an attention filter, not a transcript reader. It notices pane-tail
 changes, invokes `debrief` for synthesis, records the next snapshot, and
 quiesces when no delegated work remains.

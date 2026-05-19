@@ -1,75 +1,50 @@
 ---
 name: debrief
 description: >
-  Check on delegated Legate work and pull status or results back into the
-  current conversation. Works across Codex native agents, Claude background
-  agents/subagents, and tmux sessions. Use when the user asks to "check on",
+  Check on delegated Legate work in tmux windows and pull status or results
+  back into the current conversation. Use when the user asks to "check on",
   "how's it going with", "status of", "debrief", "any updates from", "is that
   done yet", "what's happening with", "report back on", or otherwise wants to
   know the state of delegated work. Can target one handle or sweep all known
   handles.
 argument-hint: "[handle|all]"
-allowed-tools: Bash Agent
+allowed-tools: Bash
 ---
 
 # Debrief
 
-Bring delegated-work state back into the current conversation. Do not assume a
-terminal session exists: each backend has its own observation surface.
+Bring delegated-work state back into the current conversation by reading the
+target tmux window.
 
-Read `../_shared/references/backends.md` for backend capabilities and
-`../_shared/references/conventions.md` for handle resolution.
+Read `../_shared/references/conventions.md` for handle resolution and tmux
+tag layout.
 
 ## Targeting
 
 Resolve the user's target in this order:
 
 1. Recent conversation context and the `<!-- legate:handles -->` block.
-2. Backend discovery, when available:
-   - Codex native agent handles in the parent conversation.
-   - Claude background agent ids or state under the Claude config directory.
-   - Tmux windows tagged with `@legate-managed`.
+2. Tmux windows tagged with `@legate-managed`:
+   ```bash
+   tmux list-windows -a -F '#{window_name} #{@legate-managed}' \
+     | awk '$2 == "yes" {print $1}'
+   ```
 3. Ask the user only if the target remains ambiguous.
 
-For "all", sweep every known handle plus any discoverable tmux or Claude
-background sessions that look Legate-managed.
+For "all", sweep every legate-managed window discovered in step 2.
 
-## Backend reads
+## Reading the window
 
-### Codex native
-
-Use the native agent handle. If the agent is still running, report that it is
-working and include any latest known status. If it completed, summarize its
-final response and changed files. If the handle is gone, say so plainly.
-
-### Claude background agent
-
-Prefer the Claude CLI:
-
-```bash
-claude logs <id>
-```
-
-If a lightweight status snapshot is enough, read the job state when present:
-
-```bash
-jq . ~/.claude/jobs/<id>/state.json
-```
-
-Respect `CLAUDE_CONFIG_DIR` if it is set. Summarize the task state, whether it
-needs input, and any result or PR/check status visible in the logs/state.
-
-### Claude subagent
-
-Report the final returned summary. If no final result is available in the
-parent conversation, say that the subagent has no durable status surface.
-
-### Tmux
-
-Read the brief first:
+Read the brief first so you can anchor the pane tail against what was asked:
 
 ```bash
 cat /tmp/legate-<name>.md 2>/dev/null
+```
+
+If the brief file is gone, fall back to the description tag:
+
+```bash
+tmux show-option -wv -t "<name>" @legate-description
 ```
 
 Then capture the pane tail:
@@ -85,10 +60,10 @@ diffs. Find the last substantive prose block and compare it with the brief.
 
 Report the task arc, not the raw transcript:
 
-- **Handle** - name and backend.
+- **Handle** - window name.
 - **What was asked** - one concise line.
 - **Current state** - working, waiting, done, failed, stopped, or unknown.
 - **Result** - conclusion or delivered change, when available.
-- **Needs intervention** - only when the backend is blocked or likely stuck.
+- **Needs intervention** - only when the session looks blocked or stuck.
 
 Keep each handle to one or two lines in an all-hands sweep.

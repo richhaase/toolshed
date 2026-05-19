@@ -1,19 +1,19 @@
 {
   "name": "legate",
-  "version": "0.4.0",
-  "description": "Delegated work orchestration for agent sessions. Dispatch work to native Codex or Claude backends with tmux as a compatibility fallback, then debrief, watch, show logs, stop, or attach when supported.",
+  "version": "0.5.0",
+  "description": "Delegated work orchestration for agent sessions. Dispatch work into tmux windows running Claude or Codex, then debrief, watch, show logs, stop, or attach.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["delegation", "workflow", "parallel", "agent", "dispatch", "claude-code", "codex", "multi-agent", "tmux"],
+  "keywords": ["delegation", "workflow", "parallel", "agent", "dispatch", "claude-code", "codex", "tmux"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Legate",
-    "shortDescription": "Dispatch and manage delegated agent work",
-    "longDescription": "Dispatch work to native Codex or Claude backends with tmux as a compatibility fallback. Debrief progress, watch for meaningful changes, show logs where available, stop delegated work, and attach only when the backend supports it.",
+    "shortDescription": "Dispatch and manage delegated agent work in tmux",
+    "longDescription": "Dispatch work into tmux windows running Claude or Codex. Debrief progress, watch for meaningful changes, show recent pane output, stop delegated work, and attach to a window when you want to take over.",
     "developerName": "Rich Haase",
     "category": "Productivity",
     "capabilities": ["Interactive"],
