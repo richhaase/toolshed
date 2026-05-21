@@ -90,11 +90,9 @@ sources/                # L3 — raw inputs, cold storage
 ├── sessions/           # /save captures from conversations
 ├── syncs/              # Automated pulls from external services
 │   └── <provider>/     # One dir per source (concept2/, github/, etc.)
-├── notes/              # Manual markdown Rich drops in
-├── tasks/              # One file per task — user-committed actions
-│   └── done/           # Archived completed tasks
-└── followups/          # One file per follow-up — uncommitted captures
-                        # (open questions, awareness items, loose ends)
+├── notes/              # Durable knowledge — folds into wiki on /compile
+└── followups/          # Small queue of "re-read within a week, act on it"
+                        # captures with expires_at frontmatter
 wiki/                   # L2 — compiled knowledge, loaded on demand
 outputs/                # Products of the system
 ├── surfaces/           # HTML dashboards, served over HTTP
@@ -102,10 +100,13 @@ outputs/                # Products of the system
 private/                # Sensitive notes — never compiled into wiki
 ```
 
+The Memento intentionally does not create `sources/tasks/`. Real
+commitments belong in the user's issue tracker, not in markdown.
+
 Create all directories:
 
 ```bash
-mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/tasks/done "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
+mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
 ```
 
 ### Starter context files
@@ -340,13 +341,15 @@ git -C "$MEMENTO_ROOT" commit -m "Customize Memento: <brief summary of entity ty
 
 Suggest they:
 - Add notes to `sources/`
-- Use `/save` at end of sessions to capture value (decisions, tasks,
-  follow-ups, research, analyses, private notes)
+- Use `/save` at end of sessions to capture value (decisions, research,
+  durable notes, analyses, private notes; at most one user-confirmed
+  follow-up per session — commitments go to the issue tracker, not here)
 - Use `/ama` when they want the agent to interview them and fill gaps
   in the wiki
 - Run `/compile` after adding source material to refresh the wiki and
   the `AGENTS.md` hot set
-- Run `/followups` periodically to walk open tasks and follow-ups
+- Run `/followups` periodically to walk the small open queue (expired
+  items first)
 
 ## Update branch (entered when MODE=update)
 

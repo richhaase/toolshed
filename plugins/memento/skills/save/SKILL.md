@@ -20,15 +20,25 @@ Works on two kinds of sessions:
 - **No arguments = save the current (main) conversation.** Do NOT check on,
   debrief, or interact with Legate handles. Delegated work is independent. Touch
   them only if a name is passed or `all` is given.
-- **Default mode writes immediately** — no approval step. `ask` is opt-in.
-  This applies to `save all` too: it proceeds without confirmation.
+- **Default mode writes most categories immediately** — decisions, research,
+  analyses, private notes, durable knowledge. `ask` makes the whole plan
+  approval-gated. Follow-ups are different (see next bullet).
 - **Empty capture plan ⇒ stop.** Don't create empty files, don't commit, don't
   emit a "nothing to do" commit. Print the reason and exit.
-- **Bright line: tasks vs follow-ups.** Tasks are commitments the user made
-  *in this session* ("I'll send the email tomorrow"). Everything else worth
-  not losing is a follow-up. When in doubt, file as follow-up — promotion is
-  cheap, demotion is expensive because the misclassified task has already
-  shaped the next briefing.
+- **The Memento is a knowledge base, not a task tracker.** Real commitments
+  belong in the user's issue tracker (Jira, Linear, GitHub issues), not in
+  markdown. `/save` does not create tasks. The only commitment-shaped output
+  is a follow-up (see next bullet), and the bar is high.
+- **Follow-ups are last-resort capture, always confirmed, capped at 1 per
+  session.** A follow-up only earns its place if the user would re-read it
+  within a week and act on it. Any item that fails that test belongs in the
+  issue tracker, in `sources/notes/` as durable knowledge, in a session
+  decision file, or nowhere at all. Default mode confirms the proposed
+  follow-up with the user before writing — no implicit creation. See Step 4.
+- **Durable knowledge goes to `sources/notes/`, not follow-ups.** "Worth not
+  losing" alone is not the follow-up bar. If the value is the information
+  itself rather than the open loop, write a note — `/compile` folds it into
+  the wiki.
 - **Sensitive observations route to `private/`, never `sources/` or `wiki/`.**
   The Entity Types registry decides which entity types have this boundary.
 - Don't capture content that's already persisted (PRs, issue trackers, files
@@ -150,38 +160,46 @@ Review the session content and identify items in these categories:
 | Category | What to look for | Destination |
 |----------|-----------------|-------------|
 | **Decisions** | Choices made, direction set, options ruled out | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
-| **Tasks** | The user explicitly committed to drive an action ("I will do X", "I'm going to ship Y") | `sources/tasks/topic-slug.md` |
-| **Follow-ups** | Open questions, awareness items, loose ends, things others surfaced, judgment calls awaiting user clarification | `sources/followups/topic-slug.md` |
 | **Research** | New information, findings worth preserving | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
+| **Durable knowledge** | A fact, clarification, pattern, or lesson worth folding into the wiki | `sources/notes/YYYY-MM-DD-topic.md` |
 | **Analyses** | Substantive ad-hoc analyses, trade-off evaluations | `outputs/reports/YYYY-MM-DDTHHmmss-topic.md` |
 | **Private notes** | Observations about entities with `private_notes: yes` | `private/<filename-pattern>` (append) |
-| **Task updates** | Progress on existing tasks — subtasks completed, blockers found | Update existing `sources/tasks/*.md` |
-| **Follow-up updates** | New context on existing follow-ups | Update existing `sources/followups/*.md` |
+| **Follow-up** *(at most one per session, user-confirmed)* | A single re-read-and-act-on-it-within-a-week item that genuinely cannot live anywhere else | `sources/followups/topic-slug.md` |
+| **Follow-up updates** | New context on existing follow-ups the user is still triaging | Update existing `sources/followups/*.md` |
 
-Most sessions produce 0-2 items. Don't force it.
+Most sessions produce 0-2 items. Don't force it. Most sessions produce
+**zero** follow-ups — that is the expected outcome.
 
-### Tasks vs Follow-ups — the bright line
+### Where commitments go
 
-This split matters. Conflating them produces "urgent task" framings on what
-were actually informational items.
+`/save` does not create tasks. A real commitment — "I am driving this to
+done" — lives in the user's issue tracker (Jira, Linear, GitHub issues),
+not in a markdown file. If the session surfaced something the user
+committed to, surface it back as a one-liner ("Worth filing in Jira: …")
+and let the user file it. Do not write `sources/tasks/`.
 
-- **Task** = a commitment the user made. They said, in this session, that
-  they will do X. Existence of the file means an open commitment.
-- **Follow-up** = anything else worth not losing. The thing exists, the
-  question is open, someone surfaced it, a loose end was left — but the
-  user has not committed to drive it. Default destination for captures.
+### The follow-up bar
 
-When in doubt, file as a follow-up. Promotion (follow-up → task) is cheap
-and happens via the `followups` skill when the user decides to drive it.
-Demoting a misclassified task is more painful — it has already shaped the
-next briefing.
+A follow-up is a costly capture. Every accumulated follow-up has to be
+re-read on the next triage walk. Apply the bar before proposing one:
+
+1. **Would the user re-read this within a week and act on it?** Not "is
+   this interesting." Not "might someone want to know." If the answer is
+   not a confident yes, it is not a follow-up.
+2. **Does it have to be a follow-up?** If the value is the information,
+   route to `sources/notes/` so `/compile` folds it into the wiki. If it
+   is a commitment, surface for Jira. If it is sensitive entity context,
+   route to `private/`. Follow-up is the last resort.
+3. **Is there already an open follow-up on this topic?** If yes, update
+   that file's `## Notes` rather than creating a new one.
 
 Heuristics:
-- "I'll look at that later" → follow-up (vague intent, no commitment).
-- "I'll send the email tomorrow" → task (specific, committed).
-- "We should think about X" → follow-up.
-- Someone else's request, until the user accepts it → follow-up.
-- An open question waiting on the user → follow-up.
+- "Worth tracking" → almost never a follow-up. Either note or nothing.
+- "Open question waiting on me to chase down within the week" → follow-up.
+- "Someone else owes me a reply" → follow-up (with `expires_at`).
+- "I noticed a thing about the codebase" → note, or nothing.
+- "Post-merge cleanup considerations" → almost never a follow-up; either
+  a Jira ticket or it does not matter.
 
 ### Entity-aware routing
 
@@ -202,33 +220,56 @@ Delegated work often produces specific kinds of value:
 
 - **Research handles**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere.
 - **Investigation handles**: Findings may warrant a research doc or analysis if substantive.
-- **Task handles**: May have produced code changes, commits, PRs, or surfaced new tasks/blockers.
+- **Task handles**: May have produced code changes, commits, PRs, or surfaced blockers. Blockers worth tracking belong in the issue tracker, not as Memento follow-ups.
 
-## Step 4: Capture plan (and optional approval)
+## Step 4: Capture plan (and confirmation gates)
 
 Build a capture plan — for each item:
 - Category and destination file
 - New file or append to existing
 - One-line preview of what will be written
+- For any proposed follow-up: a one-line "why this passes the bar"
+  (the re-read-and-act-within-a-week justification)
 
 **Nothing to capture:** if the plan is empty, print "Nothing to capture" (with a one-line reason) and stop. Don't create empty files, don't commit. This short-circuit applies to both modes.
 
-**Default mode (no arg, `approve`):** print the plan as a record of what's about to happen, then proceed directly to Step 5. Do not wait for confirmation.
+### Follow-up cap and confirmation
 
-**Ask mode (`ask`):** print the plan and wait for explicit user approval before proceeding to Step 5. For `save all ask`, batch plans across all targets into a single prompt and get one approval.
+Hard cap: **at most one new follow-up per `/save` invocation.** If the
+session surfaced multiple candidates, rank them by the bar, propose only
+the strongest, and surface the rest as one-liners ("Other candidates
+considered and rejected as follow-ups: …") so the user can override if
+they disagree.
 
-`save all` in default mode proceeds without approval — Rich triggered it deliberately.
+In both default and ask modes, any new follow-up requires explicit
+confirmation via `AskUserQuestion` before it is written. Phrase the
+prompt around the bar:
+
+> "Capture as follow-up? `<title>` — `<one-line why-this-passes-the-bar>`.
+> The bar is: you'd re-read this within a week and act on it. If not,
+> say no and it stays out of the queue."
+
+If the user declines, drop the follow-up from the plan and proceed with
+the rest. Updates to existing follow-ups (`## Notes` appends) do not
+require confirmation — they are continuations, not new captures.
+
+### Mode behavior
+
+**Default mode (no arg, `approve`):** print the plan as a record of what's about to happen. Run the per-follow-up confirmation gate above for any proposed new follow-up. Then proceed to Step 5 for everything else.
+
+**Ask mode (`ask`):** print the plan and wait for explicit user approval of the whole plan before proceeding to Step 5. The follow-up gate still runs inside ask mode — it is a stricter check on top of the broader plan approval. For `save all ask`, batch plans across all targets into a single prompt and get one approval; per-follow-up confirmations remain individual.
+
+`save all` in default mode proceeds without whole-plan approval — Rich triggered it deliberately — but follow-up confirmations still fire per handle.
 
 ## Step 5: Write files
 
 Read `assets/templates/file-formats.md` for the exact frontmatter and body
-shape of each destination (task, follow-up, decision, research, analysis,
-private note). Tasks are templated inline — that file has the canonical
-simple/complex shapes.
+shape of each destination (follow-up, decision, research, note, analysis,
+private note).
 
 For updates to existing follow-ups, append a dated entry under a `## Notes`
-section rather than rewriting the body. For tasks, edit the file directly.
-Private notes always append; never overwrite.
+section rather than rewriting the body. Private notes always append; never
+overwrite.
 
 ## Step 6: Close down
 
@@ -249,7 +290,8 @@ git -C "$MEMENTO_ROOT" add sources/ outputs/ private/
 git -C "$MEMENTO_ROOT" commit -m "save: capture session — <brief summary>"
 ```
 
-`sources/` includes `sources/followups/` automatically.
+`sources/` covers every subdirectory (`sessions/`, `notes/`, `followups/`,
+`syncs/`).
 
 ### For `save all`
 Save each Legate handle (extract + close), then save the main conversation (extract + commit everything together).

@@ -64,11 +64,8 @@ sources/                # L3 — raw inputs
 ├── sessions/           # /save captures from conversations
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/
-├── notes/              # Manual markdown
-├── tasks/              # One file per task — user-committed actions
-│   └── done/           # Archived completed tasks
-└── followups/          # One file per follow-up — uncommitted captures
-                        # (open questions, awareness items, loose ends)
+├── notes/              # Durable knowledge — folds into wiki on /compile
+└── followups/          # Small queue of "re-read within a week, act on it" items
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
@@ -78,24 +75,30 @@ outputs/                # Products
 private/                # Sensitive notes — never compiled
 ```
 
-## Tasks vs follow-ups
+## Where things go
 
-A **task** is a user-committed action — "I will do X." Existence of the
-file means an open commitment, and tasks get urgency-graded surfacing in
-briefings.
+The Memento is a knowledge base, not a task tracker. Real commitments
+(things you are driving to done) belong in your issue tracker — Jira,
+Linear, GitHub issues — not in markdown here. `/save` does not write
+`sources/tasks/`; the directory is intentionally absent.
 
-A **follow-up** is anything else worth not losing — open questions, things
-others surfaced, judgment calls awaiting clarification, loose ends from
-build sessions. Follow-ups do not represent commitments and are not
-surfaced as urgent. They live in `sources/followups/` and are reviewed
-periodically via `/followups` — which lists open items by default,
-shows one item read-only with `/followups <slug>`, and walks the queue
-interactively with `/followups walk`.
+What `/save` does write:
 
-`/save` captures non-task items as follow-ups by default. Promotion
-(follow-up → task) happens via `/followups` when the user decides to drive
-something. This split exists because conflating the two produced "urgent
-task" framings on what were actually informational items.
+- **Durable knowledge → `sources/notes/`.** Facts, clarifications,
+  patterns, lessons. `/compile` folds these into `wiki/`.
+- **Decisions and research → `sources/sessions/`.** Dated session captures.
+- **Analyses → `outputs/reports/`.** Substantive trade-off evaluations.
+- **Sensitive observations → `private/`.** Per the Entity Types registry.
+- **Follow-ups → `sources/followups/`, at most one per session,
+  user-confirmed.** A follow-up only earns its place if you would re-read
+  it within a week and act on it. Each one carries an `expires_at`
+  frontmatter field (default: date + 14 days) so the queue self-cleans.
+
+Follow-ups are reviewed via `/followups` — `list` (default) prints the
+inventory expired-first, `show <slug>` renders one item read-only, and
+`walk` triages one at a time (`keep` with optional expiry bump,
+`dismiss`, `answer`, `note`, or `file-and-dismiss` when something turns
+out to be a real commitment that belongs in the issue tracker).
 
 ## Health and eval discipline
 
@@ -117,9 +120,9 @@ whether this Memento is working.
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
 | `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness |
-| `save` | Passive end-of-session capture — extract decisions, tasks, follow-ups, research, analyses, private notes |
+| `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, and (at most one, confirmed) follow-up |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
-| `followups` | Review open tasks and follow-ups: `list` (default) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, done, promote, demote, note) |
+| `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
 descend into `wiki/` and `sources/` as needed). For passive capture, edit
@@ -161,7 +164,8 @@ and hot-set synthesis.
 - Filenames: lowercase, hyphens, no spaces
 - Session captures: `YYYY-MM-DDTHHmmss-topic.md`
 - Sync data: `YYYY-MM-DDTHH-mm-ss.md` (in provider subdir)
-- Tasks: `topic-slug.md` (date in frontmatter, not filename)
+- Notes: `YYYY-MM-DD-topic.md`
+- Follow-ups: `topic-slug.md` (date and `expires_at` in frontmatter)
 - Required frontmatter: `title`, `date`
 
 ## License

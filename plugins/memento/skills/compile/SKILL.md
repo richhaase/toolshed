@@ -130,16 +130,16 @@ INDEX.md frontmatter and apply these rules:
 - **`git cat-file -e <sha>^{commit}` fails** → full build, log the reason
   (stale, rebased away, or the clone is shallow and doesn't carry the commit).
 - **Otherwise** → the change set is the union of three queries against
-  `sources/`, with `tasks/done/` excluded:
+  `sources/`:
   ```bash
   # Committed changes since baseline (rename-aware, drops deletes).
   git -C "$MEMENTO_ROOT" diff --name-only --diff-filter=AMR -M \
-    "$last_compile_commit"..HEAD -- sources/ ':!sources/tasks/done/'
+    "$last_compile_commit"..HEAD -- sources/
   # Unstaged working-tree changes.
-  git -C "$MEMENTO_ROOT" diff --name-only HEAD -- sources/ ':!sources/tasks/done/'
+  git -C "$MEMENTO_ROOT" diff --name-only HEAD -- sources/
   # Untracked files honoring .gitignore.
   git -C "$MEMENTO_ROOT" ls-files --others --exclude-standard \
-    sources/ ':!sources/tasks/done/'
+    sources/
   ```
   The read loop must guard each path with `[ -f "$path" ]` so deletes that
   slip through (e.g., a rename's old path) are skipped safely rather than
@@ -151,8 +151,8 @@ When `COMPILE_BASE_SHA` is empty, fall back to filesystem mtime — this is the
 legacy path and stays supported for scratch dirs and non-git Mementos:
 
 ```bash
-# Find source files modified after last compile (sessions, syncs, notes, tasks)
-../_shared/scripts/memento-run find sources/sessions/ sources/syncs/ sources/notes/ sources/tasks/ -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' 2>/dev/null
+# Find source files modified after last compile (sessions, syncs, notes, followups)
+../_shared/scripts/memento-run find sources/sessions/ sources/syncs/ sources/notes/ sources/followups/ -name '*.md' -newer wiki/INDEX.md 2>/dev/null
 ```
 
 After reading changed files (either path), discard sources whose frontmatter

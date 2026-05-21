@@ -1,21 +1,21 @@
 ---
 name: followups
-description: Inventory, view, or triage open commitments and loose ends — both tasks (committed actions in sources/tasks/) and follow-ups (uncommitted captures in sources/followups/). Subcommands list (default; print open items), show (display one item read-only), and walk (interactive triage one at a time — keep, dismiss, mark done, promote, demote, note). Use when the user says "list my open items", "what's open", "show me followup X", "review followups", "review tasks", "go through my open items", "triage my queue", "walk follow-ups", or "walk tasks".
-argument-hint: "[list|show|walk] [tasks|followups|all|<slug> ...] [oldest|newest]"
+description: Inventory, view, or triage open follow-ups in sources/followups/ — the user's small queue of "re-read within a week, act on it" captures. Subcommands list (default; print open items, expired first), show (display one item read-only), and walk (interactive triage one at a time — keep, dismiss, answer, note). Use when the user says "list my open items", "what's open", "show me followup X", "review followups", "go through my open items", "triage my queue", or "walk follow-ups".
+argument-hint: "[list|show|walk] [<slug> ...] [oldest|newest|expired]"
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 ---
 
 # Followups
 
-Surface open work — `sources/tasks/` (committed actions) and
-`sources/followups/` (uncommitted captures) — at three levels of
+Surface and triage `sources/followups/` — the user's small queue of items
+that should be re-read within a week and acted on. Three levels of
 engagement: see what's open (`list`), look at one item (`show`), or
 triage one-by-one (`walk`).
 
-This is the unified review surface that replaces the older `tasks` and
-`review-followups` skills. Task creation now happens in `/save`; this
-skill is for periodic triage of what already exists.
+The Memento does not store tasks. Commitments live in the user's issue
+tracker, not here. If a follow-up turns out to be a real commitment,
+file it in Jira (or wherever) and dismiss the follow-up.
 
 ## Memento root
 
@@ -24,7 +24,8 @@ MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
 ```
 
 See `../_shared/references/memento-root.md` for the full resolution
-contract. All `sources/` paths below are relative to `MEMENTO_ROOT`.
+contract. All `sources/followups/` paths below are relative to
+`MEMENTO_ROOT`.
 
 ## Arguments
 
@@ -33,126 +34,126 @@ Arguments are passed as: $ARGUMENTS
 Shape:
 
 ```
-[list|show|walk] [tasks|followups|all|<slug> ...] [oldest|newest]
+[list|show|walk] [<slug> ...] [oldest|newest|expired]
 ```
 
 Subcommand (first token):
 
-- `list` (default) — print an inventory of open items, no triage.
-- `show` — render a single item end-to-end, read-only.
+- `list` (default) — print an inventory of open follow-ups, no triage.
+- `show` — render a single follow-up end-to-end, read-only.
 - `walk` — interactive triage, one item per turn.
 
-Scope / target tokens (after the subcommand):
+Target tokens (after the subcommand):
 
-- `tasks` → only `sources/tasks/` (excludes `sources/tasks/done/`).
-- `followups` → only `sources/followups/`.
-- `all` → both queues.
-- `<slug>` (one or more) → specific items, resolved as
-  `sources/tasks/<slug>.md` first, then `sources/followups/<slug>.md`.
+- One or more `<slug>` values → specific follow-ups, resolved as
+  `sources/followups/<slug>.md`.
+- Omitted → all open follow-ups.
 
 Order modifier (optional, last token):
 
-- `oldest` (default) → oldest first by frontmatter `date`.
-- `newest` → newest first.
+- `expired` (default) → expired items first (by frontmatter
+  `expires_at`), then oldest-first by `date`. Surfacing expired items
+  first is the whole point — they have aged out of the "act within a
+  week" window and need a decision.
+- `oldest` → oldest first by frontmatter `date`, ignoring `expires_at`.
+- `newest` → newest first by frontmatter `date`.
 - Ignored when explicit slugs are passed (the slug order wins).
 
 Defaults:
 
-- No arguments → `list all oldest`.
+- No arguments → `list expired`.
 - A bare slug with no subcommand (`<slug>`) → `show <slug>`. Both
   default surfaces are read-only; triage is opt-in via `walk`.
 
 Examples:
 
-- `/followups` → list everything open.
-- `/followups list tasks` → list only open tasks.
+- `/followups` → list everything open, expired first.
 - `/followups my-slug` → show that one item read-only.
 - `/followups show my-slug` → same.
-- `/followups walk` → triage the full queue.
-- `/followups walk followups newest` → triage follow-ups, newest first.
+- `/followups walk` → triage the queue, expired first.
+- `/followups walk newest` → triage newest first.
 - `/followups walk a b c` → triage just those three items, in order.
 
 ## Gotchas
 
-- **Tasks vs follow-ups still matters.** Tasks are commitments;
-  follow-ups are everything else. Promotion (follow-up → task)
-  requires explicit user confirmation that the item is a real
-  commitment, not "we should think about it." Demotion is cheap.
-- **One item per turn (walk only).** Present a single file at a time
-  and wait for the decision before moving on. `list` and `show` are
-  not interactive — print and exit.
-- **Empty queue ⇒ stop.** If the worklist is empty, say so and exit.
-  No commit.
-- **Default to keep (walk only).** When the user is non-committal or
-  distracted, the honest action is `keep`, not `dismiss`. Dismissal
-  should be a deliberate "no, this doesn't matter."
+- **Follow-ups are not tasks.** This skill never promotes anything to a
+  task — that concept does not exist in the Memento any more. If the
+  user says "this is a real commitment," the action is to file it in
+  the issue tracker and dismiss the follow-up. Surface the suggestion
+  inline ("file as Jira ticket and dismiss?") rather than minting a
+  local commitment file.
+- **One item per turn (walk only).** Present a single follow-up at a
+  time and wait for the decision before moving on. `list` and `show`
+  are not interactive — print and exit.
+- **Empty queue ⇒ stop.** If there are no open follow-ups, say so and
+  exit. No commit.
+- **Default to dismiss when expired and inert.** If a follow-up is past
+  `expires_at` and the user has nothing to add, that is signal the
+  item did not earn its place. Suggest dismiss, do not default to
+  keep.
+- **Default to keep when fresh and ambiguous.** Inside the active
+  window, ambiguity defaults to keep — the user can revisit on the
+  next walk.
 - **Never push.** Local commit only, and only `walk` ever commits.
 
 ## Step 1: Build the worklist
 
-Used by all three subcommands. Glob according to scope:
+Glob the queue:
 
 ```bash
-# all
-ls "$MEMENTO_ROOT/sources/tasks/"*.md "$MEMENTO_ROOT/sources/followups/"*.md 2>/dev/null
-# tasks only
-ls "$MEMENTO_ROOT/sources/tasks/"*.md 2>/dev/null
-# followups only
 ls "$MEMENTO_ROOT/sources/followups/"*.md 2>/dev/null
 ```
 
-(Exclude `sources/tasks/done/`.)
-
-Read each file's frontmatter `date` and the first `#` heading. Build:
+Read each file's frontmatter (`date`, `expires_at`, `rationale`) and the
+first `#` heading. Build:
 
 ```
-queue: tasks|followups
 date: YYYY-MM-DD
+expires_at: YYYY-MM-DD (may be missing for legacy items)
 slug: my-slug
 title: First H1
-path: sources/<queue>/<slug>.md
+path: sources/followups/<slug>.md
+expired: true|false   # today > expires_at
 ```
 
-Sort by `date` per the order modifier. If explicit slugs were passed,
-the worklist is exactly those files in the given order; resolve each
-slug as `sources/tasks/<slug>.md` first, then
-`sources/followups/<slug>.md`. Error on any slug that resolves
-nowhere.
+Sort per the order modifier:
+
+- `expired` → expired items first (oldest expiry first), then
+  non-expired items oldest-first by `date`. Legacy items without
+  `expires_at` are treated as expired if `date` is more than 14 days
+  ago, otherwise treated as fresh and sorted oldest-first.
+- `oldest` → oldest first by `date`.
+- `newest` → newest first by `date`.
+
+If explicit slugs were passed, the worklist is exactly those files in
+the given order; resolve each slug as `sources/followups/<slug>.md`.
+Error on any slug that resolves nowhere.
 
 If the worklist is empty, print:
 
 ```
-No open items in <scope>.
+No open follow-ups.
 ```
 
 and stop. Do not commit.
 
 ## Subcommand: list
 
-After Step 1, print one line per item:
+After Step 1, print one line per item. Mark expired items with `!` so
+they jump out at a glance:
 
 ```
-<queue>  <date>  <slug>  <title>
+<flag>  <date>  <expires>  <slug>                title
+!       2026-04-12  2026-04-26  s3-egress-question     Why is S3 egress so high?
+        2026-05-12  2026-05-26  prod-cred-rotate       Confirm prod cred rotate cadence
 ```
 
-Group by queue (tasks first, then followups) so the user can see the
-split at a glance. If both queues are present, prefix with totals:
+If there are expired items, prefix with a one-line summary so the user
+sees the count:
 
 ```
-3 tasks, 5 follow-ups (8 open):
-
-tasks
-  2026-04-12  ship-onboarding-doc  Ship the onboarding doc
-  2026-04-30  rotate-prod-creds    Rotate prod credentials
-  2026-05-08  q2-okr-draft         Draft Q2 OKRs
-
-follow-ups
-  2026-03-22  s3-egress-question   Why is S3 egress so high?
-  ...
+8 open follow-ups (3 expired):
 ```
-
-If only one queue is in scope, drop the group headers and the totals
-line — just print the rows.
 
 Exit after printing. No `AskUserQuestion`, no commit.
 
@@ -172,42 +173,42 @@ For each item, render the block:
 ```
 ---
 
-**<title>** — <queue> opened YYYY-MM-DD (N days ago)
-File: sources/<queue>/<slug>.md
+**<title>** — opened YYYY-MM-DD (N days ago)
+<expiry line — see below>
+File: sources/followups/<slug>.md
 <origin field if present>
+<rationale field if present>
 
 <full body of the file — not a summary>
 ```
+
+Expiry line shapes:
+
+- Fresh: `Expires YYYY-MM-DD (in N days)`
+- Expired: `EXPIRED YYYY-MM-DD (N days ago)`
+- Missing `expires_at`: `No expiry set (legacy item)`
 
 If the worklist has more than 10 items, tell the user the count up
 front before the first render:
 
 ```
-14 open items (8 tasks, 6 follow-ups). Walking oldest-first. Say
-"stop" any time to bail.
+14 open follow-ups (6 expired). Walking expired-first. Say "stop" any
+time to bail.
 ```
 
-Then ask via `AskUserQuestion`. Options depend on queue:
+Then ask via `AskUserQuestion`. Options:
 
-**For follow-ups:**
-
-- `keep` — leave it; revisit next walk
-- `dismiss` — delete it
-- `promote` — convert to a task (requires commitment confirmation)
-- `answer` — capture an answer/context
-- `note` — append a dated `## Notes` entry without changing status
-- `skip` — advance without deciding
-- `stop` — end the walk
-
-**For tasks:**
-
-- `keep` — leave it
-- `dismiss` — delete (no longer relevant)
-- `done` — task is complete
-- `demote` — move back to a follow-up
-- `note` — append a dated `## Notes` entry
-- `skip` — advance without deciding
-- `stop` — end the walk
+- `keep` — leave it; revisit next walk. For an expired item, also bump
+  `expires_at` forward by 14 days (ask: "bump expiry?" — default yes,
+  the user can decline to bump and just keep).
+- `dismiss` — delete it. Default action for expired-and-inert items.
+- `answer` — capture an answer or new context.
+- `note` — append a dated `## Notes` entry without changing status.
+- `file-and-dismiss` — the follow-up is really a commitment; ask the
+  user to file it in their issue tracker, then delete the local
+  follow-up. The skill never creates the upstream issue itself.
+- `skip` — advance without deciding.
+- `stop` — end the walk.
 
 Wait for the answer. Take the action below. Then move on.
 
@@ -215,89 +216,31 @@ Wait for the answer. Take the action below. Then move on.
 
 Do nothing for the file. Move to the next item.
 
+If the item was expired and the user said `keep` (without explicitly
+declining the expiry bump), update `expires_at` to today + 14 days.
+
 ### dismiss
 
 ```bash
-rm "$MEMENTO_ROOT/sources/<queue>/<slug>.md"
+rm "$MEMENTO_ROOT/sources/followups/<slug>.md"
 ```
 
 If the user gives a one-line reason, save it for the commit message.
 
-### done (tasks only)
+### file-and-dismiss
 
-Default: delete the file (`rm`). If the user says "archive it" or
-"keep a record," move to `sources/tasks/done/`:
+Print a one-line "file this in <issue tracker>" prompt for the user,
+including the title and rationale so they have the language to paste
+in. After confirmation, delete the file:
 
 ```bash
-mkdir -p "$MEMENTO_ROOT/sources/tasks/done"
-mv "$MEMENTO_ROOT/sources/tasks/<slug>.md" "$MEMENTO_ROOT/sources/tasks/done/<slug>.md"
+rm "$MEMENTO_ROOT/sources/followups/<slug>.md"
 ```
 
-If unclear, ask: "Delete or archive to `sources/tasks/done/`?"
+Do NOT create the upstream issue from the skill. The Memento stays
+out of the commitment-management business.
 
-### promote (follow-up → task)
-
-Confirmation gate first. Ask:
-
-> "Promote <title> to a task? Tasks are commitments — only promote
-> if you're going to drive this. Otherwise leave it as a follow-up."
-
-If the user does not confirm a real commitment, treat as `keep` and
-move on.
-
-On confirmation:
-
-1. Read the follow-up file. Extract title, body, and any `## Notes`.
-2. Write `sources/tasks/<slug>.md` (reuse the slug unless it
-   collides; if it collides, append a discriminator like
-   `<slug>-2.md`):
-
-   ```markdown
-   ---
-   date: <today>
-   promoted_from: sources/followups/<slug>.md
-   originally_opened: <date from the follow-up frontmatter>
-   ---
-   # <Title>
-
-   <Body, rephrased as a commitment if needed.>
-
-   ## History
-   - <originally_opened> opened as follow-up
-   - <today> promoted to task
-
-   <Append the follow-up's `## Notes`, if any.>
-   ```
-
-3. Delete the original follow-up file.
-
-### demote (task → follow-up)
-
-Inverse of promote. No confirmation required — demotion is cheap.
-
-1. Read the task file. Extract title, body, and any `## Notes`.
-2. Write `sources/followups/<slug>.md` (resolve slug collisions the
-   same way):
-
-   ```markdown
-   ---
-   date: <today>
-   kind: followup
-   demoted_from: sources/tasks/<slug>.md
-   originally_opened: <date from the task frontmatter>
-   ---
-   # <Title>
-
-   <Body.>
-
-   ## History
-   - <originally_opened> opened as task
-   - <today> demoted to follow-up
-   ```
-
-3. Delete the original task file.
-
-### answer (follow-ups only)
+### answer
 
 The user has the answer or new context. Ask which fits:
 
@@ -334,13 +277,11 @@ After the walk completes (or the user says `stop`), summarize:
 ```
 ## Walk complete
 
-- Promoted: N (slugs: ...)
-- Demoted: N (slugs: ...)
-- Done: N (slugs: ...)
 - Dismissed: N (slugs: ...)
+- Filed-and-dismissed: N (slugs: ...)
 - Answered: N (slugs: ...)
 - Noted: N (slugs: ...)
-- Kept: N
+- Kept: N (of which N expiries bumped)
 - Skipped: N
 - Remaining unwalked: N
 ```
@@ -348,7 +289,7 @@ After the walk completes (or the user says `stop`), summarize:
 If anything changed on disk, commit once at the end:
 
 ```bash
-git -C "$MEMENTO_ROOT" add sources/tasks/ sources/followups/ sources/notes/
+git -C "$MEMENTO_ROOT" add sources/followups/ sources/notes/
 git -C "$MEMENTO_ROOT" commit -m "followups: review — <one-line summary>"
 ```
 
@@ -363,10 +304,10 @@ Skip the commit if nothing changed. `list` and `show` never commit.
 - **Show the full body (show / walk).** Items are usually short.
   Don't summarize — paste the body so the user has the same context
   that was captured originally.
-- **Default to keep.** Dismissal is deliberate, not the easy path.
-- **Promotion requires real commitment.** The whole point of the
-  task vs follow-up split is that tasks shape briefings as urgent
-  commitments. A misclassified task is more painful to demote than
-  a missed promotion is to fix.
-- **Demotion is cheap.** No confirmation needed. If the user says a
-  task is no longer a commitment, move it back without ceremony.
+- **Expired-and-inert items want dismissal.** The Memento is not a
+  task tracker; the value of a follow-up is the user acting on it
+  within the window. If the window has passed and nothing has
+  happened, that is the answer.
+- **Commitments belong in the issue tracker.** When a follow-up turns
+  out to be a real commitment, the right move is `file-and-dismiss`,
+  not "promote to task." There is no local promotion path.

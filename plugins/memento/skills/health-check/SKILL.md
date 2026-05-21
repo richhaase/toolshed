@@ -63,9 +63,7 @@ Start with the public root files:
 
 1. Read `AGENTS.md` if present, otherwise `CLAUDE.md`.
 2. Read `wiki/INDEX.md` if present.
-3. Inspect public `sources/` Markdown only. Exclude `sources/tasks/done/` for
-   current-state freshness checks, but it may be used for task-shape checks when
-   explicitly relevant.
+3. Inspect public `sources/` Markdown only.
 4. Inspect `data/` only as a domain store, not as generic memory. A skill or
    source should establish what data file is canonical.
 
@@ -134,12 +132,18 @@ a public file appears to contain restricted content and identify only the file.
 
 ### Check 6: Open Queue Visibility
 
-Inspect active `sources/tasks/*.md` and `sources/followups/*.md`:
+Inspect active `sources/followups/*.md`:
 
-- Tasks should represent user-committed actions, not loose awareness items.
-- Follow-ups should not be surfaced as urgent tasks.
-- Open tasks/follow-ups that affect a wiki page should either be reflected in L2
-  or reported as uncached work.
+- Each follow-up should carry an `expires_at` and a `rationale`. Items
+  missing either are legacy captures and should be triaged via
+  `/followups walk`.
+- Expired follow-ups (today > `expires_at`) that have not been acted on
+  are signal that capture-by-default is leaking back in — report the
+  count, not the bodies.
+- Total follow-up count above ~10 is a warning sign on its own. The
+  queue is meant to be small enough to walk in a single sitting.
+- The Memento does not store tasks. Any presence of `sources/tasks/`
+  is a P2 finding — surface it so the directory can be removed.
 
 ### Check 7: Harness And Plugin Drift
 

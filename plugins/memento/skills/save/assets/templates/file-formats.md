@@ -7,17 +7,26 @@ when you are about to write capture output. Frontmatter dates use `YYYY-MM-DD`.
 
 Path: `sources/followups/<topic-slug>.md`
 
+Follow-ups are the most expensive capture in the Memento. Every one of them
+has to be re-read on the next triage walk. Apply the `/save` follow-up bar
+before writing one: the user will re-read this within a week and act on it,
+and it cannot live anywhere else (issue tracker, `sources/notes/`,
+`private/`, or nowhere).
+
 ```markdown
 ---
 date: YYYY-MM-DD
 kind: followup
 origin: <what surfaced this — meeting, session, person, etc.>
+expires_at: YYYY-MM-DD   # default: date + 14 days. /followups walk surfaces expired items first.
+rationale: <one line. Why does this pass the bar — what the user would act on within a week.>
 ---
 
 # <Short title — what's open>
 
-<One or two paragraphs: what the thing is, why it might matter, what would
-move it forward. Do not phrase as a directive.>
+<One short paragraph: what the open loop is and what would close it. No
+"considerations," no narrative recap, no historical context. If you need
+more than a paragraph, this is probably a note, not a follow-up.>
 ```
 
 For updates to existing follow-ups, append a dated entry under a `## Notes`
@@ -50,6 +59,25 @@ Bundle research findings into the session capture; for long-form
 investigation work prefer dispatching a separate research session and
 saving it afterward.
 
+## Note (durable knowledge)
+
+Path: `sources/notes/YYYY-MM-DD-topic.md`
+
+For facts, clarifications, patterns, or lessons that should fold into the
+wiki on the next `/compile`. Prefer this over a follow-up when the value
+is the information itself rather than an open loop.
+
+```markdown
+---
+date: YYYY-MM-DD
+title: Short description
+---
+
+# [Topic]
+
+[The knowledge worth keeping. Plain prose — /compile distills it.]
+```
+
 ## Analysis
 
 Path: `outputs/reports/YYYY-MM-DDTHHmmss-topic.md`
@@ -78,47 +106,7 @@ registry). Append — never overwrite. Create the file if it does not exist.
 
 ## Tasks
 
-Path: `sources/tasks/<topic-slug>.md` — short, descriptive, scannable in a
-directory listing. No date prefix (date lives in frontmatter). Use lowercase
-with hyphens.
-
-Pick the weight based on what the user gives you.
-
-**Simple task** (one-liner, no extra context needed):
-
-```markdown
----
-date: YYYY-MM-DD
----
-# Review API rate limiting configuration
-```
-
-**Complex task** (has context, subtasks, links, or needs explanation):
-
-```markdown
----
-date: YYYY-MM-DD
----
-# Evaluate database migration strategy
-
-Came out of architecture discussion. Need to compare approaches before
-committing to a migration path.
-
-## Context
-- Current schema has grown organically, needs cleanup
-- Performance issues on key queries
-- Team has time in the next sprint
-
-## Subtasks
-- [ ] Benchmark current query performance
-- [ ] Prototype alternative schema
-- [ ] Get cost estimate for migration downtime
-```
-
-Before creating, glob `sources/tasks/*.md` to check for duplicates or related
-tasks. If something similar exists, update the existing task instead of
-creating a new one.
-
-For updates to existing tasks, edit the file directly. The `followups` skill
-handles review (mark done, demote, dismiss, add note, promote from
-follow-up).
+The Memento does not store tasks. Commitments belong in the user's issue
+tracker (Jira, Linear, GitHub issues). If a session surfaces a real
+commitment, `/save` reports it back as a one-liner so the user can file
+it themselves; it does not create `sources/tasks/`.

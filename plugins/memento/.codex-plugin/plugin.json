@@ -1,19 +1,19 @@
 {
   "name": "memento",
-  "version": "0.10.1",
-  "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with health checks, passive session capture (save), active LLM-driven interview (ama), and lightweight queue review (followups).",
+  "version": "0.11.0",
+  "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with health checks, passive session capture (save), active LLM-driven interview (ama), and lightweight follow-up queue review (followups). Knowledge base only — commitments belong in the user's issue tracker.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["memory", "memento", "agent-memory", "knowledge-preservation", "wiki", "notes", "tasks", "compile", "interview", "personal-knowledge-management"],
+  "keywords": ["memory", "memento", "agent-memory", "knowledge-preservation", "wiki", "notes", "followups", "compile", "interview", "personal-knowledge-management"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Memento",
     "shortDescription": "Personal memory base workflows",
-    "longDescription": "Multi-layer local memory base. Six skills cover the full loop: memento-config (setup + ongoing config), health-check (read-only doctor + eval readiness), save (passive session capture), ama (active LLM-driven interview), compile (sources -> wiki -> AGENTS.md hot set), and followups (queue review). Supports a configurable Memento data root for global plugin installs.",
+    "longDescription": "Multi-layer local memory base. Six skills cover the full loop: memento-config (setup + ongoing config), health-check (read-only doctor + eval readiness), save (passive session capture), ama (active LLM-driven interview), compile (sources -> wiki -> AGENTS.md hot set), and followups (lightweight follow-up queue review — expired-first). Knowledge base only; real commitments belong in the user's issue tracker. Supports a configurable Memento data root for global plugin installs.",
     "developerName": "Rich Haase",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

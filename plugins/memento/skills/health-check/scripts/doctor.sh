@@ -64,10 +64,10 @@ check_newer_sources() {
   [ -d sources ] || return 0
 
   local count
-  count="$(find sources -type f -name '*.md' ! -path 'sources/tasks/done/*' -newer wiki/INDEX.md | wc -l | tr -d ' ')"
+  count="$(find sources -type f -name '*.md' -newer wiki/INDEX.md | wc -l | tr -d ' ')"
   if [ "${count:-0}" -gt 0 ]; then
     local sample
-    sample="$(find sources -type f -name '*.md' ! -path 'sources/tasks/done/*' -newer wiki/INDEX.md | sort | sed -n '1,8p' | awk '{ printf "%s%s", sep, $0; sep="; " }')"
+    sample="$(find sources -type f -name '*.md' -newer wiki/INDEX.md | sort | sed -n '1,8p' | awk '{ printf "%s%s", sep, $0; sep="; " }')"
     emit P1 "Active sources newer than wiki index" "wiki/INDEX.md" "$count public source file(s) are newer than the compiled index. Sample: $sample"
   fi
 }
@@ -103,7 +103,7 @@ check_source_frontmatter() {
     ' "$source"; then
       emit P2 "Source missing date frontmatter" "$source" "Markdown sources need frontmatter with at least date."
     fi
-  done < <(find sources -type f -name '*.md' ! -path 'sources/tasks/done/*' | sort)
+  done < <(find sources -type f -name '*.md' | sort)
 }
 
 check_hot_set_paths() {
@@ -143,7 +143,7 @@ check_sensitive_route_mentions() {
   while IFS=: read -r file line _rest; do
     [ -n "${file:-}" ] && [ -n "${line:-}" ] || continue
     emit P2 "Public source names sensitive routing" "$file:$line" "Sensitive-routing keyword found in public source. Inspect manually without echoing content."
-  done < <(rg -n 'chart-level|financial snapshot|account balance|medication|diagnosis specifics|mental health' "${roots[@]}" --glob '!sources/tasks/done/**' 2>/dev/null | sed -n '1,12p' || true)
+  done < <(rg -n 'chart-level|financial snapshot|account balance|medication|diagnosis specifics|mental health' "${roots[@]}" 2>/dev/null | sed -n '1,12p' || true)
 }
 
 check_domain_store_mentions() {
@@ -159,6 +159,52 @@ check_domain_store_mentions() {
   done < <(find data -type f | sort)
 }
 
+check_vestigial_tasks_dir() {
+  [ -d sources/tasks ] || return 0
+  local count
+  count="$(find sources/tasks -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
+  emit P2 "Vestigial sources/tasks/ directory" "sources/tasks/" \
+    "Memento no longer stores tasks (commitments belong in the issue tracker). $count file(s) inside. Remove the directory after triaging the contents."
+}
+
+check_followup_hygiene() {
+  [ -d sources/followups ] || return 0
+  local total
+  total="$(find sources/followups -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
+  [ "${total:-0}" -gt 0 ] || return 0
+
+  if [ "$total" -gt 10 ]; then
+    emit P2 "Follow-up queue is large" "sources/followups/" "$total open follow-ups. The queue is meant to be walkable in one sitting — consider /followups walk."
+  fi
+
+  local today
+  today="$(date '+%Y-%m-%d')"
+  local missing=0
+  local expired=0
+  while IFS= read -r f; do
+    if ! awk '
+      NR == 1 && $0 == "---" { in_fm = 1; next }
+      in_fm && $0 == "---" { exit found ? 0 : 1 }
+      in_fm && /^expires_at:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]*$/ { found = 1 }
+    ' "$f"; then
+      missing=$((missing + 1))
+      continue
+    fi
+    local exp
+    exp="$(sed -n '/^---$/,/^---$/{s/^expires_at:[[:space:]]*\([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\).*/\1/p;}' "$f" 2>/dev/null | head -n 1)"
+    if [ -n "$exp" ] && [ "$exp" \< "$today" ]; then
+      expired=$((expired + 1))
+    fi
+  done < <(find sources/followups -type f -name '*.md' 2>/dev/null | sort)
+
+  if [ "$missing" -gt 0 ]; then
+    emit P3 "Follow-ups missing expires_at" "sources/followups/" "$missing legacy item(s) without an expires_at frontmatter. Triage via /followups walk to bring them under the new bar."
+  fi
+  if [ "$expired" -gt 0 ]; then
+    emit P2 "Expired follow-ups awaiting triage" "sources/followups/" "$expired item(s) past their expires_at — either dismiss or bump via /followups walk."
+  fi
+}
+
 main() {
   print_header
   check_required_files
@@ -170,6 +216,8 @@ main() {
   check_public_private_refs
   check_sensitive_route_mentions
   check_domain_store_mentions
+  check_vestigial_tasks_dir
+  check_followup_hygiene
 
   if [ "$findings" -eq 0 ]; then
     printf 'No findings from deterministic checks.\n'

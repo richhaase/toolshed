@@ -38,11 +38,9 @@ sources/                # L3 — raw inputs
 ├── sessions/           # /save captures from conversations
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/ — timestamped files
-├── notes/              # Manual markdown
-├── tasks/              # User-committed actions; existence = open
-│   └── done/           # Archived completed tasks
-└── followups/          # Uncommitted captures — open questions,
-                        # awareness items, loose ends
+├── notes/              # Durable knowledge — folds into wiki on /compile
+└── followups/          # Small queue of "re-read within a week, act on it"
+                        # items with expires_at frontmatter
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
@@ -57,21 +55,21 @@ private/                # Sensitive notes — never compiled
 ### Filenames
 - Session captures: `YYYY-MM-DDTHHmmss-topic.md`
 - Sync data: `YYYY-MM-DDTHH-mm-ss.md` (in provider subdir)
-- Manual notes: `YYYY-MM-DD-topic.md` or `descriptive-name.md`
-- Tasks: `topic-slug.md` (date in frontmatter, not filename)
+- Notes: `YYYY-MM-DD-topic.md` or `descriptive-name.md`
+- Follow-ups: `topic-slug.md` (date and `expires_at` in frontmatter)
 
 ### Sources (`sources/`)
 All inputs that feed the wiki. Organized by origin:
 - **`sessions/`** — Extracted from conversations via `/save`
 - **`syncs/<provider>/`** — Automated pulls from external services
-- **`notes/`** — Manual markdown dropped in directly
-- **`tasks/`** — User-committed actions. Existence = open, deletion = done.
-- **`followups/`** — Uncommitted captures: open questions, awareness items,
-  things others surfaced, loose ends. Default destination for non-task
-  `/save` captures. Reviewed periodically via `/followups` (lists by
-  default, or `/followups walk` to triage) and either promoted to
-  `tasks/`, dismissed, or kept. Briefings do not surface follow-ups as
-  urgent.
+- **`notes/`** — Durable knowledge. `/compile` folds these into `wiki/`.
+- **`followups/`** — Small queue of "re-read within a week, act on it"
+  captures. Each item carries `expires_at` (default: date + 14 days)
+  and a one-line `rationale`. Reviewed periodically via `/followups`
+  (lists expired-first by default, or `/followups walk` to triage) and
+  either dismissed, answered into a note, noted, or filed-and-dismissed
+  when something turns out to be a real commitment that belongs in the
+  issue tracker. The Memento does not store tasks itself.
 
 All source docs require YAML frontmatter with at least `date`.
 
