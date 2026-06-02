@@ -53,8 +53,12 @@ const BUILTIN = [
     why: 'AWS access key ID',
   },
   {
+    // Require an actual base64 key body after the header — a lone
+    // `-----BEGIN ... PRIVATE KEY-----` appears legitimately in docs/runbooks
+    // describing PEM formats, and a hard-block on that trains --no-verify. A
+    // real key always carries a long base64 body.
     key: 'private-key-block',
-    re: /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/g,
+    re: /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----\s*[A-Za-z0-9+/=]{40,}/g,
     why: 'PEM private key material',
   },
   {
@@ -193,11 +197,13 @@ function selfTest() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-scan-selftest-'));
   const plants = {
     'aws-access-key': 'token AKIAXXXXXXXXXXXXXXXX here',
-    'private-key-block': '-----BEGIN TEST PRIVATE KEY-----',
+    'private-key-block': '-----BEGIN TEST PRIVATE KEY-----\nMIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAoSyntheticKeyBodyForSelfTestOnly0123456789',
     'slack-object-id': 'channel CXXXXXXXXXX mentioned',
     'home-path': 'path /Users/synthetic-machine-acct/notes',
   };
-  const clean = 'the quick brown fox ~/src/project /Users/you/x noreply@example.com';
+  // Includes a lone PEM header (format-label documentation, no key body) — it
+  // must NOT fire, guarding the private-key-block detector against re-loosening.
+  const clean = 'the quick brown fox ~/src/project /Users/you/x noreply@example.com\nformat note: -----BEGIN PRIVATE KEY----- is PKCS#8';
   try {
     for (const [key, content] of Object.entries(plants)) {
       fs.writeFileSync(path.join(dir, `plant-${key}.txt`), `${content}\n`);
