@@ -10,7 +10,7 @@
     {
       "name": "legate",
       "source": "./plugins/legate",
-      "description": "Dispatch, watch, and debrief delegated agent work running in tagged tmux windows.",
+      "description": "[DEPRECATED — superseded by Claude Code's native agents view] Dispatch, watch, and debrief delegated agent work running in tagged tmux windows.",
       "category": "Productivity"
     },
     {

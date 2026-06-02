@@ -1,7 +1,7 @@
 {
   "name": "legate",
-  "version": "0.5.0",
-  "description": "Delegated work orchestration for agent sessions. Dispatch work into tmux windows running Claude or Codex, then debrief, watch, show logs, stop, or attach.",
+  "version": "0.6.0-deprecated",
+  "description": "[DEPRECATED — superseded by Claude Code's native agents view] Delegated work orchestration for agent sessions. Dispatch work into tmux windows running Claude or Codex, then debrief, watch, show logs, stop, or attach.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"

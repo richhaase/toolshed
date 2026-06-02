@@ -1,5 +1,10 @@
 # Legate
 
+> **⚠️ DEPRECATED (2026-06-02)** — superseded by Claude Code's native agents
+> view (session list + resume + worktree isolation + background notifications).
+> Not installable from the marketplace; code retained for reference. See
+> [`DEPRECATED.md`](./DEPRECATED.md).
+
 Delegated work orchestration for agent sessions. Legate turns the current
 agent conversation into a coordinator: dispatch work into a tmux window,
 watch for meaningful state changes, bring results back, and capture raw pane
