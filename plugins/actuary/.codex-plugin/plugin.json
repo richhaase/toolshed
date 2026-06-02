@@ -1,7 +1,7 @@
 {
   "name": "actuary",
-  "version": "0.2.1",
-  "description": "Audit and evaluate Agent Skills against the agentskills.io spec and authoring best practices. First skill: skill-audit (layered L1 spec / L2 structural / L3 craft report).",
+  "version": "0.3.0",
+  "description": "Audit and evaluate Agent Skills against the agentskills.io spec and authoring best practices. skill-audit produces a layered L1 spec / L2 structural / L3 craft report, and with --tier emits a promotion-readiness verdict gated on a privacy/genericization scan (real IDs, machine paths, key material) — the Gate-1 input the memento:promote flow consumes.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Actuary",
     "shortDescription": "Audit and evaluate Agent Skills",
-    "longDescription": "Audit Agent Skills (SKILL.md files) against the agentskills.io specification and authoring best practices. Produces a layered report covering spec compliance, structural metrics, and craft-level recommendations. Read-only — never modifies the audited skills.",
+    "longDescription": "Audit Agent Skills (SKILL.md files) against the agentskills.io specification and authoring best practices. Produces a layered report covering spec compliance, structural metrics, and craft-level recommendations. With --tier <local|toolshed|marketplace> it adds a privacy/genericization scan and a promotion-readiness verdict — the Gate-1 input the memento:promote flow consumes. Read-only — never modifies the audited skills.",
     "developerName": "Rich Haase",
     "category": "Developer Tools",
     "capabilities": ["Read"],

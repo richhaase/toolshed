@@ -7,10 +7,13 @@ description: >
   before merging it; or when looking for description-tuning, progressive-
   disclosure, or Gotchas opportunities. Produces a layered report — L1 spec
   compliance (pass/fail), L2 structural metrics (counts), L3 craft
-  recommendations (ranked) — plus a prioritized quick-wins list. Read-only:
-  never modifies the audited skills. Trigger even when the user doesn't say
-  "audit" if they're asking for a structured quality review of skill files.
-argument-hint: "[<skill-path>|<plugin-path>|<repo>] [--quick-wins-only]"
+  recommendations (ranked) — plus a prioritized quick-wins list. With
+  `--tier <local|toolshed|marketplace>` it also emits a promotion-readiness
+  verdict gated on a privacy/genericization scan (real IDs, machine paths, key
+  material) and L1 spec compliance. Read-only: never modifies the audited
+  skills. Trigger even when the user doesn't say "audit" if they're asking for a
+  structured quality review of skill files or whether a skill is ready to promote.
+argument-hint: "[<skill-path>|<plugin-path>|<repo>] [--quick-wins-only] [--tier <local|toolshed|marketplace>]"
 user-invocable: true
 allowed-tools: Read Glob Grep Bash
 ---
@@ -64,6 +67,12 @@ Plus a prioritized quick-wins shortlist.
 
 Optional flag: `--quick-wins-only` — skip the per-skill L1/L2/L3 sections
 and emit just the cross-cutting quick-wins shortlist.
+
+Optional flag: `--tier <local|toolshed|marketplace>` — also run the
+privacy/genericization rule class and emit a promotion-readiness verdict for
+that tier (see Step 6.5). Composes with a full audit or with
+`--quick-wins-only`. This is the input the `memento:promote` flow consumes as
+Gate-1 — it does not push or modify anything.
 
 ## Procedure
 
@@ -163,13 +172,40 @@ Across the audit, surface cross-cutting recommendations sorted by impact
 
 Cap at 5–7 items. Reference the per-skill findings the items roll up from.
 
+### Step 6.5: Tier verdict (only when `--tier` is passed)
+
+Run the **privacy / genericization** rule class from `references/criteria.md`
+across every audited skill's files (SKILL.md, `references/`, `scripts/`,
+`assets/`). Use Grep/Read — recognize concrete instances of each `privacy-*`
+class (machine paths, cloud keys, key material, chat object IDs, internal
+emails, customer slugs, `private/` references). This is the agent-time advisory;
+the deterministic enforcement is `scripts/privacy-scan` at the pre-push boundary
+— do **not** invoke it from here, just cite the same rule keys.
+
+Then apply the **tier bars** table from `references/criteria.md` and emit one
+verdict per audited skill:
+
+- Collect blocking findings for the tier: any `privacy-*` finding (hard-block at
+  `toolshed`/`marketplace`); any L1 defect (hard requirement at
+  `toolshed`/`marketplace`); for `marketplace`, behavioral-CI + dedup are
+  prerequisites **out of audit scope** — report them as unmet-unless-proven, not
+  as a pass.
+- Verdict is `ready` only if every hard requirement for the tier is met;
+  otherwise `not-ready`, listing the blocking rule keys.
+
+Mask any real value you cite (e.g. `/U…dh`) — never reproduce a real ID, path,
+or key in the report; the report is itself a public-bound artifact when the
+audited target is.
+
 ### Step 7: Render the report
 
 Use the template in `assets/templates/report.md`. Match its structure
 exactly — the rule-key format on every finding line keeps the report
 machine-parseable for any future eval runner. If `--quick-wins-only` was
 passed, render only the inventory + quick-wins sections; skip the
-per-skill L1/L2/L3 sections.
+per-skill L1/L2/L3 sections. If `--tier` was passed, also render the
+**Tier verdict** section from the template (it stays machine-parseable: one
+`verdict: ready|not-ready` line per skill plus the blocking rule keys).
 
 ## What this skill does *not* do
 

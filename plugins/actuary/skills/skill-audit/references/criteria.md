@@ -206,6 +206,56 @@ that fit your task." There is no body-length trigger in canonical.
 - **No interactive prompts.** Hard requirement — agents run in non-interactive
   shells.
 
+## Privacy / genericization (tier gating)
+
+Runs only in `--tier` mode (see SKILL.md). A skill graduating from a local
+experiment toward a public repo or marketplace must carry **generic
+placeholders only** — never real IDs, machine paths, key material, or
+private-data references. This audit is the **agent-time advisory** that surfaces
+such content *before* a push. The deterministic enforcement is a separate
+mechanism: `scripts/privacy-scan` (toolshed repo infrastructure, fail-closed)
+runs at the pre-push hook and in CI. This audit and that scanner share the same
+`privacy-*` rule-key vocabulary so the verdict and the gate agree; the audit
+applies the rules by reading the target's files, the scanner enforces them at the
+boundary. Do not invoke the scanner from here — cite the rule keys and report.
+
+Apply these by reading + grepping the audited skill's files (SKILL.md,
+`references/`, `scripts/`, `assets/`):
+
+- **Machine home paths.** Absolute `/Users/<name>` or `/home/<name>` paths.
+  Generic placeholders (`~/`, `/path/to/`, `you`, `user`) are fine.
+- **Cloud access keys / key material.** AWS access key IDs (`AKIA…`/`ASIA…`),
+  `-----BEGIN … PRIVATE KEY-----` blocks, other embedded credentials.
+- **Chat/workspace object IDs.** Slack channel/user/workspace IDs
+  (`C…`/`U…`/`W…`/`G…`), and equivalents for other providers.
+- **Internal / personal email addresses.** Real employer-domain or personal
+  addresses used as concrete examples instead of `user@example.com`.
+- **Customer slugs / account IDs.** Real customer names or account identifiers
+  baked into examples or fixtures.
+- **`private/` path references.** Literal references to a Memento `private/`
+  path (or other walled-off data) from a file destined for a public repo.
+
+Instance-specific patterns (a specific employer domain, customer slugs, a Slack
+workspace's ID shapes) are **not** hard-coded here — they live in the local
+`PRIVACY_RULESET` the scanner loads and never ship publicly. This catalog names
+the *classes*; the auditor recognizes concrete instances of each.
+
+### Tier bars
+
+`--tier <local|toolshed|marketplace>` turns the per-layer findings into a
+graduation verdict. The bars are cumulative:
+
+| Tier | Privacy | L1 spec | L2/L3 craft | Extra |
+|---|---|---|---|---|
+| `local` | advisory | advisory | advisory | — |
+| `toolshed` | **hard-block** (any `privacy-*` finding ⇒ `not-ready`) | must be clean (zero L1 defects) | advisory | — |
+| `marketplace` | **hard-block** | must be clean | advisory | behavioral CI + dedup clean (out of audit scope — report as an unmet prerequisite, not a pass) |
+
+Privacy is the one **non-negotiable hard-block at every tier above `local`** —
+no advisory-with-override. Everything else is advisory unless a tier names it a
+hard requirement. The verdict is `ready` only if every hard requirement for the
+tier is met; otherwise `not-ready` with the blocking rule keys listed.
+
 ## Severity assignment
 
 | Severity | When to use |
@@ -290,6 +340,21 @@ Adding a new detection means adding a new key here.
 | `script-error-messages-generic` | Errors say "invalid input" without context |
 | `script-output-unstructured` | Output is free-form text where JSON/CSV would compose |
 | `script-interactive` | Script blocks on TTY input — agents run non-interactive (high) |
+
+### Privacy / genericization (only in `--tier` mode)
+
+These mirror the deterministic detectors in `scripts/privacy-scan`. Every one is
+a **hard-block at `toolshed` and `marketplace` tiers**, advisory at `local`.
+
+| Key | What it flags |
+|---|---|
+| `privacy-machine-path` | Absolute `/Users/<name>` or `/home/<name>` machine home path |
+| `privacy-cloud-key` | Cloud access key ID (AWS `AKIA…`/`ASIA…`, etc.) |
+| `privacy-key-material` | `-----BEGIN … PRIVATE KEY-----` or other embedded credential |
+| `privacy-slack-id` | Slack channel/user/workspace object ID (`C…`/`U…`/`W…`/`G…`) |
+| `privacy-internal-email` | Real employer-domain or personal email used as a concrete example |
+| `privacy-customer-slug` | Real customer name / account ID baked into an example or fixture |
+| `privacy-private-path-ref` | Literal `private/` (or other walled-off) path reference in a public-bound file |
 
 ## What this audit deliberately does *not* do
 

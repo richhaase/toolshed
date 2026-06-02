@@ -10,6 +10,24 @@ set -euo pipefail
 
 repo_root=$(git rev-parse --show-toplevel)
 
+# --- privacy gate (fail-closed, runs on EVERY push) ---------------------------
+# A real ID/path/key can live in any file, committed at any time — so scan the
+# whole tracked tree on every push, not just when plugin files change. Fails
+# CLOSED: a missing runtime or an incomplete scan refuses the push rather than
+# letting it through silently.
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-push: node not found — cannot run the privacy scan; refusing to push (fail-closed)." >&2
+  echo "pre-push: install node, or bypass with --no-verify only if you are certain." >&2
+  exit 1
+fi
+if ! node "$repo_root/scripts/privacy-scan"; then
+  echo "" >&2
+  echo "pre-push: privacy scan failed — real IDs/paths/keys must not reach this public repo." >&2
+  echo "pre-push: replace findings above with generic placeholders, then re-push." >&2
+  echo "pre-push: bypass with --no-verify only if you know what you're doing." >&2
+  exit 1
+fi
+
 # Read refs being pushed from stdin.
 # Format per line: <local-ref> <local-sha> <remote-ref> <remote-sha>
 # If remote-sha is all zeros, the remote ref doesn't exist yet.

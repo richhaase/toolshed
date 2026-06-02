@@ -43,13 +43,13 @@ Skills resolve the Memento root in this order:
 For a global Memento, either export `MEMENTO_ROOT`:
 
 ```bash
-export MEMENTO_ROOT=/Users/rdh/src/memento
+export MEMENTO_ROOT=~/src/memento
 ```
 
 Or add a `.memento-root` file to a project:
 
 ```text
-/Users/rdh/src/memento
+/path/to/your/memento
 ```
 
 Bundled scripts:

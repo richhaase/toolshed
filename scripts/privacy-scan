@@ -1,0 +1,269 @@
+#!/usr/bin/env node
+// privacy-scan — fail-closed pre-push privacy/genericization gate (toolshed repo infra).
+//
+// Deterministic scan of tracked files for high-precision sensitive tokens that
+// must never reach a PUBLIC repo: machine home paths, cloud access keys, private
+// key material, and Slack object IDs. Sibling to validate-manifests.sh — called
+// by .githooks/pre-push and CI. No LLM, no network.
+//
+// FAILS CLOSED. A scan it cannot complete (not a git repo, unreadable ruleset,
+// regex it cannot compile) exits 2 and refuses to certify the push — the direct
+// inversion of a silent no-op. Node is the runtime because match extraction with
+// line numbers + masking is portable here where BSD-vs-GNU grep diverges, and the
+// ruleset is JSON-native (same reasoning as eval-score).
+//
+// Exit codes:  0 clean · 1 findings (block) · 2 cannot-run (block, fail-closed).
+//
+// This repo is PUBLIC: built-in detectors are GENERIC ONLY. Instance-specific
+// patterns (an employer email domain, customer slugs, a Slack workspace's ID
+// shapes, account IDs) belong in an external ruleset supplied at runtime via
+// PRIVACY_RULESET — that file lives in a private/local repo and is NEVER
+// committed here. The generic built-ins + the instance ruleset together give
+// full recall; shipping the instance ruleset would leak the very data the gate
+// exists to protect.
+//
+// Optional environment:
+//   PRIVACY_RULESET    Path to a JSON file of additional detectors + allowlist:
+//                        { "rules": [ { "key": "...", "pattern": "...", "flags": "g" } ],
+//                          "allow": [ "literal-synthetic-substring", ... ] }
+//                      Unreadable/invalid when set => exit 2 (fail-closed).
+//   PRIVACY_ALLOWLIST  Path to a newline-delimited file of literal substrings to
+//                      exempt (known-synthetic placeholders). '#' comments ok.
+//
+// Usage:
+//   node scripts/privacy-scan            scan tracked files in the current git repo
+//   node scripts/privacy-scan PATH...    scan the given paths/files instead
+//   node scripts/privacy-scan --self-test  prove the detectors fire (synthetic, tmp)
+//   node scripts/privacy-scan --help
+
+'use strict';
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+// --- generic built-in detectors (PUBLIC-safe; no instance data) ----------------
+// Each: { key, re (RegExp with /g), why }. High precision — low false-positive,
+// because this is a HARD BLOCK and false positives train --no-verify erosion.
+const BUILTIN = [
+  {
+    key: 'aws-access-key',
+    re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
+    why: 'AWS access key ID',
+  },
+  {
+    key: 'private-key-block',
+    re: /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/g,
+    why: 'PEM private key material',
+  },
+  {
+    key: 'slack-object-id',
+    re: /\b[CUW][A-Z0-9]{10}\b/g,
+    why: 'Slack channel/user/workspace object ID (11-char)',
+  },
+  {
+    // Machine-specific home directory. Allows generic placeholders.
+    key: 'home-path',
+    re: /\/(?:Users|home)\/(?!(?:you|user|username|name|me|runner|example|placeholder)\b)[A-Za-z0-9._-]+/g,
+    why: 'absolute machine home path (use ~/ or /path/to/ instead)',
+  },
+];
+
+const PLACEHOLDER_TOKENS = new Set(); // populated from allowlist files/ruleset
+
+function die(msg, code) {
+  process.stderr.write(`privacy-scan: ${msg}\n`);
+  process.exit(code);
+}
+
+function mask(s) {
+  if (s.length <= 4) return '•'.repeat(s.length);
+  return `${s.slice(0, 2)}…${s.slice(-2)}`;
+}
+
+function loadAllowlist(p) {
+  let text;
+  try {
+    text = fs.readFileSync(p, 'utf8');
+  } catch (e) {
+    die(`PRIVACY_ALLOWLIST ${p} is unreadable: ${e.message}`, 2);
+  }
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (t && !t.startsWith('#')) PLACEHOLDER_TOKENS.add(t);
+  }
+}
+
+function loadRuleset(p) {
+  let raw;
+  try {
+    raw = fs.readFileSync(p, 'utf8');
+  } catch (e) {
+    die(`PRIVACY_RULESET ${p} is unreadable: ${e.message}`, 2);
+  }
+  let obj;
+  try {
+    obj = JSON.parse(raw);
+  } catch (e) {
+    die(`PRIVACY_RULESET ${p} is not valid JSON: ${e.message}`, 2);
+  }
+  const rules = [];
+  for (const r of obj.rules || []) {
+    if (!r || !r.key || !r.pattern) {
+      die(`PRIVACY_RULESET ${p} has a rule missing key/pattern`, 2);
+    }
+    let re;
+    try {
+      re = new RegExp(r.pattern, (r.flags || 'g').includes('g') ? r.flags || 'g' : `${r.flags || ''}g`);
+    } catch (e) {
+      die(`PRIVACY_RULESET ${p} rule '${r.key}' has an uncompilable regex: ${e.message}`, 2);
+    }
+    rules.push({ key: r.key, re, why: r.why || 'instance ruleset' });
+  }
+  for (const a of obj.allow || []) {
+    if (typeof a === 'string' && a) PLACEHOLDER_TOKENS.add(a);
+  }
+  return rules;
+}
+
+function gitTrackedFiles() {
+  let out;
+  try {
+    out = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+  } catch (e) {
+    die('not a git repository (or git unavailable) — cannot resolve the file set', 2);
+  }
+  return out.split('\0').filter(Boolean);
+}
+
+function isProbablyBinary(buf) {
+  // NUL byte in the first 8KB => treat as binary, skip.
+  const n = Math.min(buf.length, 8192);
+  for (let i = 0; i < n; i++) if (buf[i] === 0) return true;
+  return false;
+}
+
+function lineOf(text, index) {
+  let line = 1;
+  for (let i = 0; i < index && i < text.length; i++) if (text[i] === '\n') line++;
+  return line;
+}
+
+function allowed(matchText) {
+  for (const tok of PLACEHOLDER_TOKENS) {
+    if (matchText.includes(tok)) return true;
+  }
+  return false;
+}
+
+function scanFile(file, detectors, findings, excluded) {
+  if (excluded.has(path.resolve(file))) return;
+  let buf;
+  try {
+    buf = fs.readFileSync(file);
+  } catch {
+    return; // deleted/renamed-away path in the tracked set — skip, not our concern
+  }
+  if (isProbablyBinary(buf)) return;
+  const text = buf.toString('utf8');
+  for (const d of detectors) {
+    d.re.lastIndex = 0;
+    let m;
+    while ((m = d.re.exec(text)) !== null) {
+      const hit = m[0];
+      if (m.index === d.re.lastIndex) d.re.lastIndex++; // guard zero-width
+      if (allowed(hit)) continue;
+      findings.push({ file, line: lineOf(text, m.index), key: d.key, why: d.why, masked: mask(hit) });
+    }
+  }
+}
+
+function buildDetectors() {
+  const detectors = BUILTIN.slice();
+  if (process.env.PRIVACY_ALLOWLIST) loadAllowlist(process.env.PRIVACY_ALLOWLIST);
+  if (process.env.PRIVACY_RULESET) detectors.push(...loadRuleset(process.env.PRIVACY_RULESET));
+  return detectors;
+}
+
+function selfTest() {
+  // Plant one synthetic secret per built-in detector in a tmp dir, plus a clean
+  // file, and assert each detector fires on its plant and not on the clean file.
+  // Synthetic data only — nothing is committed, so the repo is never flagged.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-scan-selftest-'));
+  const plants = {
+    'aws-access-key': 'token AKIAXXXXXXXXXXXXXXXX here',
+    'private-key-block': '-----BEGIN TEST PRIVATE KEY-----',
+    'slack-object-id': 'channel CXXXXXXXXXX mentioned',
+    'home-path': 'path /Users/synthetic-machine-acct/notes',
+  };
+  const clean = 'the quick brown fox ~/src/project /Users/you/x noreply@example.com';
+  try {
+    for (const [key, content] of Object.entries(plants)) {
+      fs.writeFileSync(path.join(dir, `plant-${key}.txt`), `${content}\n`);
+    }
+    fs.writeFileSync(path.join(dir, 'clean.txt'), `${clean}\n`);
+
+    const detectors = BUILTIN.slice();
+    let ok = true;
+    for (const [key] of Object.entries(plants)) {
+      const findings = [];
+      scanFile(path.join(dir, `plant-${key}.txt`), detectors, findings, new Set());
+      const hit = findings.some((f) => f.key === key);
+      process.stdout.write(`  ${hit ? 'PASS' : 'FAIL'}  detector '${key}' fires on its synthetic plant\n`);
+      if (!hit) ok = false;
+    }
+    const cleanFindings = [];
+    scanFile(path.join(dir, 'clean.txt'), detectors, cleanFindings, new Set());
+    const cleanOk = cleanFindings.length === 0;
+    process.stdout.write(`  ${cleanOk ? 'PASS' : 'FAIL'}  clean file (placeholders) yields no findings\n`);
+    if (!cleanOk) {
+      ok = false;
+      for (const f of cleanFindings) process.stdout.write(`        unexpected: [${f.key}] ${f.file}:${f.line}\n`);
+    }
+    if (!ok) die('self-test FAILED — a detector is broken; refusing to certify (fail-closed)', 2);
+    process.stdout.write('privacy-scan: self-test PASSED\n');
+    process.exit(0);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  if (argv.includes('--help') || argv.includes('-h')) {
+    process.stdout.write(fs.readFileSync(__filename, 'utf8').split('\n').filter((l) => l.startsWith('//')).map((l) => l.replace(/^\/\/ ?/, '')).join('\n') + '\n');
+    process.exit(0);
+  }
+  if (argv.includes('--self-test')) return selfTest();
+
+  const detectors = buildDetectors();
+
+  // Files to skip scanning: the ruleset/allowlist themselves (their regexes are
+  // not the secrets, but skip to avoid any confusion) and this script.
+  const excluded = new Set([path.resolve(__filename)]);
+  if (process.env.PRIVACY_RULESET) excluded.add(path.resolve(process.env.PRIVACY_RULESET));
+  if (process.env.PRIVACY_ALLOWLIST) excluded.add(path.resolve(process.env.PRIVACY_ALLOWLIST));
+
+  const explicit = argv.filter((a) => !a.startsWith('--'));
+  const files = explicit.length ? explicit : gitTrackedFiles();
+  if (!files.length) die('no files to scan', 2);
+
+  const findings = [];
+  for (const f of files) scanFile(f, detectors, findings, excluded);
+
+  if (findings.length === 0) {
+    process.stderr.write(`privacy-scan: clean (${files.length} files, ${detectors.length} detectors)\n`);
+    process.exit(0);
+  }
+
+  findings.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1));
+  process.stderr.write(`privacy-scan: ${findings.length} finding(s) — these must not reach a public repo:\n`);
+  for (const f of findings) {
+    process.stderr.write(`  ${f.file}:${f.line}: [${f.key}] ${f.masked}  (${f.why})\n`);
+  }
+  process.stderr.write('\nprivacy-scan: replace real values with generic placeholders, then re-run.\n');
+  process.exit(1);
+}
+
+main();

@@ -13,3 +13,6 @@ jobs:
 
       - name: Validate manifests
         run: bash scripts/validate-manifests.sh
+
+      - name: Privacy scan (generic detectors — no real IDs/paths/keys in the public repo)
+        run: node scripts/privacy-scan

@@ -52,6 +52,19 @@ For each skill, list ranked findings. Each finding has:
 - [L3 medium] rule: gotchas-missing — No `## Gotchas` section in a 410-line skill. Best-practices recommends a consolidated gotchas block for non-obvious environment facts.
 - [L3 low] rule: options-without-default — "Use pdfplumber, pypdf, or PyMuPDF…" presents a menu. Pick a default and demote alternatives.
 
+## Tier verdict
+
+Only when `--tier <tier>` was passed. One block per audited skill. Keep the
+`verdict:` line machine-parseable. Mask any real value cited in a finding.
+
+### <plugin>/<skill> — tier: <local|toolshed|marketplace>
+- verdict: ready *(or)* not-ready
+- privacy: OK *(or list)*
+  - [privacy high] rule: privacy-machine-path — `/U…dh` at SKILL.md:46 (use `~/` or `/path/to/`).
+  - [privacy high] rule: privacy-internal-email — real address at references/foo.md:12 (use `user@example.com`).
+- blocking rule keys: `privacy-machine-path`, `privacy-internal-email`  *(empty when ready)*
+- prerequisites out of audit scope (marketplace only): behavioral CI — unproven; dedup — unchecked here.
+
 ## Quick-wins shortlist
 
 Cross-cutting recommendations sorted by ratio of impact to effort.
