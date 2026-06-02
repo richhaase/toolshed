@@ -106,6 +106,22 @@ check_source_frontmatter() {
   done < <(find sources -type f -name '*.md' | sort)
 }
 
+check_wiki_frontmatter() {
+  [ -d wiki ] || return 0
+
+  while IFS= read -r page; do
+    if ! awk '
+      NR == 1 && $0 == "---" { in_fm = 1; next }
+      NR == 1 && $0 != "---" { exit 1 }
+      in_fm && $0 == "---" { exit found ? 0 : 1 }
+      in_fm && /^type:[[:space:]]*[^[:space:]]/ { found = 1 }
+      END { if (in_fm) exit found ? 0 : 1 }
+    ' "$page"; then
+      emit P2 "Wiki page missing type frontmatter" "$page" "Compiled wiki pages should carry a type field; missing it (or using a legacy key) is schema drift."
+    fi
+  done < <(find wiki -type f -name '*.md' ! -name 'INDEX.md' | sort)
+}
+
 check_hot_set_paths() {
   have_file AGENTS.md || return 0
 
@@ -115,6 +131,29 @@ check_hot_set_paths() {
       emit P1 "Broken hot-set wiki path" "$file:$line" "Referenced wiki page does not exist: $path"
     fi
   done < <(rg -n -o 'wiki/[A-Za-z0-9._/\-]+\.md' AGENTS.md 2>/dev/null || true)
+}
+
+check_wikilink_targets() {
+  [ -d wiki ] || return 0
+
+  local roots=()
+  for root in AGENTS.md wiki; do
+    [ -e "$root" ] && roots+=("$root")
+  done
+  [ "${#roots[@]}" -gt 0 ] || return 0
+
+  # Slugs that a [[wikilink]] can resolve to: basenames of wiki pages.
+  local slugs
+  slugs="$(find wiki -type f -name '*.md' ! -name 'INDEX.md' -exec basename {} .md \; | sort -u)"
+
+  while IFS= read -r target; do
+    [ -n "${target:-}" ] || continue
+    if ! printf '%s\n' "$slugs" | grep -qxF -- "$target"; then
+      emit P2 "Dangling wikilink target" "$target" "[[$target]] is referenced but no wiki page with that slug exists. May be rot or an intentional forward-reference."
+    fi
+  done < <(rg -o --no-filename '\[\[[^\]|]+' "${roots[@]}" 2>/dev/null \
+    | sed 's/^\[\[[[:space:]]*//; s/[[:space:]]*$//' \
+    | sort -u || true)
 }
 
 check_public_private_refs() {
@@ -212,7 +251,9 @@ main() {
   check_newer_sources
   check_public_paths
   check_source_frontmatter
+  check_wiki_frontmatter
   check_hot_set_paths
+  check_wikilink_targets
   check_public_private_refs
   check_sensitive_route_mentions
   check_domain_store_mentions

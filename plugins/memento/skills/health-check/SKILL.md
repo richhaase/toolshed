@@ -89,7 +89,10 @@ Validate inspectable public paths:
 - Hot-set Details paths in `AGENTS.md`.
 - Inline backtick paths that look canonical, especially `sources/...`,
   `wiki/...`, `data/...`, `outputs/...`, and skill paths.
-- `related:` wiki links and `[[wikilinks]]`.
+- `related:` wiki links and `[[wikilinks]]`. `scripts/doctor.sh` resolves
+  `[[wikilink]]` targets against wiki page slugs deterministically; treat an
+  unresolved target as either rot or an intentional forward-reference and judge
+  which.
 
 Missing evidence paths are high-value findings because they break verification.
 
@@ -169,6 +172,15 @@ skill or a source note if compiled knowledge depends on it.
 When a skill owns structured `data/`, compare compiled wiki claims against the
 documented canonical data path. If L2 points at an old source path while a skill
 uses `data/<name>.json`, report domain-store drift.
+
+### Check 10: Wiki Frontmatter Schema
+
+Compiled wiki pages (everything under `wiki/` except `INDEX.md`) should carry a
+`type:` field identifying the entity type. `scripts/doctor.sh` flags pages with
+no frontmatter or a missing `type:`. A common cause is a legacy page predating
+the current schema (e.g. one still using an `entity:` key). This is a P2 schema
+drift, not a broken link — recompile or normalize the page rather than treating
+it as corruption.
 
 ## Golden-query eval design
 
