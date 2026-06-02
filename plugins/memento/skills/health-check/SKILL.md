@@ -184,45 +184,57 @@ it as corruption.
 
 ## Golden-query eval design
 
-When asked for `eval`, assess or draft local fixtures. Do not capture real user
-queries automatically.
+`eval` runs the deterministic scorer when fixtures exist, and helps draft them when they
+don't. **Run the scorer first:**
 
-Fixture fields should be deterministic:
+```bash
+node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --json   # report the verdict
+node ../_shared/scripts/eval-score --self-test                     # prove it fails a poisoned hot set
+```
 
-```yaml
-id: Q001
-question: "What is the latest rowing YTD total?"
-expected_layer: L3
-failure_mode: freshness
-required_evidence_paths:
-  - sources/notes/YYYY-MM-DD-rowing-report.md
-forbidden_paths:
-  - private/
-required_answer_atoms:
-  - "287,875"
-forbidden_answer_atoms:
-  - "282,875"
-freshness_date: 2026-05-04
-abstain_required: false
+`eval-score` (node, `_shared/scripts/`) reads `sources/eval/fixtures/{regression,capability}.json`
++ `verdict-contract.json`, checks each fixture's `required_answer_atoms` against the compiled
+`AGENTS.md` + evidence pages, emits the verdict contract, and logs to `sources/eval/runs/`. It is
+the same gate `compile` runs at Step 7.5 (default `enforce` — auto-rollback on a regression fail).
+If `sources/eval/fixtures/` is absent, the Memento is **ungated**: offer to draft fixtures. Do not
+capture real user queries automatically.
+
+Fixtures are stored as JSON (node-native; the scorer is dependency-free):
+
+```json
+{
+  "id": "Q001",
+  "question": "What is the latest rowing YTD total?",
+  "expected_layer": "L3",
+  "failure_mode": "freshness",
+  "required_evidence_paths": ["sources/notes/YYYY-MM-DD-rowing-report.md"],
+  "forbidden_paths": ["private/"],
+  "required_answer_atoms": ["287,875"],
+  "forbidden_answer_atoms": ["282,875"],
+  "freshness_date": "2026-05-04",
+  "abstain_required": false
+}
 ```
 
 Suggested labels:
 
 - Layers: `L1`, `L2`, `L3`, `domain`, `private`, `abstain`.
-- Failure modes: `freshness`, `provenance`, `privacy`, `routing`,
-  `task-state`, `integrity`.
+- Failure modes: `freshness`, `provenance`, `privacy`, `routing`, `task-state`, `integrity`.
 
-Score mechanically:
+Scoring split — what the gate can and cannot verify:
 
-- Expected evidence paths found/read.
-- Forbidden paths never touched.
-- Required answer atoms present.
-- Forbidden stale/private atoms absent.
-- Freshness date satisfied when applicable.
-- Abstain questions do not guess.
+- **Static gate (`eval-score`, every compile):** `required_evidence_paths` exist; every
+  `required_answer_atom` present (case-insensitive) in `AGENTS.md` + evidence — i.e. the
+  load-bearing fact survived the compile.
+- **Answer-level (on-demand LLM eval only):** `forbidden_answer_atoms` absent, `forbidden_paths`
+  (`private/`) never touched, and `abstain` questions don't guess. These need an actual answer —
+  a corpus substring scan false-positives (the hot set mentions every entity; pages keep old
+  values in history). The static gate does not enforce them; they live in the fixtures for the
+  answering eval.
 
-Use public memory benchmarks only as taxonomies. Local qrels decide whether this
-Memento is working.
+Anchor fixtures to **human-asserted ground truth**, not the wiki they police — where they
+disagree, the wiki is what's wrong (authoring them doubles as a staleness audit). Public memory
+benchmarks inform the taxonomy; local qrels decide whether this Memento is working.
 
 ## Output format
 

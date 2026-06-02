@@ -38,7 +38,7 @@ Hard rules — environment-specific facts the agent will get wrong without these
 
 **Safety:**
 - **NEVER read files in `private/`** — that directory is a privacy boundary, and reading it can surface content the user has explicitly walled off from synthesis.
-- **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs; writing back into `sources/` corrupts the audit trail the wiki is derived from. The only exception is a legacy repo without `AGENTS.md`, where you may update the existing entrypoint that owns the hot set and report the migration need.
+- **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs; writing back into `sources/` corrupts the audit trail the wiki is derived from. Two narrow exceptions: a legacy repo without `AGENTS.md` (update the existing entrypoint that owns the hot set and report the migration need); and the **Step 7.5 eval gate**, whose `eval-score` tool writes its own telemetry under `sources/eval/runs/` and (on a gate fail) a defect follow-up under `sources/followups/` — operational records the scorer owns, never synthesis inputs. The compile agent itself still writes only `wiki/` + `AGENTS.md`.
 - **All Memento paths are relative to the resolved Memento root** — `sources/`, not the caller's current repo.
 - **Only active sources shape current state.** Treat source files with no `status`
   frontmatter as `active`. Exclude files marked `status: superseded` or
@@ -151,8 +151,10 @@ When `COMPILE_BASE_SHA` is empty, fall back to filesystem mtime — this is the
 legacy path and stays supported for scratch dirs and non-git Mementos:
 
 ```bash
-# Find source files modified after last compile (sessions, syncs, notes, followups)
-../_shared/scripts/memento-run find sources/sessions/ sources/syncs/ sources/notes/ sources/followups/ -name '*.md' -newer wiki/INDEX.md 2>/dev/null
+# Find source files modified after last compile across ALL of sources/ — a hardcoded
+# dir list silently misses new top-level source dirs. Exclude archived tasks and
+# sources/eval/ (eval fixtures + run telemetry, not a synthesis input).
+../_shared/scripts/memento-run find sources -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' -not -path 'sources/eval/*' 2>/dev/null
 ```
 
 After reading changed files (either path), discard sources whose frontmatter
@@ -163,7 +165,7 @@ status is `superseded` or `archived`. If no active source files remain, report
 
 ### For incremental updates
 
-1. Use the change set from Step 1 (git-diff union or mtime fallback) as the list of changed source files.
+1. Use the change set from Step 1 (git-diff union or mtime fallback) as the list of changed source files. **Exclude `sources/eval/`** — those are eval fixtures + run telemetry, not knowledge to synthesize.
 2. **In a single message**, issue parallel Read calls for ALL changed source files AND `wiki/INDEX.md`. This is one batch — not sequential reads. Guard each path with `[ -f "$path" ]` so rename-old-paths and deletes are skipped instead of failing the Read.
 3. Run Step 3 on the gathered sources to identify affected entities (honoring per-source `touches` frontmatter where present).
 4. **In a single message**, issue parallel Read calls for ALL affected wiki pages that need updating.
@@ -325,7 +327,7 @@ When running incrementally (not a full build):
 5. Synthesize updates. **Write ALL updated wiki pages + INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`) in one parallel batch.**
 6. **Read `AGENTS.md`, rebuild the hot set between markers, write `AGENTS.md`.**
 7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
-8. **Commit (Step 8).** Always the last action. Skip cleanly when not in a git repo or when nothing is staged.
+8. **Eval gate + commit (Steps 7.5 → 8).** Run `eval-score --gate` before committing; on `verdict: fail` (or scorer error) roll back `AGENTS.md` + `wiki/` to `COMPILE_BASE_SHA` and do NOT commit. Otherwise commit (staging `wiki/`, `AGENTS.md`, and `sources/eval/runs/`). Always the last action; skip cleanly when not a git repo or nothing staged.
 
 The entire incremental compile should be **5-6 roundtrips**: resolve change set → read sources → read wiki pages → write wiki updates → write L1 hot set → commit.
 
@@ -367,6 +369,64 @@ See `references/templates.md` for the hot-set markdown shape.
   exists.
 - The hot set is fully regenerated each compile — it's not an incremental edit.
 
+## Step 7.5: Eval gate (Gate-0) + rollback — the keystone interlock
+
+Before committing (Step 8), verify the freshly-compiled hot set + wiki still answer the
+committed golden-query fixtures. This is the gate that protects the always-resident
+`AGENTS.md` hot set from a compile that silently drops or corrupts a load-bearing fact.
+**Mechanical, deterministic, node, ~0 tokens — no LLM judge in this path.** Skip only if
+`sources/eval/fixtures/` does not exist (un-evalled Memento) — report that it is ungated.
+
+### Run the scorer
+
+From the skill's base directory (same convention as the `../_shared/scripts/memento-root`
+call in Step 1), run the shared node scorer with `--gate` and capture its JSON verdict:
+
+```bash
+node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --gate --json > /tmp/memento-eval.$$.json
+rc=$?
+```
+
+`eval-score` needs only `node` (always present in the Claude Code / Codex runtimes). It reads
+`sources/eval/fixtures/{regression,capability}.json` + `sources/eval/verdict-contract.json`,
+checks against the just-written `AGENTS.md` + wiki evidence pages that every
+`required_answer_atom` is still present (the load-bearing fact survived), appends the verdict
+to `sources/eval/runs/<today>.jsonl` (its own telemetry), and exits:
+**`0` = pass/advisory · `1` = fail (regression < 100%) · `2` = error/unavailable.**
+
+### Gate decision (default: enforce — fail-closed)
+
+`MEMENTO_EVAL_GATE` selects behavior; default **`enforce`**:
+
+- **`rc == 0`, `verdict: pass`** → proceed to Step 8 (commit).
+- **`rc == 0`, `verdict: advisory`** (capability dipped, regression still 100%) → **warn, then commit.** Capability is a threshold suite, not load-bearing; a dip doesn't justify reverting.
+- **`rc >= 1`** — `verdict: fail` (a load-bearing fact was dropped) **or scorer error/unavailable** → **ROLL BACK and do NOT commit:**
+  ```bash
+  git -C "$MEMENTO_ROOT" checkout "$COMPILE_BASE_SHA" -- AGENTS.md wiki/
+  ```
+  This restores the hot set + wiki to the pre-compile state captured in Step 1, so a poisoned
+  hot set never reaches the durable git record. **Fail-closed:** a scorer that cannot run is not
+  a clean bill of health — roll back. On a `fail`, `eval-score --gate` has already written a
+  defect follow-up (`sources/followups/compile-eval-fail-<today>.md`) naming the failing
+  fixtures, closing the telemetry→source loop. **Report the rollback + the failing fixtures to
+  the user; do not silently retry.**
+
+`MEMENTO_EVAL_GATE=warn` downgrades a `fail` to warn-and-commit (verdict + follow-up still
+recorded) — used only to land the gate or debug a fixture. The default is `enforce`.
+
+### Self-test
+
+`node ../_shared/scripts/eval-score --self-test` proves the scorer fails a deliberately poisoned
+hot set. Run it if you suspect the scorer itself is broken — a gate you can't trust to fail is
+worse than no gate.
+
+### Named rollback verb (operationalizes "git is the recovery layer")
+
+To recover a bad hot set by hand, outside a compile:
+- **`compile rollback hot-set`** → `git checkout <last eval-passing SHA> -- AGENTS.md` — restore the L1 hot set to its last green state (the last `sources/eval/runs/` entry with `verdict: pass` records the SHA).
+- **`compile rollback compile`** → revert the most recent compile commit's `AGENTS.md` + `wiki/` changes (`git revert <sha>`, or `git checkout <prev> -- AGENTS.md wiki/`).
+Both are plain git plumbing over the local history — no new infrastructure.
+
 ## Step 8: Commit (final step — mandatory when in a git repo)
 
 The compile run is not finished until its output is committed. The git log is the
@@ -377,7 +437,8 @@ See `references/commit-flow.md` for the full flow: git-context detection,
 staging, the commit subject/body shape, and failure handling. Headline rules:
 
 - Skip silently when not in a git repo; report `commit: skipped (not a git repo)`.
-- Stage `wiki/` and `AGENTS.md` (or the legacy `CLAUDE.md` entrypoint).
+- **Only commit if the Step 7.5 eval gate passed (or was advisory)** — on a gate fail the compile was rolled back, so there is nothing to commit.
+- Stage `wiki/`, `AGENTS.md` (or the legacy `CLAUDE.md` entrypoint), **and `sources/eval/runs/`** (the eval verdict telemetry for this run — the only `sources/` path compile stages).
 - Skip cleanly if nothing is staged; report `commit: skipped (no changes)`.
 - Subject: `compile: update wiki — <brief synthesis>` (≤ 72 chars).
 - Body lists sources processed, pages updated, hot-set deltas, and any
@@ -390,8 +451,9 @@ staging, the commit subject/body shape, and failure handling. Headline rules:
 Report to user: pages created / updated / unchanged, new entities discovered,
 hot set changes (promoted/demoted), superseded/archived sources skipped, any
 sources that couldn't be processed, any `<provider>_id` drift between sources
-and existing wiki frontmatter (manual value left in place), and the commit
-SHA (or `skipped` reason).
+and existing wiki frontmatter (manual value left in place), the **Step 7.5 eval-gate
+verdict** (regression/capability pass rates, logged to `sources/eval/runs/`), and the
+commit SHA (or the rollback / `skipped` reason).
 
 ## Guidelines
 

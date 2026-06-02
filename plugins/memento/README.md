@@ -56,6 +56,7 @@ Bundled scripts:
 
 - `skills/_shared/scripts/memento-root` prints the resolved Memento root.
 - `skills/_shared/scripts/memento-run <command>` runs a command from the resolved Memento root.
+- `skills/_shared/scripts/eval-score` (node) — the deterministic golden-query scorer behind the eval gate. `compile` runs it before committing; `health-check eval` runs it on demand. Emits the verdict contract; `--self-test` proves it fails a poisoned hot set.
 
 ## Directory structure
 
@@ -65,7 +66,11 @@ sources/                # L3 — raw inputs
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/
 ├── notes/              # Durable knowledge — folds into wiki on /compile
-└── followups/          # Small queue of "re-read within a week, act on it" items
+├── followups/          # Small queue of "re-read within a week, act on it" items
+└── eval/               # Golden-query eval — NOT compiled (gate data + telemetry)
+    ├── fixtures/       #   regression.json (must stay 100%) + capability.json (threshold)
+    ├── verdict-contract.json  #   thresholds + the frozen verdict shape
+    └── runs/           #   <date>.jsonl — every gate verdict (retrieval integrity, measured)
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
@@ -108,18 +113,38 @@ broken evidence paths, compile metadata drift, public-surface privacy risks,
 open queue visibility, and eval readiness without reading `private/` or writing
 repairs.
 
-If lookup quality needs measurement, start with local golden-query fixtures:
-expected evidence paths, forbidden paths, freshness dates, and abstention cases.
-Public memory benchmarks can inform the taxonomy, but local questions decide
-whether this Memento is working.
+### The eval gate (Gate-0) — gated, not trusted
+
+`compile` rewrites the always-resident `AGENTS.md` hot set on every run. To keep a bad
+compile from silently dropping a load-bearing fact into the surface every future session
+loads, `compile` runs a **deterministic eval gate (Step 7.5)** between the hot-set rewrite
+and the commit:
+
+- **Fixtures** are committed golden queries under `sources/eval/fixtures/`
+  (`regression.json` — must stay 100%; `capability.json` — threshold). Each names the
+  evidence paths and `required_answer_atoms` that must survive a compile. Anchor them to
+  **human-asserted ground truth**, not to the wiki they police — where they disagree, the
+  wiki is what's wrong (authoring the fixtures doubles as a staleness audit).
+- **`eval-score`** (node, `_shared/scripts/`) checks mechanically — no LLM judge — that
+  every required atom is still present in the freshly-compiled `AGENTS.md` + evidence pages,
+  emits the verdict contract, and logs it to `sources/eval/runs/<date>.jsonl`.
+- **On `verdict: fail`** (a regression dropped) **or a scorer that can't run**, `compile`
+  **rolls back** `AGENTS.md` + `wiki/` to the pre-compile SHA and does not commit
+  (fail-closed), emitting a defect follow-up. `MEMENTO_EVAL_GATE=warn` downgrades to
+  warn-only; default is `enforce`.
+
+`health-check eval` runs the same scorer on demand. The forbidden-atom / abstain checks in
+the fixtures are answer-level — verifiable only by an LLM-answering eval, not the static
+gate. Public memory benchmarks can inform the taxonomy, but local questions decide whether
+this Memento is working.
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
-| `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set) |
-| `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness |
+| `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set), with a deterministic eval gate + auto-rollback (Step 7.5) protecting the hot set before commit |
+| `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness; `eval` runs the deterministic scorer (`eval-score`) against the committed fixtures |
 | `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, and (at most one, confirmed) follow-up |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) |
@@ -155,6 +180,7 @@ and hot-set synthesis.
 - **Convention over configuration.** File existence = open task. Frontmatter = metadata. Directories = organization.
 - **Local-first.** Git repo, no remote required.
 - **Additive.** Wiki compilation never destroys historical content.
+- **Gated, not trusted.** `compile` auto-rolls-back if the eval gate finds a load-bearing fact dropped from the hot set — the privileged surface is never committed unverified.
 - **Private by default.** `private/` is never compiled or referenced externally.
 - **Opinionated defaults, customizable.** Works immediately; `memento-config` interview tunes it on first run, and updates it on subsequent runs.
 

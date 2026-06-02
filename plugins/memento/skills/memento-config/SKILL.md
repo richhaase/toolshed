@@ -91,8 +91,11 @@ sources/                # L3 — raw inputs, cold storage
 ├── syncs/              # Automated pulls from external services
 │   └── <provider>/     # One dir per source (concept2/, github/, etc.)
 ├── notes/              # Durable knowledge — folds into wiki on /compile
-└── followups/          # Small queue of "re-read within a week, act on it"
-                        # captures with expires_at frontmatter
+├── followups/          # Small queue of "re-read within a week, act on it"
+│                       # captures with expires_at frontmatter
+└── eval/               # Golden-query eval — NOT compiled (gate data + telemetry)
+    ├── fixtures/       # regression.json + capability.json (drafted via /health-check eval)
+    └── runs/           # <date>.jsonl — gate verdicts written by eval-score
 wiki/                   # L2 — compiled knowledge, loaded on demand
 outputs/                # Products of the system
 ├── surfaces/           # HTML dashboards, served over HTTP
@@ -106,7 +109,7 @@ commitments belong in the user's issue tracker, not in markdown.
 Create all directories:
 
 ```bash
-mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
+mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/sources/eval/fixtures "$MEMENTO_ROOT"/sources/eval/runs "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
 ```
 
 ### Starter context files

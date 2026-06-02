@@ -1,0 +1,218 @@
+#!/usr/bin/env node
+'use strict';
+//
+// eval-score — deterministic golden-query scorer for a Memento.
+//
+// The mechanical gate primitive of the control plane (no LLM judge). Node, not
+// bash/python/ruby, because node is guaranteed wherever this runs: the Claude
+// Code and Codex harnesses (CLI + desktop) ARE node, and JSON is native — zero
+// deps, zero parse code. Given the committed fixtures under sources/eval/ and
+// the COMPILED artifacts (AGENTS.md hot set + the wiki evidence pages), it checks
+// per fixture:
+//   - every required_evidence_path exists
+//   - every required_answer_atom is present in the haystack (AGENTS.md + evidence)
+//   - no forbidden_answer_atom is present in the haystack
+// and emits the frozen verdict contract. Abstain fixtures and the
+// forbidden_paths(private/) touch-check are runtime-behavioral — out of scope for
+// the static gate; they belong to the on-demand LLM-answering eval.
+//
+// Used by:  memento:compile (Gate-0, between hot-set rewrite and commit) and
+//           memento:health-check (eval mode). Lives in _shared so neither skill
+//           reaches into the other's directory.
+//
+// Exit:  0 = pass or advisory   1 = FAIL (regression regressed)   2 = error
+//   compile rolls back on exit >= 1 (fail-closed: a scorer it cannot run is not
+//   a clean bill of health).
+//
+// Usage:
+//   eval-score [--root DIR] [--suite regression|capability|all] [--json] [--quiet]
+//   eval-score --self-test     # prove the scorer FAILS a poisoned hot set
+
+const fs = require('fs');
+const path = require('path');
+const cp = require('child_process');
+const os = require('os');
+
+const argv = process.argv.slice(2);
+const opt = { root: process.env.MEMENTO_ROOT || process.cwd(), json: false, quiet: false, suite: 'all', selfTest: false, gate: false, noLog: false };
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i];
+  if (a === '--root') opt.root = argv[++i];
+  else if (a === '--json') opt.json = true;
+  else if (a === '--quiet') opt.quiet = true;
+  else if (a === '--suite') opt.suite = argv[++i];
+  else if (a === '--self-test') opt.selfTest = true;
+  else if (a === '--gate') opt.gate = true;          // compile passes this: emit a defect follow-up on fail
+  else if (a === '--no-log') opt.noLog = true;        // skip the runs-ledger append
+  else if (a === '-h' || a === '--help') {
+    console.error('usage: eval-score [--root DIR] [--suite regression|capability|all] [--json] [--quiet] [--gate] [--no-log] [--self-test]');
+    process.exit(0);
+  }
+}
+const today = () => new Date().toISOString().slice(0, 10);
+
+function die(msg) { console.error('eval-score: ' + msg); process.exit(2); }
+function slurp(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+
+// Score one fixture against the haystack. Returns {pass, reason, skip}.
+function scoreFixture(fx, root) {
+  if (fx.abstain_required) return { pass: true, reason: 'skipped: abstain (runtime-only, not gated)', skip: true };
+
+  const evidence = fx.required_evidence_paths || [];
+  const missingPaths = evidence.filter(p => !fs.existsSync(path.join(root, p)));
+  if (missingPaths.length) return { pass: false, reason: `missing evidence path(s): ${missingPaths.join(', ')}`, skip: false };
+
+  // Haystack = the always-resident hot set + this fixture's evidence pages.
+  let hay = slurp(path.join(root, 'AGENTS.md'));
+  for (const p of evidence) hay += '\n' + slurp(path.join(root, p));
+  const hayLC = hay.toLowerCase();
+
+  // The static gate verifies REQUIRED atoms are present (case-insensitive) — i.e. the
+  // load-bearing fact survived the compile. It does NOT enforce forbidden_answer_atoms
+  // or abstain: those are ANSWER-LEVEL, verifiable only by actually answering the
+  // question (the on-demand LLM eval). A corpus substring scan false-positives on them —
+  // the hot set mentions every entity, and pages describe history/fixes using old values
+  // (e.g. "Former role: Solutions Engineer", "text-embedding-3-small -> -large").
+  const req = (fx.required_answer_atoms || []).filter(Boolean);
+  const missingAtoms = req.filter(a => !hayLC.includes(String(a).toLowerCase()));
+  if (missingAtoms.length) return { pass: false, reason: `required atom(s) absent: ${missingAtoms.map(x => JSON.stringify(x)).join(', ')}`, skip: false };
+  return { pass: true, reason: 'ok', skip: false };
+}
+
+function loadSuite(root, name) {
+  const p = path.join(root, 'sources', 'eval', 'fixtures', name + '.json');
+  if (!fs.existsSync(p)) return [];
+  try {
+    const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return Array.isArray(d) ? d.filter(x => x && x.id) : [];
+  } catch (e) { die(`could not parse ${p}: ${e.message}`); }
+}
+
+function thresholds(root) {
+  let reg = 1.0, cap = 0.8;
+  const p = path.join(root, 'sources', 'eval', 'verdict-contract.json');
+  if (fs.existsSync(p)) {
+    try {
+      const t = (JSON.parse(fs.readFileSync(p, 'utf8')).thresholds) || {};
+      if (t.regression_pass_rate_min != null) reg = +t.regression_pass_rate_min;
+      if (t.capability_pass_rate_min != null) cap = +t.capability_pass_rate_min;
+    } catch { /* fall back to defaults */ }
+  }
+  return { reg, cap };
+}
+
+function headSha(root) {
+  try { return cp.execSync(`git -C ${JSON.stringify(root)} rev-parse HEAD`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); }
+  catch { return ''; }
+}
+
+// --- self-test: prove the scorer FAILS a deliberately poisoned hot set -------
+if (opt.selfTest) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-self-'));
+  fs.mkdirSync(path.join(dir, 'wiki'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), 'clean hot set\n');
+  fs.writeFileSync(path.join(dir, 'wiki', 'probe.md'), 'marker-present\n');
+  const fx = { id: 'ST1', required_evidence_paths: ['wiki/probe.md'], required_answer_atoms: ['marker-present'], forbidden_answer_atoms: ['poison-token'], abstain_required: false };
+  const clean = scoreFixture(fx, dir);
+  fs.writeFileSync(path.join(dir, 'wiki', 'probe.md'), 'the marker was dropped; poison-token injected\n');
+  const poisoned = scoreFixture(fx, dir);
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+  if (!opt.quiet) {
+    console.error(`self-test: clean=${clean.pass ? 'PASS' : 'FAIL'} poisoned=${poisoned.pass ? 'PASS(!)' : 'FAIL(correct)'}`);
+    console.error('self-test: poisoned reason -> ' + poisoned.reason);
+  }
+  if (clean.pass && !poisoned.pass) {
+    if (!opt.quiet) console.error('self-test: OK — scorer correctly fails a poisoned hot set.');
+    process.exit(0);
+  }
+  console.error('self-test: BROKEN — scorer did not catch a poisoned hot set. Refusing to certify.');
+  process.exit(2);
+}
+
+// --- normal scoring ----------------------------------------------------------
+const root = path.resolve(opt.root);
+if (!fs.existsSync(path.join(root, 'AGENTS.md'))) die(`not a Memento root (no AGENTS.md at ${root})`);
+
+const suites = opt.suite === 'regression' ? ['regression'] : opt.suite === 'capability' ? ['capability'] : ['regression', 'capability'];
+const { reg: regMin, cap: capMin } = thresholds(root);
+const t0 = Date.now();
+const results = {};
+const sliceFails = [];
+
+for (const suite of suites) {
+  const fixtures = loadSuite(root, suite);
+  let passed = 0, scored = 0, skipped = 0;
+  for (const fx of fixtures) {
+    const r = scoreFixture(fx, root);
+    if (r.skip) { skipped++; continue; }
+    scored++;
+    if (r.pass) passed++;
+    else sliceFails.push({ fixture_id: fx.id, suite, reason: r.reason });
+  }
+  const rate = scored === 0 ? 1.0 : +(passed / scored).toFixed(4);
+  results[suite] = { pass: passed, scored, skipped, pass_rate: rate };
+}
+
+const regRate = results.regression ? results.regression.pass_rate : 1.0;
+const capRate = results.capability ? results.capability.pass_rate : 1.0;
+const elapsed = +((Date.now() - t0) / 1000).toFixed(3);
+const verdict = regRate < regMin ? 'fail' : (capRate < capMin ? 'advisory' : 'pass');
+
+const out = {
+  tier: process.env.MEMENTO_EVAL_TIER || 'local',
+  regression_pass_rate: regRate,
+  capability_pass_rate: capRate,
+  suites: results,
+  slice_fails: sliceFails,
+  cost: { tokens: 0, seconds: elapsed },
+  kappa: null,
+  verdict,
+  scored_at_sha: headSha(root),
+  thresholds: { regression_pass_rate_min: regMin, capability_pass_rate_min: capMin }
+};
+
+// Telemetry: the scorer owns its own record (compile's no-sources-write rule stays
+// intact). JSONL under sources/eval/runs/ — doctor-invisible (not .md), git-committable.
+if (!opt.noLog) {
+  try {
+    const runsDir = path.join(root, 'sources', 'eval', 'runs');
+    fs.mkdirSync(runsDir, { recursive: true });
+    fs.appendFileSync(path.join(runsDir, today() + '.jsonl'), JSON.stringify(out) + '\n');
+  } catch (e) { console.error('eval-score: warning — could not write runs ledger: ' + e.message); }
+}
+
+// Gate mode: on a regression FAIL, emit a defect follow-up so the loop closes
+// (telemetry -> source). Only with --gate (compile passes it; health-check eval does not).
+if (opt.gate && verdict === 'fail') {
+  try {
+    const fdir = path.join(root, 'sources', 'followups');
+    fs.mkdirSync(fdir, { recursive: true });
+    const exp = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    const fails = sliceFails.map(f => `- [${f.suite}] ${f.fixture_id}: ${f.reason}`).join('\n');
+    const md = `---\ndate: ${today()}\nexpires_at: ${exp}\nkind: eval-defect\n---\n\n` +
+      `# Compile eval gate FAILED — ${today()}\n\n` +
+      `The in-compile eval gate (Gate-0) failed: a regression fixture's load-bearing fact ` +
+      `was missing from the freshly-compiled hot set + wiki, so the compile was rolled back ` +
+      `(\`git checkout COMPILE_BASE_SHA -- AGENTS.md wiki/\`) and NOT committed.\n\n` +
+      `Failing fixtures:\n${fails}\n\n` +
+      `Act: either the compile dropped a fact (re-run / fix compile) or the fixture is stale ` +
+      `(update sources/eval/fixtures/). Full verdict in sources/eval/runs/${today()}.jsonl.\n`;
+    fs.writeFileSync(path.join(fdir, `compile-eval-fail-${today()}.md`), md);
+  } catch (e) { console.error('eval-score: warning — could not emit defect follow-up: ' + e.message); }
+}
+
+if (opt.json) {
+  process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+} else if (!opt.quiet) {
+  console.error(`Memento eval — ${root}`);
+  for (const [s, r] of Object.entries(results)) {
+    console.error(`  ${s.padEnd(11)} ${r.pass}/${r.scored} pass (${Math.round(r.pass_rate * 100)}%)${r.skipped ? ` · ${r.skipped} skipped (abstain)` : ''}`);
+  }
+  if (sliceFails.length) {
+    console.error('  failures:');
+    for (const f of sliceFails) console.error(`    [${f.suite}] ${f.fixture_id}: ${f.reason}`);
+  }
+  console.error(`  verdict: ${verdict.toUpperCase()}  (${elapsed}s, mechanical · 0 tokens)`);
+}
+
+process.exit(verdict === 'fail' ? 1 : 0);
