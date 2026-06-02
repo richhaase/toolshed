@@ -23,7 +23,6 @@ Install a plugin:
 
 ```bash
 claude plugin install memento@toolshed
-claude plugin install legate@toolshed
 ```
 
 Inside Claude Code, the equivalent commands are:
@@ -31,7 +30,6 @@ Inside Claude Code, the equivalent commands are:
 ```text
 /plugin marketplace add richhaase/toolshed
 /plugin install memento@toolshed
-/plugin install legate@toolshed
 ```
 
 ### Codex
@@ -67,7 +65,12 @@ a project repo; the bundled `skills/_shared/scripts/memento-root` and
 `skills/_shared/scripts/memento-run` helpers make each skill operate from the
 resolved root instead of assuming the current repo is the Memento.
 
-### [Legate](plugins/legate/) — Delegated Work Orchestration
+### [Legate](plugins/legate/) — Delegated Work Orchestration _(deprecated)_
+
+> **⚠️ DEPRECATED (2026-06-02)** — superseded by Claude Code's native agents
+> view (session list + resume + worktree isolation + background notifications).
+> Not installable from the marketplace; code retained for reference. See
+> [`plugins/legate/DEPRECATED.md`](plugins/legate/DEPRECATED.md).
 
 Delegated work orchestration for agent sessions. Dispatch Claude Code or Codex
 work into a tagged tmux window, debrief results, watch for meaningful
