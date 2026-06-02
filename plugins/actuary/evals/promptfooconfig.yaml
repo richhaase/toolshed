@@ -1,0 +1,85 @@
+# actuary:skill-audit — trigger-rate eval (ADVISORY, local).
+#
+# The first promptfoo eval in toolshed — the template the promotion model copies.
+# It answers one question cheaply: does skill-audit fire when (and only when) a
+# request actually calls for a skill audit? That is the behavioral signal the
+# mechanical gates (eval-score, privacy-scan, actuary L1) cannot give.
+#
+# This is a LOCAL, ADVISORY eval — it informs, it does not block. The blocking
+# marketplace-tier Gate-2 (with κ>0.6-calibrated judges) is sequenced later.
+#
+# RUN (needs an Anthropic API key + the Claude Agent SDK; spends tokens):
+#   cd plugins/actuary/evals
+#   ANTHROPIC_API_KEY=sk-... npx --yes promptfoo@latest eval --repeat 3 --no-cache
+#   npx --yes promptfoo@latest view        # browse results
+#
+# The provider loads the REAL skill via a symlink at fixtures/.claude/skills/
+# (single source of truth — no copy to drift). `setting_sources: [project]`
+# makes the SDK discover it; `skills:` activates it.
+
+description: "actuary:skill-audit trigger-rate (advisory, local)"
+
+prompts:
+  - "{{request}}"
+
+providers:
+  - id: anthropic:claude-agent-sdk
+    label: skill-audit
+    config:
+      model: claude-sonnet-4-6
+      working_dir: ./fixtures
+      setting_sources: ["project"]
+      skills: ["skill-audit"]
+      append_allowed_tools: ["Read", "Grep", "Glob", "Bash"]
+
+# Advisory signals reported on every case (do not block).
+defaultTest:
+  assert:
+    - type: cost
+      threshold: 0.50
+    - type: latency
+      threshold: 180000
+
+tests:
+  # --- SHOULD fire: the skill must trigger on real audit intent --------------
+  - description: explicit audit request
+    vars:
+      request: "Audit the skill in sample-skill/ against agentskills best practices."
+    assert:
+      - type: skill-used
+        value: skill-audit
+
+  - description: casual lint phrasing
+    vars:
+      request: "Can you lint sample-skill/SKILL.md and tell me what's weak about it?"
+    assert:
+      - type: skill-used
+        value: skill-audit
+
+  - description: promotion-readiness phrasing
+    vars:
+      request: "Is the skill in sample-skill/ ready to ship? Give it a structured quality review."
+    assert:
+      - type: skill-used
+        value: skill-audit
+      # Outcome spot-check: a real audit of the synthetic target names its
+      # planted weakness (a thin, trigger-less description).
+      - type: llm-rubric
+        value: "The response flags that the audited skill's description is weak or lacks trigger phrases."
+
+  # --- SHOULD NOT fire: adjacent intents must NOT trigger an audit -----------
+  # `not-skill-used` is accepted by `promptfoo validate` (recognized type);
+  # confirm its runtime negation semantics on the first real run.
+  - description: skill *creation* belongs to skill-creator, not audit
+    vars:
+      request: "Write me a brand-new skill that turns CSV files into charts."
+    assert:
+      - type: not-skill-used
+        value: skill-audit
+
+  - description: unrelated request must not trigger an audit
+    vars:
+      request: "Summarize what changed in the repo over the last week."
+    assert:
+      - type: not-skill-used
+        value: skill-audit
