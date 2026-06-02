@@ -1,6 +1,6 @@
 {
   "name": "memento",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with health checks, passive session capture (save), active LLM-driven interview (ama), and lightweight follow-up queue review (followups). Knowledge base only — commitments belong in the user's issue tracker.",
   "author": {
     "name": "Rich Haase",

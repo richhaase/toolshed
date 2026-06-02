@@ -9,6 +9,79 @@ cd "$MEMENTO_ROOT"
 
 findings=0
 
+# ---------------------------------------------------------------------------
+# Scanner: fail CLOSED.
+#
+# Every privacy + integrity check below is only as trustworthy as the tool
+# behind it. The previous implementation invoked `rg ... 2>/dev/null || true`,
+# which on a box without ripgrep (a stripped-PATH cron / Routine, a fresh
+# machine) silently matched nothing and reported a clean bill of health — a
+# doctor that lies. Resolve ONE scanner up front; if none is available, REFUSE
+# TO CERTIFY and exit non-zero rather than pretend everything is fine.
+#
+# Order: prefer `rg` (fast, .gitignore-aware), fall back to `grep -E`. Override
+# with MEMENTO_DOCTOR_SCANNER=rg|grep (used for testing and to pin behavior on
+# headless boxes). Scanner errors (exit > 1) abort the run instead of being
+# swallowed into a false "clean".
+# ---------------------------------------------------------------------------
+SCANNER=""
+
+_scanner_abort() {
+  printf '# Memento Doctor\n\n'
+  printf -- '- **P0 Scanner unavailable** — %s. Refusing to certify: the privacy and integrity checks cannot run, and a doctor that reports healthy without scanning is worse than no doctor.\n' "$1"
+  exit 2
+}
+
+resolve_scanner() {
+  local want="${MEMENTO_DOCTOR_SCANNER:-auto}"
+  case "$want" in
+    rg|grep)
+      if command -v "$want" >/dev/null 2>&1; then SCANNER="$want"; return; fi
+      _scanner_abort "requested scanner \`$want\` (MEMENTO_DOCTOR_SCANNER) is not on PATH" ;;
+    auto)
+      if command -v rg >/dev/null 2>&1; then SCANNER="rg"; return; fi
+      if command -v grep >/dev/null 2>&1; then SCANNER="grep"; return; fi
+      _scanner_abort "neither \`rg\` nor \`grep\` was found on PATH" ;;
+    *)
+      _scanner_abort "MEMENTO_DOCTOR_SCANNER must be 'rg' or 'grep' (got '$want')" ;;
+  esac
+}
+
+# Thin engine selectors. Each preserves grep/rg's exit semantics verbatim:
+#   0 = match found, 1 = no match (normal), >1 = real error (must NOT be ignored).
+# grep recurses with -r and skips .git; rg recurses by default. Patterns are
+# kept in a dialect valid for BOTH engines (hyphens last in classes, etc.).
+scan_lines() {  # file:line:text
+  local pat="$1"; shift
+  if [ "$SCANNER" = "rg" ]; then rg -n -e "$pat" "$@"
+  else grep -rEn --exclude-dir=.git -e "$pat" "$@"; fi
+}
+scan_oloc() {   # file:line:match (only the matched substring)
+  local pat="$1"; shift
+  if [ "$SCANNER" = "rg" ]; then rg -n -o -e "$pat" "$@"
+  else grep -rEno --exclude-dir=.git -e "$pat" "$@"; fi
+}
+scan_omatch() { # matched substring only, no filename
+  local pat="$1"; shift
+  if [ "$SCANNER" = "rg" ]; then rg -o --no-filename -e "$pat" "$@"
+  else grep -rEoh --exclude-dir=.git -e "$pat" "$@"; fi
+}
+scan_quiet() {  # exit status only
+  local pat="$1"; shift
+  if [ "$SCANNER" = "rg" ]; then rg -q -e "$pat" "$@"
+  else grep -rEq --exclude-dir=.git -e "$pat" "$@"; fi
+}
+
+# Abort the whole run if a scan failed for a reason other than "no match".
+scan_guard() {
+  local rc="${1:-0}" ctx="${2:-scan}"
+  if [ "$rc" -gt 1 ]; then
+    emit P0 "Scanner error" "$ctx" "$SCANNER exited $rc — refusing to certify; results would be incomplete."
+    printf '\nFindings: %s — ABORTED on scanner error.\n' "$findings"
+    exit 3
+  fi
+}
+
 emit() {
   local severity="$1"
   local title="$2"
@@ -33,7 +106,15 @@ have_file() {
 
 print_header() {
   printf '# Memento Doctor\n\n'
-  printf 'Root: `%s`\n\n' "$MEMENTO_ROOT"
+  printf 'Root: `%s`\n' "$MEMENTO_ROOT"
+  if [ "$SCANNER" = "rg" ]; then
+    printf 'Scanner: `rg`\n'
+  else
+    printf 'Scanner: `grep -E` (degraded fallback — `rg` not in use; `.gitignore` not honored)\n'
+  fi
+  local scope
+  scope="$(find wiki sources -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'Scan scope: %s markdown file(s) under wiki/ + sources/\n\n' "${scope:-0}"
 }
 
 check_required_files() {
@@ -54,9 +135,14 @@ check_compile_metadata() {
     emit P1 "Missing last_compile_commit" "wiki/INDEX.md" "Git-backed Mementos need this for reliable incremental compile scope."
   fi
 
-  while IFS= read -r hit; do
-    emit P2 "Page-level last_compiled" "$hit" "Freshness belongs in wiki/INDEX.md, not per-page frontmatter."
-  done < <(rg -n '^last_compiled:' wiki --glob '*.md' --glob '!INDEX.md' 2>/dev/null || true)
+  local out rc=0
+  out="$(scan_lines '^last_compiled:' wiki)" || rc=$?
+  scan_guard "$rc" "check_compile_metadata"
+  while IFS=: read -r file line _rest; do
+    [ -n "${file:-}" ] || continue
+    case "$file" in */INDEX.md|INDEX.md) continue ;; esac
+    emit P2 "Page-level last_compiled" "$file:$line" "Freshness belongs in wiki/INDEX.md, not per-page frontmatter."
+  done < <(printf '%s\n' "$out")
 }
 
 check_newer_sources() {
@@ -79,6 +165,9 @@ check_public_paths() {
   done
   [ "${#search_roots[@]}" -gt 0 ] || return 0
 
+  local out rc=0
+  out="$(scan_oloc '(sources|wiki|data|outputs)/[A-Za-z0-9._/-]+' "${search_roots[@]}")" || rc=$?
+  scan_guard "$rc" "check_public_paths"
   while IFS=: read -r file line path; do
     [ -n "${path:-}" ] || continue
     case "$path" in
@@ -87,7 +176,7 @@ check_public_paths() {
     if [ ! -e "$path" ]; then
       emit P1 "Broken public evidence path" "$file:$line" "Referenced path does not exist: $path"
     fi
-  done < <(rg -n -o '(sources|wiki|data|outputs)/[A-Za-z0-9._/\-]+' "${search_roots[@]}" 2>/dev/null || true)
+  done < <(printf '%s\n' "$out")
 }
 
 check_source_frontmatter() {
@@ -125,12 +214,15 @@ check_wiki_frontmatter() {
 check_hot_set_paths() {
   have_file AGENTS.md || return 0
 
+  local out rc=0
+  out="$(scan_oloc 'wiki/[A-Za-z0-9._/-]+\.md' AGENTS.md)" || rc=$?
+  scan_guard "$rc" "check_hot_set_paths"
   while IFS=: read -r file line path; do
     [ -n "${path:-}" ] || continue
     if [ ! -f "$path" ]; then
       emit P1 "Broken hot-set wiki path" "$file:$line" "Referenced wiki page does not exist: $path"
     fi
-  done < <(rg -n -o 'wiki/[A-Za-z0-9._/\-]+\.md' AGENTS.md 2>/dev/null || true)
+  done < <(printf '%s\n' "$out")
 }
 
 check_wikilink_targets() {
@@ -143,17 +235,24 @@ check_wikilink_targets() {
   [ "${#roots[@]}" -gt 0 ] || return 0
 
   # Slugs that a [[wikilink]] can resolve to: basenames of wiki pages.
-  local slugs
+  local slugs nl=$'\n'
   slugs="$(find wiki -type f -name '*.md' ! -name 'INDEX.md' -exec basename {} .md \; | sort -u)"
 
+  # "not ] or |" must be spelled per-engine: rg (Rust) escapes the ]; POSIX ERE
+  # (grep) treats a leading ] in the class as a literal. Same meaning, both faithful.
+  local wl_pat
+  if [ "$SCANNER" = "rg" ]; then wl_pat='\[\[[^\]|]+'; else wl_pat='\[\[[^]|]+'; fi
+
+  local raw rc=0
+  raw="$(scan_omatch "$wl_pat" "${roots[@]}")" || rc=$?
+  scan_guard "$rc" "check_wikilink_targets"
   while IFS= read -r target; do
     [ -n "${target:-}" ] || continue
-    if ! printf '%s\n' "$slugs" | grep -qxF -- "$target"; then
-      emit P2 "Dangling wikilink target" "$target" "[[$target]] is referenced but no wiki page with that slug exists. May be rot or an intentional forward-reference."
-    fi
-  done < <(rg -o --no-filename '\[\[[^\]|]+' "${roots[@]}" 2>/dev/null \
-    | sed 's/^\[\[[[:space:]]*//; s/[[:space:]]*$//' \
-    | sort -u || true)
+    case "$nl$slugs$nl" in
+      *"$nl$target$nl"*) : ;;  # resolves to a real page
+      *) emit P2 "Dangling wikilink target" "$target" "[[$target]] is referenced but no wiki page with that slug exists. May be rot or an intentional forward-reference." ;;
+    esac
+  done < <(printf '%s\n' "$raw" | sed 's/^\[\[[[:space:]]*//; s/[[:space:]]*$//' | sort -u)
 }
 
 check_public_private_refs() {
@@ -163,12 +262,14 @@ check_public_private_refs() {
   done
   [ "${#roots[@]}" -gt 0 ] || return 0
 
-  local count
-  count="$(rg -n 'private/' "${roots[@]}" 2>/dev/null | wc -l | tr -d ' ')"
-  [ "${count:-0}" -gt 0 ] || return 0
+  local out rc=0
+  out="$(scan_lines 'private/' "${roots[@]}")" || rc=$?
+  scan_guard "$rc" "check_public_private_refs"
+  [ -n "$out" ] || return 0
 
-  local sample
-  sample="$(rg -n 'private/' "${roots[@]}" 2>/dev/null | cut -d: -f1,2 | sed -n '1,5p' | awk '{ printf "%s%s", sep, $0; sep="; " }')"
+  local count sample
+  count="$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+  sample="$(printf '%s\n' "$out" | cut -d: -f1,2 | sed -n '1,5p' | awk '{ printf "%s%s", sep, $0; sep="; " }')"
   emit P2 "Public wiki references private/" "wiki/" "$count wiki reference(s) to private/. Review whether they are structural policy references or content leaks. Sample: $sample"
 }
 
@@ -179,20 +280,31 @@ check_sensitive_route_mentions() {
   done
   [ "${#roots[@]}" -gt 0 ] || return 0
 
+  local out rc=0
+  out="$(scan_lines 'chart-level|financial snapshot|account balance|medication|diagnosis specifics|mental health' "${roots[@]}")" || rc=$?
+  scan_guard "$rc" "check_sensitive_route_mentions"
   while IFS=: read -r file line _rest; do
     [ -n "${file:-}" ] && [ -n "${line:-}" ] || continue
     emit P2 "Public source names sensitive routing" "$file:$line" "Sensitive-routing keyword found in public source. Inspect manually without echoing content."
-  done < <(rg -n 'chart-level|financial snapshot|account balance|medication|diagnosis specifics|mental health' "${roots[@]}" 2>/dev/null | sed -n '1,12p' || true)
+  done < <(printf '%s\n' "$out" | sed -n '1,12p')
 }
 
 check_domain_store_mentions() {
   [ -d data ] || return 0
   have_file wiki/INDEX.md || return 0
 
+  local qroots=()
+  for r in wiki AGENTS.md plugins; do
+    [ -e "$r" ] && qroots+=("$r")
+  done
+  [ "${#qroots[@]}" -gt 0 ] || return 0
+
   while IFS= read -r data_file; do
-    local basename_no_ext
+    local basename_no_ext rc=0
     basename_no_ext="$(basename "$data_file")"
-    if ! rg -q "$data_file|$basename_no_ext" wiki AGENTS.md plugins 2>/dev/null; then
+    scan_quiet "$data_file|$basename_no_ext" "${qroots[@]}" >/dev/null 2>&1 || rc=$?
+    scan_guard "$rc" "check_domain_store_mentions"
+    if [ "$rc" -eq 1 ]; then
       emit P3 "Undocumented domain data file" "$data_file" "No public wiki/AGENTS/plugin mention found for this data file."
     fi
   done < <(find data -type f | sort)
@@ -245,6 +357,7 @@ check_followup_hygiene() {
 }
 
 main() {
+  resolve_scanner
   print_header
   check_required_files
   check_compile_metadata
