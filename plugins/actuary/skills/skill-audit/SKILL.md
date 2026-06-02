@@ -178,7 +178,10 @@ Run the **privacy / genericization** rule class from `references/criteria.md`
 across every audited skill's files (SKILL.md, `references/`, `scripts/`,
 `assets/`). Use Grep/Read — recognize concrete instances of each `privacy-*`
 class (machine paths, cloud keys, key material, chat object IDs, internal
-emails, customer slugs, `private/` references). This is the agent-time advisory;
+emails, customer/tenant/account identifiers, **real people**, **real
+groups/affiliations**, `private/` references — the Memento may be personal, so
+people/groups include friends, family, and contacts, not just colleagues and
+work teams; recognized semantically, not by regex). This is the agent-time advisory;
 the deterministic enforcement is `scripts/privacy-scan` at the pre-push boundary
 — do **not** invoke it from here, just cite the same rule keys.
 

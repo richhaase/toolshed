@@ -210,9 +210,13 @@ that fit your task." There is no body-length trigger in canonical.
 
 Runs only in `--tier` mode (see SKILL.md). A skill graduating from a local
 experiment toward a public repo or marketplace must carry **generic
-placeholders only** — never real IDs, machine paths, key material, or
-private-data references. This audit is the **agent-time advisory** that surfaces
-such content *before* a push. The deterministic enforcement is a separate
+placeholders only** — never real IDs, machine paths, key material, private-data
+references, or **real people and groups**. The Memento is frequently a
+*personal* knowledge base, so "real-world references" span **friends, family,
+and personal contacts and circles** — not just business entities like an
+employer, customers, or a work team. All of them must be genericized for a
+public skill. This audit is the **agent-time advisory** that surfaces such
+content *before* a push. The deterministic enforcement is a separate
 mechanism: `scripts/privacy-scan` (toolshed repo infrastructure, fail-closed)
 runs at the pre-push hook and in CI. This audit and that scanner share the same
 `privacy-*` rule-key vocabulary so the verdict and the gate agree; the audit
@@ -230,14 +234,25 @@ Apply these by reading + grepping the audited skill's files (SKILL.md,
   (`C…`/`U…`/`W…`/`G…`), and equivalents for other providers.
 - **Internal / personal email addresses.** Real employer-domain or personal
   addresses used as concrete examples instead of `user@example.com`.
-- **Customer slugs / account IDs.** Real customer names or account identifiers
+- **Customer / tenant / account identifiers.** Real customer names, SaaS tenant
+  slugs, a `*.atlassian.net`-style cloud ID, a project key, or an account number
   baked into examples or fixtures.
+- **Real people.** A real individual — friend, family member, colleague, contact
+  — named as a concrete example, trigger phrase, or fixture instead of a
+  synthetic placeholder (`Alex`, `a teammate`, `<person>`). Personal, not just
+  professional: a spouse, a kid's name, a doctor, a neighbor all count.
+- **Real groups / affiliations.** A real team, employer, family, household,
+  community, club, school, or friend-circle named concretely instead of a
+  generic placeholder (`your team`, `<group>`).
 - **`private/` path references.** Literal references to a Memento `private/`
   path (or other walled-off data) from a file destined for a public repo.
 
-Instance-specific patterns (a specific employer domain, customer slugs, a Slack
-workspace's ID shapes) are **not** hard-coded here — they live in the local
-`PRIVACY_RULESET` the scanner loads and never ship publicly. This catalog names
+Instance-specific *patterns* (a specific employer domain, customer/tenant slugs,
+a Slack workspace's ID shapes) are **not** hard-coded here — they live in the
+local `PRIVACY_RULESET` the scanner loads and never ship publicly. **Real
+people/group names are recognized *semantically* by this audit, not by regex** —
+arbitrary names rarely have a stable shape to scan for, which is exactly why the
+agent-time review exists alongside the deterministic scanner. This catalog names
 the *classes*; the auditor recognizes concrete instances of each.
 
 ### Tier bars
@@ -353,7 +368,9 @@ a **hard-block at `toolshed` and `marketplace` tiers**, advisory at `local`.
 | `privacy-key-material` | `-----BEGIN … PRIVATE KEY-----` or other embedded credential |
 | `privacy-slack-id` | Slack channel/user/workspace object ID (`C…`/`U…`/`W…`/`G…`) |
 | `privacy-internal-email` | Real employer-domain or personal email used as a concrete example |
-| `privacy-customer-slug` | Real customer name / account ID baked into an example or fixture |
+| `privacy-customer-slug` | Real customer / tenant / account identifier (SaaS slug, `*.atlassian.net` cloud ID, project key, account number) in an example or fixture |
+| `privacy-real-person` | Real individual (friend, family, colleague, contact) used as a concrete example / trigger / fixture instead of a placeholder |
+| `privacy-real-group` | Real group or affiliation (team, employer, family, household, community, club, school, friend-circle) named concretely as an example |
 | `privacy-private-path-ref` | Literal `private/` (or other walled-off) path reference in a public-bound file |
 
 ## What this audit deliberately does *not* do
