@@ -104,8 +104,9 @@ Glob the queue:
 ls "$MEMENTO_ROOT/sources/followups/"*.md 2>/dev/null
 ```
 
-Read each file's frontmatter (`date`, `expires_at`, `rationale`, `origin`)
-and the first `#` heading. Build:
+Then read **all** the globbed files in a single parallel batch (one message,
+one Read per file) — not one at a time. From each, take the frontmatter
+(`date`, `expires_at`, `rationale`, `origin`) and the first `#` heading. Build:
 
 ```
 date: YYYY-MM-DD

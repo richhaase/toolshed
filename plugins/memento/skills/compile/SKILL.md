@@ -48,6 +48,7 @@ Hard rules — environment-specific facts the agent will get wrong without these
 - **Always create new commits — never `--amend`.** Pre-commit hook failure
   means the commit didn't happen; fix the issue, re-stage, new commit.
 - **The skill commits locally only — never push.** Pushing is the user's call.
+- **For recurring/scheduled compile, drive this skill from a Routine or `CronCreate` task — don't hand-roll a polling loop.** Per the control-plane principle, rent the scheduling from the harness; this skill owns only the compile semantics.
 
 **Performance — speed is a hard constraint:**
 - **Batch reads in one message — this runs them concurrently.** 17 source

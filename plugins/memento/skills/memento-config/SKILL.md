@@ -28,6 +28,22 @@ Idempotent setup-and-update surface for the Memento. On a fresh directory,
 scaffolds and interviews. On an existing Memento, detects current state and
 offers a targeted update menu.
 
+## Gotchas
+
+- **Never overwrite `AGENTS.md`, `CLAUDE.md`, `.gitignore`, or `wiki/` content.**
+  Edits are surgical — add what's missing, amend what the user changes, never
+  replace a file wholesale. This is what makes the skill safe to re-run.
+- **Idempotent by design.** Re-running detects current state (Phase 0: `MODE=new`
+  vs `update`) and only backfills what's absent — setup and update are the same
+  entry point.
+- **Scaffold snippets are illustrative — substitute the configured entity types.**
+  The `mkdir` / template examples use placeholder or default type slugs; running
+  them verbatim seeds the wrong structure (e.g. people/projects into a
+  customer-management Memento).
+- **This is the plugin's entry point.** For any other Memento operation — compile,
+  capture, triage, health — defer to the dedicated skill rather than
+  reimplementing it here.
+
 ## Memento root
 
 `memento-config` is the entry point that creates or selects the Memento data root.
@@ -293,9 +309,12 @@ Also add these sections based on interview answers:
 
 #### Create wiki subdirectories
 
-Create a subdirectory under `wiki/` for each entity type:
+Create a subdirectory under `wiki/` for each entity type. Substitute the actual
+configured type slugs — do **not** run this verbatim (the placeholders are not
+real types, and the people/projects/… defaults are wrong for, say, a
+customer-management Memento):
 ```bash
-mkdir -p "$MEMENTO_ROOT"/wiki/people "$MEMENTO_ROOT"/wiki/projects "$MEMENTO_ROOT"/wiki/interests "$MEMENTO_ROOT"/wiki/goals "$MEMENTO_ROOT"/wiki/ideas  # adapt to configured types
+for t in <type1> <type2> <type3>; do mkdir -p "$MEMENTO_ROOT/wiki/$t"; done
 ```
 
 #### Seed INDEX.md

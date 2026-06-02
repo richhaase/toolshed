@@ -28,8 +28,8 @@ Arguments are passed as: $ARGUMENTS
 
 - No arguments or `doctor` -> run the core read-only doctor checks.
 - `privacy` -> focus on public-surface privacy lint and forbidden-path leakage.
-- `eval` -> assess or draft local golden-query fixture coverage.
-- `fixtures` -> inspect compile/eval fixture readiness if the repo has them.
+- `eval` -> run the deterministic scorer, report the verdict, and surface the last gate outcome.
+- `fixtures` -> assess fixture coverage and help draft missing fixtures (authoring side; does not run the gate).
 - `full` -> run all applicable checks.
 
 ## Non-negotiable rules
@@ -200,6 +200,25 @@ Report the entity, the page value, and the ledger value. The fix is to
 reconcile through `promote`, not to patch the frontmatter. Do not write the
 repair.
 
+This check stays **judgment-side, not in `doctor.sh`**: the ledger is human-prose
+(`## <date> — <entity>: <from> → <to> (<plugin>)`, unicode arrows) and entity
+names don't map 1:1 to page slugs (e.g. page `ts-dev-tools-pr-review` ↔ ledger
+entity `auto-review`), so a deterministic string match would cry wolf. The LLM
+does the fuzzy entity↔slug reconciliation a grep can't. Don't try to move it into
+the script without first giving the ledger a machine-parseable marker per entry.
+
+### Check 12: Trajectory Telemetry
+
+Trajectory records (`sources/trajectories/<date>/<run-id>.md`, written by `save`
+and `ama`) are telemetry — the learning loop queries their frontmatter, not their
+prose. `scripts/doctor.sh` flags any trajectory missing `outcome` or
+`skills_used` (P2); without those, the record is invisible to Reflexion lessons
+and trajectory clustering. `date` is covered by Check 8 and sensitive-keyword
+leaks by Check 5 (both scan all of `sources/`, trajectories included). Beyond the
+deterministic frontmatter check, confirm by eye that a trajectory carries no
+`private_notes`-class entity assessment — that routes to `private/`, never a
+trajectory.
+
 ## Golden-query eval design
 
 `eval` runs the deterministic scorer when fixtures exist, and helps draft them when they
@@ -208,7 +227,12 @@ don't. **Run the scorer first:**
 ```bash
 node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --json   # report the verdict
 node ../_shared/scripts/eval-score --self-test                     # prove it fails a poisoned hot set
+ls -t sources/eval/runs/*.jsonl 2>/dev/null | head -1 | xargs tail -n 1 2>/dev/null  # last recorded gate verdict
 ```
+
+The runs-ledger line surfaces the **last gate outcome** so a recent compile
+rollback isn't invisible — a `fail` there means the last compile rolled back the
+hot set rather than committing a regression.
 
 `eval-score` (node, `_shared/scripts/`) reads `sources/eval/fixtures/{regression,capability}.json`
 + `verdict-contract.json`, checks each fixture's `required_answer_atoms` against the compiled

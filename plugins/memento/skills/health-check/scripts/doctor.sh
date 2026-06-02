@@ -195,6 +195,27 @@ check_source_frontmatter() {
   done < <(find sources -type f -name '*.md' | sort)
 }
 
+check_trajectory_frontmatter() {
+  [ -d sources/trajectories ] || return 0
+
+  # Trajectories are telemetry: the learning loop queries the frontmatter, not the
+  # prose. A record missing outcome/skills_used is invisible to that loop. (date is
+  # already covered by check_source_frontmatter; sensitive-keyword leaks by
+  # check_sensitive_route_mentions, which scans all of sources/.)
+  while IFS= read -r traj; do
+    if ! awk '
+      NR == 1 && $0 == "---" { in_fm = 1; next }
+      NR == 1 && $0 != "---" { exit 1 }
+      in_fm && $0 == "---" { exit (outcome && skills) ? 0 : 1 }
+      in_fm && /^outcome:[[:space:]]*[^[:space:]]/ { outcome = 1 }
+      in_fm && /^skills_used:[[:space:]]*/ { skills = 1 }
+      END { if (in_fm) exit (outcome && skills) ? 0 : 1 }
+    ' "$traj"; then
+      emit P2 "Trajectory missing telemetry frontmatter" "$traj" "Records need outcome + skills_used so the learning loop can query them. See the save/ama trajectory template."
+    fi
+  done < <(find sources/trajectories -type f -name '*.md' | sort)
+}
+
 check_wiki_frontmatter() {
   [ -d wiki ] || return 0
 
@@ -364,6 +385,7 @@ main() {
   check_newer_sources
   check_public_paths
   check_source_frontmatter
+  check_trajectory_frontmatter
   check_wiki_frontmatter
   check_hot_set_paths
   check_wikilink_targets
