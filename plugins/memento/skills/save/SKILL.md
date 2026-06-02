@@ -166,9 +166,13 @@ Review the session content and identify items in these categories:
 | **Private notes** | Observations about entities with `private_notes: yes` | `private/<filename-pattern>` (append) |
 | **Follow-up** *(at most one per session, user-confirmed)* | A single re-read-and-act-on-it-within-a-week item that genuinely cannot live anywhere else | `sources/followups/topic-slug.md` |
 | **Follow-up updates** | New context on existing follow-ups the user is still triaging | Update existing `sources/followups/*.md` |
+| **Trajectory** *(telemetry — every substantive session)* | Structured record of the run: task, outcome, skills/tools used, lessons, artifacts | `sources/trajectories/YYYY-MM-DD/<run-id>.md` |
 
-Most sessions produce 0-2 items. Don't force it. Most sessions produce
-**zero** follow-ups — that is the expected outcome.
+Most sessions produce 0-2 value items (and zero follow-ups — that is the
+expected outcome). The **trajectory record is different**: emit one per
+substantive session as structured telemetry, regardless of whether there were
+value items. It is the substrate the future learning loop (Reflexion lessons,
+trajectory clustering, SkillOpt) consumes — see "Trajectory channel" below.
 
 ### Where commitments go
 
@@ -221,6 +225,33 @@ Delegated work often produces specific kinds of value:
 - **Research handles**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere.
 - **Investigation handles**: Findings may warrant a research doc or analysis if substantive.
 - **Task handles**: May have produced code changes, commits, PRs, or surfaced blockers. Blockers worth tracking belong in the issue tracker, not as Memento follow-ups.
+
+### Trajectory channel
+
+Emit one **trajectory record** per substantive session — structured, compact
+telemetry, separate from the prose session decision file. It is the missing
+substrate piece the learning loop reads: Reflexion failure-lessons,
+trajectory clustering, and a future SkillOpt proposer all run over these.
+
+- **Destination:** `sources/trajectories/YYYY-MM-DD/<run-id>.md`, where
+  `<run-id>` is `date '+%Y-%m-%dT%H%M%S'` (matches the session-file timestamp
+  when both are written). The per-day directory keeps the channel browsable.
+- **When:** every session that did real work (a main conversation with edits /
+  decisions / research, or a closed Legate/background/workflow handle). Skip
+  trivial no-op sessions. This is *not* gated by the "empty capture plan" rule —
+  a successful session with no other value items still emits a trajectory record.
+- **Shape:** frontmatter-heavy (see `assets/templates/file-formats.md` →
+  trajectory). Capture `outcome` (success/partial/failed), `skills_used`,
+  `tools_used`, `harness`, `artifacts` (PRs/commits/files), and a short
+  `lessons` list (the Reflexion hook — what would make the next run go better).
+- **Local-only forever.** Trajectories are saturated with real context and are
+  **never promoted**; they live only in the local Memento. Retention/GC is a
+  later-phase concern — for now, append; do not prune.
+
+Trajectory emission does not require user confirmation (it is telemetry, not a
+follow-up). It still routes sensitive entity observations to `private/` per the
+sensitivity rules — keep the trajectory record itself free of `private_notes`
+entity assessments.
 
 ## Step 4: Capture plan (and confirmation gates)
 

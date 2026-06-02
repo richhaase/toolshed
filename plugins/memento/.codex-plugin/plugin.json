@@ -1,7 +1,7 @@
 {
   "name": "memento",
-  "version": "0.12.0",
-  "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with a deterministic eval gate (compile auto-rolls-back if a load-bearing fact drops from the always-resident hot set), health checks, passive session capture (save), active LLM-driven interview (ama), and lightweight follow-up queue review (followups). Knowledge base only — commitments belong in the user's issue tracker.",
+  "version": "0.13.0",
+  "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with a deterministic eval gate (compile auto-rolls-back if a load-bearing fact drops from the always-resident hot set), health checks, passive session capture (save, now emitting a structured trajectory channel), active LLM-driven interview (ama), lightweight follow-up queue review (followups), and a gated local -> toolshed -> marketplace promotion flow (promote — sole writer of the promotion ledger, composes actuary --tier as Gate-1). Knowledge base only — commitments belong in the user's issue tracker.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Memento",
     "shortDescription": "Personal memory base workflows",
-    "longDescription": "Multi-layer local memory base. Six skills cover the full loop: memento-config (setup + ongoing config), health-check (read-only doctor + the eval gate's golden-query scorer), save (passive session capture), ama (active LLM-driven interview), compile (sources -> wiki -> AGENTS.md hot set, gated by a deterministic eval + auto-rollback that protects the hot set before commit), and followups (lightweight follow-up queue review — expired-first). Knowledge base only; real commitments belong in the user's issue tracker. Supports a configurable Memento data root for global plugin installs.",
+    "longDescription": "Multi-layer local memory base. Seven skills cover the full loop: memento-config (setup + ongoing config), health-check (read-only doctor + the eval gate's golden-query scorer + promotion-ledger integrity), save (passive session capture + structured trajectory channel), ama (active LLM-driven interview), compile (sources -> wiki -> AGENTS.md hot set, gated by a deterministic eval + auto-rollback that protects the hot set before commit), followups (lightweight follow-up queue review — expired-first), and promote (gated local -> toolshed -> marketplace promotion; sole writer of the promotion ledger; composes actuary --tier as Gate-1). Knowledge base only; real commitments belong in the user's issue tracker. Supports a configurable Memento data root for global plugin installs.",
     "developerName": "Rich Haase",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

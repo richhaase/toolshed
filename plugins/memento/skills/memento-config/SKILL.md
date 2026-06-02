@@ -109,7 +109,7 @@ commitments belong in the user's issue tracker, not in markdown.
 Create all directories:
 
 ```bash
-mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/sources/eval/fixtures "$MEMENTO_ROOT"/sources/eval/runs "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
+mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/sources/eval/fixtures "$MEMENTO_ROOT"/sources/eval/runs "$MEMENTO_ROOT"/sources/trajectories "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
 ```
 
 ### Starter context files

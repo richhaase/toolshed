@@ -182,6 +182,24 @@ the current schema (e.g. one still using an `entity:` key). This is a P2 schema
 drift, not a broken link — recompile or normalize the page rather than treating
 it as corruption.
 
+### Check 11: Promotion Ledger Integrity
+
+`promote` is the **sole writer** of promotion state, so the ledger and the pages
+must agree. Cross-check `promotion_stage` frontmatter on `wiki/skills/` +
+`wiki/tools/` pages against `wiki/skills/_promotion-ledger.md`:
+
+- A page carries a `promotion_stage` with **no backing ledger entry** for that
+  entity -> contradiction (P2): the stage was hand-edited, not promoted. The
+  registry lists `promotion_stage` in `contradiction_fields` for both types.
+- A page's `promotion_stage` **disagrees** with the ledger's latest entry for
+  that entity -> contradiction (P2).
+- A ledger entry exists but the page is missing the field, or `last_eval_pass`
+  is set without any ledger evidence -> P3 drift.
+
+Report the entity, the page value, and the ledger value. The fix is to
+reconcile through `promote`, not to patch the frontmatter. Do not write the
+repair.
+
 ## Golden-query eval design
 
 `eval` runs the deterministic scorer when fixtures exist, and helps draft them when they

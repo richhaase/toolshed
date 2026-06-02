@@ -104,6 +104,40 @@ registry). Append — never overwrite. Create the file if it does not exist.
 <Observation or note>
 ```
 
+## Trajectory (telemetry)
+
+Path: `sources/trajectories/YYYY-MM-DD/<run-id>.md`
+(`<run-id>` = `date '+%Y-%m-%dT%H%M%S'`).
+
+Compact, structured, one per substantive session. Local-only forever — never
+promoted. The body is short; the value is the frontmatter the learning loop
+queries. Keep real-entity observations out of it (those route to `private/`).
+
+```markdown
+---
+run_id: YYYY-MM-DDTHHmmss
+date: YYYY-MM-DD
+harness: claude-code | codex | cowork
+session_type: main | legate | background | workflow
+task: <one line — what this session set out to do>
+outcome: success | partial | failed
+skills_used: [skill-a, skill-b]
+tools_used: [Bash, Edit, mcp__...]
+artifacts: [<PR url / commit sha / file path>, ...]
+related: [[entity-or-topic]]
+---
+
+# <Short session label>
+
+## What happened
+<2-4 lines: the arc of the session, factually.>
+
+## Lessons
+<0-3 bullets — the Reflexion hook. What would make the next run of this kind
+go better? A gotcha discovered, a wrong turn avoided, a pattern that worked.
+Empty is fine for a clean routine session.>
+```
+
 ## Tasks
 
 The Memento does not store tasks. Commitments belong in the user's issue
