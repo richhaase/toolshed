@@ -11,7 +11,7 @@ description: >
   promotion ledger and the promotion_stage frontmatter — never hand-edit those.
 argument-hint: "<skill-or-tool> [--to <local-ok|toolshed-ready|toolshed|marketplace-ready|marketplace>] [--dry-run]"
 user-invocable: true
-allowed-tools: Read Glob Grep Bash Edit Write Skill
+allowed-tools: Read Glob Grep Bash Edit Write Skill AskUserQuestion
 ---
 
 # Promote
@@ -52,7 +52,7 @@ frontmatter on `wiki/skills/` + `wiki/tools/` pages are all relative to
 - **Promotion is human-triggered.** Always confirm the actual stage change with
   the user (Step 5) before writing anything. `--dry-run` stops after the verdict.
 - **Compose other skills via the Skill tool — never reach into their files.**
-  Invoke `actuary` via the Skill tool for the tier verdict. Use this plugin's
+  Invoke `actuary:skill-audit` via the Skill tool for the tier verdict. Use this plugin's
   own `_shared` scripts and `scripts/privacy-scan` (toolshed repo infra) by name.
 - **Toolshed pushes go to main directly; never edit plugin caches.** Edit source
   in the toolshed repo, bump `plugin.json` (both manifests), push to main.
@@ -87,7 +87,7 @@ frontmatter on `wiki/skills/` + `wiki/tools/` pages are all relative to
 
 ## Step 2: Gate-1 — actuary tier verdict (privacy + spec)
 
-Invoke `actuary` via the **Skill tool** with `--tier <target-tier-class>`
+Invoke `actuary:skill-audit` via the **Skill tool** with `--tier <target-tier-class>`
 against the entity's **source files** (the local/toolshed skill directory, not
 just the wiki page). Map the target stage to the tier class actuary understands:
 

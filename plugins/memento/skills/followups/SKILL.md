@@ -1,6 +1,6 @@
 ---
 name: followups
-description: Inventory, view, or triage open follow-ups in sources/followups/ — the user's small queue of "re-read within a week, act on it" captures. Subcommands list (default; print open items, expired first), show (display one item read-only), and walk (interactive triage one at a time — keep, dismiss, answer, note). Use when the user says "list my open items", "what's open", "show me followup X", "review followups", "go through my open items", "triage my queue", or "walk follow-ups".
+description: Inventory, view, or triage open follow-ups in sources/followups/ — the user's small queue of "re-read within a week, act on it" captures. Subcommands list (default; print open items, expired first), show (display one item read-only), and walk (interactive triage one at a time — keep, dismiss, answer, note, or file-and-dismiss to the issue tracker). Use when the user says "list my open items", "what's open", "show me followup X", "review followups", "go through my open items", "triage my queue", or "walk follow-ups".
 argument-hint: "[list|show|walk] [<slug> ...] [oldest|newest|expired]"
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
@@ -104,8 +104,8 @@ Glob the queue:
 ls "$MEMENTO_ROOT/sources/followups/"*.md 2>/dev/null
 ```
 
-Read each file's frontmatter (`date`, `expires_at`, `rationale`) and the
-first `#` heading. Build:
+Read each file's frontmatter (`date`, `expires_at`, `rationale`, `origin`)
+and the first `#` heading. Build:
 
 ```
 date: YYYY-MM-DD
@@ -289,10 +289,14 @@ After the walk completes (or the user says `stop`), summarize:
 If anything changed on disk, commit once at the end:
 
 ```bash
-git -C "$MEMENTO_ROOT" add sources/followups/ sources/notes/
+git -C "$MEMENTO_ROOT" add -- <touched-followup-and-note-files>
 git -C "$MEMENTO_ROOT" commit -m "followups: review — <one-line summary>"
 ```
 
+Stage **only the files this walk touched** (dismissals, expiry bumps, note
+appends, and any answer-to-note files) — never `git add sources/followups/`
+broadly, which would sweep a concurrent agent's untracked files into this commit.
+`git add -- <path>` stages a deletion too, so dismissed items commit correctly.
 Skip the commit if nothing changed. `list` and `show` never commit.
 
 ## Guidelines

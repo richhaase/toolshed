@@ -39,8 +39,11 @@ sources/                # L3 — raw inputs
 ├── syncs/              # Automated pulls (one subdir per provider)
 │   └── <provider>/     # e.g., concept2/, github/ — timestamped files
 ├── notes/              # Durable knowledge — folds into wiki on /compile
-└── followups/          # Small queue of "re-read within a week, act on it"
-                        # items with expires_at frontmatter
+├── followups/          # Small queue of "re-read within a week, act on it"
+│                       # items with expires_at frontmatter
+├── trajectories/       # YYYY-MM-DD/<run-id>.md — session telemetry from
+│                       # /save and /ama. Local-only, NOT compiled.
+└── eval/               # Golden-query fixtures + gate-run telemetry. NOT compiled.
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
@@ -70,6 +73,11 @@ All inputs that feed the wiki. Organized by origin:
   either dismissed, answered into a note, noted, or filed-and-dismissed
   when something turns out to be a real commitment that belongs in the
   issue tracker. The Memento does not store tasks itself.
+- **`trajectories/`** — `YYYY-MM-DD/<run-id>.md` session telemetry emitted by
+  `/save` and `/ama` (outcome, skills/tools used, lessons). Local-only, never
+  compiled or promoted — the substrate the learning loop reads.
+- **`eval/`** — golden-query fixtures and gate-run telemetry for the `/compile`
+  eval gate. Not a synthesis input.
 
 All source docs require YAML frontmatter with at least `date`.
 
@@ -103,6 +111,10 @@ L1 (`AGENTS.md`) and L2 (`wiki/`) are generated projections over L3 sources,
 not authority. Treat them as convenient caches. When freshness, provenance, or
 privacy classification is in doubt, inspect L3 sources and source policy before
 trusting compiled summaries.
+
+`/compile` protects L1 with a fail-closed golden-query eval gate: if a
+load-bearing fact drops out of the hot set, it rolls back `AGENTS.md` + `wiki/`
+rather than committing a regression.
 
 Run `/health-check` when you need a read-only doctor pass for stale projections,
 broken evidence paths, compile metadata drift, public-surface privacy risks, or

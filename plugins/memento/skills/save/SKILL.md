@@ -1,25 +1,26 @@
 ---
 name: save
-description: Save a session by extracting useful data, persisting it to sources, and closing down. Works on Legate delegated handles and the main conversation. Use when wrapping up any session ("we're done", "wrap up", "save", "close out"), when closing delegated work, or when the user wants session context captured. Also triggers on "session-log", "log this", "anything to capture?". Default action is immediate; pass `ask` to review the capture plan before writing.
-argument-hint: "[session-name|all] [ask]"
+description: Save a session by extracting useful data, persisting it to sources, and closing down. Captures the current conversation — including any results that background agents or workflows reported back into it. Use when wrapping up any session ("we're done", "wrap up", "save", "close out") or when the user wants session context captured. Also triggers on "session-log", "log this", "anything to capture?". Default action is immediate; pass `ask` to review the capture plan before writing.
+argument-hint: "[ask]"
 user-invocable: true
-allowed-tools: Read Write Edit Glob Grep Bash Agent Skill
+allowed-tools: Read Write Edit Glob Grep Bash
 ---
 
 # Save
 
 Save a session. Extract anything worth keeping, persist it, close down.
 
-Works on two kinds of sessions:
-
-1. **Legate delegated handles** — debrief/log the delegated work, extract value, write to sources, then stop/close the handle when supported.
-2. **Main conversation** — scan the current conversation, extract value, write to sources, commit.
+Operates on the current conversation. Work you delegated to background `Agent`
+tasks or `workflow`s reports its results back into this conversation when it
+finishes — so saving the conversation captures that delegated output too. There
+is no separate out-of-band handle to debrief.
 
 ## Gotchas
 
-- **No arguments = save the current (main) conversation.** Do NOT check on,
-  debrief, or interact with Legate handles. Delegated work is independent. Touch
-  them only if a name is passed or `all` is given.
+- **Save the current conversation, including delegated results already in it.**
+  Capture the output that background `Agent` tasks / `workflow`s have reported
+  back. Don't reach for work that is still running and hasn't returned — there's
+  nothing to capture yet; save again once it reports back.
 - **Default mode writes most categories immediately** — decisions, research,
   analyses, private notes, durable knowledge. `ask` makes the whole plan
   approval-gated. Follow-ups are different (see next bullet).
@@ -58,90 +59,27 @@ All `sources/`, `outputs/`, `private/`, and context files below are relative to
 
 Arguments are passed as: $ARGUMENTS
 
-Target selector (pick one):
-
-- No arguments → save the current (main) conversation
-- A Legate handle name (e.g., `pr-52`, `research-auth`) → save that delegated handle
-- `all` → save all open Legate handles, then the main conversation
-
-Mode modifier (optional, combines with any target):
+Mode modifier (optional):
 
 - `approve` (or omitted) → **default.** Extract → write → commit → report. No prompt.
 - `ask` → Extract → show capture plan → wait for user approval → write → commit → report.
 
-Examples: `save`, `save ask`, `save pr-52`, `save pr-52 ask`, `save all`, `save all ask`.
+Examples: `save`, `save ask`.
 
-## Step 0: Determine the target and mode
+## Step 0: Determine the mode
 
-**No arguments = save the main conversation in default (no-approval) mode. Do NOT check on, debrief, or interact with Legate handles.** Delegated work keeps running. Only touch it if explicitly named or `all` is passed.
-
-Parse `$ARGUMENTS`: the mode is `ask` if the tokens contain `ask`; otherwise `approve` (default). The remaining token (if any) is the target — a Legate handle name or `all`. Remember the mode for Step 4.
-
-If a Legate handle is given, resolve it from conversation history first. For
-tmux-backed legacy handles, verify the window exists:
-
-```bash
-tmux show-option -wv -t "<name>" @legate-managed 2>/dev/null
-```
-
-If `all`, collect known Legate handles from conversation history. Also list
-tmux-managed windows as a compatibility fallback:
-
-```bash
-for w in $(tmux list-windows -F '#{window_name}'); do
-  managed=$(tmux show-option -wv -t "$w" @legate-managed 2>/dev/null)
-  if [ "$managed" = "true" ]; then
-    desc=$(tmux show-option -wv -t "$w" @legate-description 2>/dev/null)
-    echo "$w: $desc"
-  fi
-done
-```
+Parse `$ARGUMENTS`: the mode is `ask` if the tokens contain `ask`; otherwise
+`approve` (default). Remember the mode for Step 4.
 
 ## Step 1: Gather session content
 
-### For a Legate handle
+Scan the current conversation history — you have full access to it. Include the
+results that any background `Agent` tasks or `workflow`s reported back into the
+conversation; those are part of this session's output.
 
-Start with what was asked. Prefer Legate's own status surfaces:
-
-1. Invoke `legate:debrief <handle>` via the Skill tool for the task arc.
-2. Invoke `legate:logs <handle>` via the Skill tool when raw detail is needed.
-3. For tmux-backed legacy handles, fall back to the original pane capture flow:
-
-```bash
-cat /tmp/legate-<name>.md 2>/dev/null
-```
-
-If the file is gone, fall back to the tags:
-
-```bash
-tmux show-option -wv -t "<name>" @legate-description
-tmux show-option -wv -t "<name>" @legate-source
-```
-
-Then capture the tail for tmux handles:
-
-```bash
-tmux capture-pane -t "<name>" -p -S -80
-```
-
-Read the tail from the bottom up. Skip blank lines, prompt lines, and tool-call noise
-(file reads, grep output, diff hunks, progress bars). Find the agent's last substantive
-prose block — that's the conclusion. Compare it against the context brief to understand
-what was asked, what was delivered, and what's worth extracting.
-
-If the conclusion references specific deliverables (PRs opened, files written, commits
-made), check those directly rather than trying to reconstruct them from scrollback.
-
-Only escalate to a larger capture if the tail genuinely doesn't have enough to assess
-what happened:
-
-```bash
-tmux capture-pane -t "<name>" -p -S -200
-```
-
-### For the main conversation
-
-Scan the current conversation history. You have full access to it — no tmux capture needed.
+If the conversation references specific deliverables (PRs opened, files written,
+commits made by delegated work), check those directly rather than reconstructing
+them from the discussion.
 
 ## Step 2: Read Entity Types registry
 
@@ -218,13 +156,13 @@ configured filename pattern, not to `sources/`.
 - Routine operations (git commands, file reads, debugging steps)
 - Information already in the repo that hasn't changed
 
-### Legate-specific patterns
+### Patterns from delegated work
 
-Delegated work often produces specific kinds of value:
+Output that background agents / workflows reported back often carries specific
+kinds of value:
 
-- **Research handles**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere.
-- **Investigation handles**: Findings may warrant a research doc or analysis if substantive.
-- **Task handles**: May have produced code changes, commits, PRs, or surfaced blockers. Blockers worth tracking belong in the issue tracker, not as Memento follow-ups.
+- **Research / investigation**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere; substantive work may warrant a research doc or analysis.
+- **Code changes**: May have produced commits, PRs, or surfaced blockers. Blockers worth tracking belong in the issue tracker, not as Memento follow-ups.
 
 ### Trajectory channel
 
@@ -236,8 +174,8 @@ trajectory clustering, and a future SkillOpt proposer all run over these.
 - **Destination:** `sources/trajectories/YYYY-MM-DD/<run-id>.md`, where
   `<run-id>` is `date '+%Y-%m-%dT%H%M%S'` (matches the session-file timestamp
   when both are written). The per-day directory keeps the channel browsable.
-- **When:** every session that did real work (a main conversation with edits /
-  decisions / research, or a closed Legate/background/workflow handle). Skip
+- **When:** every session that did real work (edits / decisions / research, or
+  delegated background-agent / workflow output that reported back). Skip
   trivial no-op sessions. This is *not* gated by the "empty capture plan" rule —
   a successful session with no other value items still emits a trajectory record.
 - **Shape:** frontmatter-heavy (see `assets/templates/file-formats.md` →
@@ -288,9 +226,7 @@ require confirmation — they are continuations, not new captures.
 
 **Default mode (no arg, `approve`):** print the plan as a record of what's about to happen. Run the per-follow-up confirmation gate above for any proposed new follow-up. Then proceed to Step 5 for everything else.
 
-**Ask mode (`ask`):** print the plan and wait for explicit user approval of the whole plan before proceeding to Step 5. The follow-up gate still runs inside ask mode — it is a stricter check on top of the broader plan approval. For `save all ask`, batch plans across all targets into a single prompt and get one approval; per-follow-up confirmations remain individual.
-
-`save all` in default mode proceeds without whole-plan approval — Rich triggered it deliberately — but follow-up confirmations still fire per handle.
+**Ask mode (`ask`):** print the plan and wait for explicit user approval of the whole plan before proceeding to Step 5. The follow-up gate still runs inside ask mode — it is a stricter check on top of the broader plan approval.
 
 ## Step 5: Write files
 
@@ -304,28 +240,21 @@ overwrite.
 
 ## Step 6: Close down
 
-### For a Legate handle
-Close the delegated work after capture:
-
-1. Prefer `legate:stop <handle>` via the Skill tool.
-2. For tmux-backed legacy handles, kill the tmux window only after capture:
+Stage **only the files this save wrote** — collect their exact paths from the
+Step 5 capture plan (the session file, any notes / analyses, the private-note
+file, a follow-up, and the trajectory record). Then commit:
 
 ```bash
-tmux kill-window -t "<name>"
-```
-
-### For the main conversation
-Commit all written files:
-```bash
-git -C "$MEMENTO_ROOT" add sources/ outputs/ private/
+git -C "$MEMENTO_ROOT" add -- <path> [<path> ...]
 git -C "$MEMENTO_ROOT" commit -m "save: capture session — <brief summary>"
 ```
 
-`sources/` covers every subdirectory (`sessions/`, `notes/`, `followups/`,
-`syncs/`).
-
-### For `save all`
-Save each Legate handle (extract + close), then save the main conversation (extract + commit everything together).
+**Never `git add sources/` (or `outputs/` / `private/`) broadly.** If a second
+agent is saving the same Memento concurrently, a broad add sweeps *its* untracked
+files into this commit. Staging only the explicit paths this save wrote is
+concurrent-agent-safe by construction — that is why Step 5 tracks what it wrote.
+`git add -- <path>` stages a modification or a deletion of that path equally, so
+private-note appends commit correctly too.
 
 ## Sensitivity rules
 

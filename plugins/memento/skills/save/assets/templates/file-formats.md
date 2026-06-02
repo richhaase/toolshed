@@ -118,7 +118,7 @@ queries. Keep real-entity observations out of it (those route to `private/`).
 run_id: YYYY-MM-DDTHHmmss
 date: YYYY-MM-DD
 harness: claude-code | codex | cowork
-session_type: main | legate | background | workflow
+session_type: main | background | workflow
 task: <one line — what this session set out to do>
 outcome: success | partial | failed
 skills_used: [skill-a, skill-b]

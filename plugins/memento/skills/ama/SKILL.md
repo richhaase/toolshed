@@ -14,7 +14,9 @@ folds the answers into the wiki.
 
 This is the active-capture counterpart to `/save`. Where `/save` extracts
 what already happened, `/ama` pulls knowledge that has not yet been
-written down.
+written down. Like `/save`, an interview that captures anything also emits
+a trajectory telemetry record so the control-plane learning loop sees the
+session.
 
 ## Memento root
 
@@ -220,12 +222,53 @@ written for the non-private answers.
 If every answer is private, write only to `private/` and skip the
 session capture.
 
+### Trajectory
+
+If the interview captured anything (any session or private answer), also
+emit one trajectory telemetry record — the same channel `/save` writes, so
+the learning loop (Reflexion lessons, trajectory clustering) sees AMA runs
+too. Skip it only when nothing was captured (the no-op case in Step 4).
+
+Path: `sources/trajectories/<YYYY-MM-DD>/<run-id>.md`, where `<run-id>` is
+the **same** `YYYY-MM-DDTHHmmss` timestamp as the session file above (the
+two pair up). Reuse the timestamp; do not generate a second one.
+
+```yaml
+---
+run_id: YYYY-MM-DDTHHmmss
+date: YYYY-MM-DD
+harness: claude-code | codex | cowork
+session_type: main   # AMA is always an interactive main-session interview
+task: AMA interview — <slug>
+outcome: success | partial
+skills_used: [ama]
+tools_used: [AskUserQuestion, Write]
+artifacts: [sources/sessions/<session-filename>]
+related: [[entity-1]]
+---
+
+# AMA — <slug>
+
+## What happened
+<2-4 lines: which gaps the interview targeted and what got filled.>
+
+## Lessons
+<0-3 bullets — what would make the next interview go better. Empty is fine.>
+```
+
+Local-only forever — trajectories are never promoted. Keep `private_notes`
+entity assessments out of the record; those route to `private/` as above.
+
 ## Step 6: Commit
 
 ```bash
-git -C "$MEMENTO_ROOT" add sources/ private/
+git -C "$MEMENTO_ROOT" add -- <session-file> [<private-file>] [<trajectory-file>]
 git -C "$MEMENTO_ROOT" commit -m "ama: capture interview — <slug>"
 ```
+
+Stage **only the files this interview wrote** (the session capture, any private
+append, and the trajectory record) — never `git add sources/` broadly, which
+would sweep a concurrent agent's untracked files into this commit.
 
 If neither path has staged changes (everything was skipped), skip the
 commit and report "no changes captured".

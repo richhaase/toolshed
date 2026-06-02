@@ -152,9 +152,10 @@ legacy path and stays supported for scratch dirs and non-git Mementos:
 
 ```bash
 # Find source files modified after last compile across ALL of sources/ — a hardcoded
-# dir list silently misses new top-level source dirs. Exclude archived tasks and
-# sources/eval/ (eval fixtures + run telemetry, not a synthesis input).
-../_shared/scripts/memento-run find sources -name '*.md' -newer wiki/INDEX.md -not -path 'sources/tasks/done/*' -not -path 'sources/eval/*' 2>/dev/null
+# dir list silently misses new top-level source dirs. Exclude sources/eval/ (eval
+# fixtures + run telemetry) and sources/trajectories/ (session telemetry for the
+# learning loop) — neither is a synthesis input.
+../_shared/scripts/memento-run find sources -name '*.md' -newer wiki/INDEX.md -not -path 'sources/eval/*' -not -path 'sources/trajectories/*' 2>/dev/null
 ```
 
 After reading changed files (either path), discard sources whose frontmatter
@@ -165,17 +166,18 @@ status is `superseded` or `archived`. If no active source files remain, report
 
 ### For incremental updates
 
-1. Use the change set from Step 1 (git-diff union or mtime fallback) as the list of changed source files. **Exclude `sources/eval/`** — those are eval fixtures + run telemetry, not knowledge to synthesize.
+1. Use the change set from Step 1 (git-diff union or mtime fallback) as the list of changed source files. **Exclude `sources/eval/`** (eval fixtures + run telemetry) **and `sources/trajectories/`** (session telemetry for the learning loop) — neither is knowledge to synthesize.
 2. **In a single message**, issue parallel Read calls for ALL changed source files AND `wiki/INDEX.md`. This is one batch — not sequential reads. Guard each path with `[ -f "$path" ]` so rename-old-paths and deletes are skipped instead of failing the Read.
 3. Run Step 3 on the gathered sources to identify affected entities (honoring per-source `touches` frontmatter where present).
 4. **In a single message**, issue parallel Read calls for ALL affected wiki pages that need updating.
 
 ### For full builds
 
-Use Glob to find all files in each source directory. Then read them in parallel
-batches (max ~20 Read calls per message to stay within tool limits). Parse
-frontmatter first and compile only active sources. Keep a list of skipped
-superseded/archived sources for the final report.
+Use Glob to find all files in each source directory, **excluding `sources/eval/`
+and `sources/trajectories/`** (telemetry channels, not synthesis inputs). Then
+read them in parallel batches (max ~20 Read calls per message to stay within tool
+limits). Parse frontmatter first and compile only active sources. Keep a list of
+skipped superseded/archived sources for the final report.
 
 ## Step 3: Extract mentions and build entity graph
 
