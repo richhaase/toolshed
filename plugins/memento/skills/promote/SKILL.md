@@ -6,8 +6,9 @@ description: >
   when the user says "promote", "graduate this skill", "is X ready to promote",
   "advance the promotion stage", "promote to toolshed", or "promote to
   marketplace". Composes actuary --tier (Gate-1: privacy/genericization + spec)
-  via the Skill tool, surfaces capability duplication, and on your explicit OK
-  performs the promotion mechanics. This skill is the SOLE WRITER of the
+  through the harness's skill-composition surface when available, surfaces
+  capability duplication, and on your explicit OK performs the promotion
+  mechanics. This skill is the SOLE WRITER of the
   promotion ledger and the promotion_stage frontmatter — never hand-edit those.
 argument-hint: "<skill-or-tool> [--to <local-ok|toolshed-ready|toolshed|marketplace-ready|marketplace>] [--dry-run]"
 user-invocable: true
@@ -51,9 +52,11 @@ frontmatter on `wiki/skills/` + `wiki/tools/` pages are all relative to
   toolshed pre-push hook is the backstop, but catch it here first.
 - **Promotion is human-triggered.** Always confirm the actual stage change with
   the user (Step 5) before writing anything. `--dry-run` stops after the verdict.
-- **Compose other skills via the Skill tool — never reach into their files.**
-  Invoke `actuary:skill-audit` via the Skill tool for the tier verdict. Use this plugin's
-  own `_shared` scripts and `scripts/privacy-scan` (toolshed repo infra) by name.
+- **Compose other skills through the harness, not by copying their internals.**
+  In Claude Code, invoke `actuary:skill-audit` via the `Skill` tool. In Codex,
+  use the available skill invocation surface when present; otherwise read the
+  Actuary `SKILL.md` and apply its workflow directly. Use this plugin's own
+  `_shared` scripts and `scripts/privacy-scan` (toolshed repo infra) by name.
 - **Toolshed pushes go to main directly; never edit plugin caches.** Edit source
   in the toolshed repo, bump `plugin.json` (both manifests), push to main.
   Marketplace promotions target a separate repo and stay a documented,
@@ -73,8 +76,9 @@ frontmatter on `wiki/skills/` + `wiki/tools/` pages are all relative to
 ## Step 1: Resolve the entity and its current stage
 
 1. Resolve the target to a `wiki/skills/<slug>.md` or `wiki/tools/<slug>.md`
-   page (and, when promoting outward, its source files — a local
-   `.claude/skills/<name>/` or the toolshed `plugins/<plugin>/skills/<name>/`).
+   page (and, when promoting outward, its source files — a local skill
+   directory such as `.claude/skills/<name>/`, a Codex skills directory, or the
+   toolshed `plugins/<plugin>/skills/<name>/`).
 2. Read the page frontmatter: `promotion_stage`, `promotion_blockers`,
    `dedup_of`, `last_eval_pass`.
 3. Read `wiki/skills/_promotion-ledger.md` and find the latest dated entry for
@@ -87,9 +91,11 @@ frontmatter on `wiki/skills/` + `wiki/tools/` pages are all relative to
 
 ## Step 2: Gate-1 — actuary tier verdict (privacy + spec)
 
-Invoke `actuary:skill-audit` via the **Skill tool** with `--tier <target-tier-class>`
-against the entity's **source files** (the local/toolshed skill directory, not
-just the wiki page). Map the target stage to the tier class actuary understands:
+Invoke `actuary:skill-audit` with `--tier <target-tier-class>` against the
+entity's **source files** (the local/toolshed skill directory, not just the wiki
+page). Use native skill composition where the harness exposes it; otherwise
+follow the Actuary skill workflow directly in the current session. Map the
+target stage to the tier class actuary understands:
 
 - `local-ok` -> `local`
 - `toolshed-ready` / `toolshed` -> `toolshed`
@@ -128,7 +134,8 @@ Compose a single verdict block:
 
 If `--dry-run`, stop here. Otherwise, if any **hard requirement** for the tier is
 unmet, STOP — report the blockers; do not offer to promote. Only when the hard
-requirements are met, confirm with the user via `AskUserQuestion`:
+requirements are met, confirm with the user via `AskUserQuestion` when the
+harness exposes it, or a single plain chat confirmation otherwise:
 
 > "Promote `<entity>` `<from>` -> `<to>`? Gate-1 ready; <gate-2 note>. This will
 > <mechanics>. Proceed?"

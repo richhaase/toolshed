@@ -32,7 +32,7 @@
 //
 // Usage:
 //   node scripts/privacy-scan            scan tracked files in the current git repo
-//   node scripts/privacy-scan PATH...    scan the given paths/files instead
+//   node scripts/privacy-scan PATH...    scan the given files/directories instead
 //   node scripts/privacy-scan --self-test  prove the detectors fire (synthetic, tmp)
 //   node scripts/privacy-scan --help
 
@@ -183,6 +183,51 @@ function scanFile(file, detectors, findings, excluded) {
   }
 }
 
+function explicitFiles(paths) {
+  const files = [];
+  const seen = new Set();
+
+  function addFile(p) {
+    const resolved = path.resolve(p);
+    if (seen.has(resolved)) return;
+    seen.add(resolved);
+    files.push(p);
+  }
+
+  function walk(p) {
+    let st;
+    try {
+      st = fs.lstatSync(p);
+    } catch (e) {
+      die(`explicit path is unreadable or missing: ${p} (${e.message})`, 2);
+    }
+
+    if (st.isSymbolicLink()) {
+      addFile(p);
+      return;
+    }
+    if (st.isFile()) {
+      addFile(p);
+      return;
+    }
+    if (!st.isDirectory()) return;
+
+    let entries;
+    try {
+      entries = fs.readdirSync(p, { withFileTypes: true });
+    } catch (e) {
+      die(`explicit directory is unreadable: ${p} (${e.message})`, 2);
+    }
+    for (const ent of entries) {
+      if (ent.isDirectory() && ent.name === '.git') continue;
+      walk(path.join(p, ent.name));
+    }
+  }
+
+  for (const p of paths) walk(p);
+  return files;
+}
+
 function buildDetectors() {
   const detectors = BUILTIN.slice();
   if (process.env.PRIVACY_ALLOWLIST) loadAllowlist(process.env.PRIVACY_ALLOWLIST);
@@ -227,6 +272,11 @@ function selfTest() {
       ok = false;
       for (const f of cleanFindings) process.stdout.write(`        unexpected: [${f.key}] ${f.file}:${f.line}\n`);
     }
+    const explicitDirFindings = [];
+    for (const f of explicitFiles([dir])) scanFile(f, detectors, explicitDirFindings, new Set());
+    const explicitDirOk = explicitDirFindings.length >= Object.keys(plants).length;
+    process.stdout.write(`  ${explicitDirOk ? 'PASS' : 'FAIL'}  explicit directory scan recurses into files\n`);
+    if (!explicitDirOk) ok = false;
     if (!ok) die('self-test FAILED — a detector is broken; refusing to certify (fail-closed)', 2);
     process.stdout.write('privacy-scan: self-test PASSED\n');
     process.exit(0);
@@ -252,7 +302,7 @@ function main() {
   if (process.env.PRIVACY_ALLOWLIST) excluded.add(path.resolve(process.env.PRIVACY_ALLOWLIST));
 
   const explicit = argv.filter((a) => !a.startsWith('--'));
-  const files = explicit.length ? explicit : gitTrackedFiles();
+  const files = explicit.length ? explicitFiles(explicit) : gitTrackedFiles();
   if (!files.length) die('no files to scan', 2);
 
   const findings = [];

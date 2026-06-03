@@ -3,7 +3,7 @@ name: followups
 description: Inventory, view, or triage open follow-ups in sources/followups/ — the user's small queue of "re-read within a week, act on it" captures. Subcommands list (default; print open items, expired first), show (display one item read-only), and walk (interactive triage one at a time — keep, dismiss, answer, note, or file-and-dismiss to the issue tracker). Use when the user says "list my open items", "what's open", "show me followup X", "review followups", "go through my open items", "triage my queue", or "walk follow-ups".
 argument-hint: "[list|show|walk] [<slug> ...] [oldest|newest|expired]"
 user-invocable: true
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: Read Write Edit Glob Grep Bash AskUserQuestion
 ---
 
 # Followups
@@ -83,8 +83,9 @@ Examples:
   inline ("file as Jira ticket and dismiss?") rather than minting a
   local commitment file.
 - **One item per turn (walk only).** Present a single follow-up at a
-  time and wait for the decision before moving on. `list` and `show`
-  are not interactive — print and exit.
+  time and wait for the decision before moving on. Use `AskUserQuestion`
+  when available; otherwise ask a concise plain chat question. `list` and
+  `show` are not interactive — print and exit.
 - **Empty queue ⇒ stop.** If there are no open follow-ups, say so and
   exit. No commit.
 - **Default to dismiss when expired and inert.** If a follow-up is past
@@ -197,7 +198,8 @@ front before the first render:
 time to bail.
 ```
 
-Then ask via `AskUserQuestion`. Options:
+Then ask via `AskUserQuestion` when available, or a single plain chat
+confirmation otherwise. Options:
 
 - `keep` — leave it; revisit next walk. For an expired item, also bump
   `expires_at` forward by 14 days (ask: "bump expiry?" — default yes,

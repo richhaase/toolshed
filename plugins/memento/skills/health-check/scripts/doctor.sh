@@ -150,10 +150,16 @@ check_newer_sources() {
   [ -d sources ] || return 0
 
   local count
-  count="$(find sources -type f -name '*.md' -newer wiki/INDEX.md | wc -l | tr -d ' ')"
+  count="$(find sources -type f -name '*.md' -newer wiki/INDEX.md \
+    ! -path 'sources/eval/*' \
+    ! -path 'sources/trajectories/*' \
+    | wc -l | tr -d ' ')"
   if [ "${count:-0}" -gt 0 ]; then
     local sample
-    sample="$(find sources -type f -name '*.md' -newer wiki/INDEX.md | sort | sed -n '1,8p' | awk '{ printf "%s%s", sep, $0; sep="; " }')"
+    sample="$(find sources -type f -name '*.md' -newer wiki/INDEX.md \
+      ! -path 'sources/eval/*' \
+      ! -path 'sources/trajectories/*' \
+      | sort | sed -n '1,8p' | awk '{ printf "%s%s", sep, $0; sep="; " }')"
     emit P1 "Active sources newer than wiki index" "wiki/INDEX.md" "$count public source file(s) are newer than the compiled index. Sample: $sample"
   fi
 }

@@ -104,12 +104,6 @@ There is no external registry.
 
 ## Installation
 
-```bash
-claude plugin install legate@toolshed
-```
-
-Or inside Claude Code:
-
-```text
-/plugin install legate@toolshed
-```
+Legate is deprecated and intentionally not installable from the Codex
+marketplace. Do not install it for new work; use the harness-native agents view
+instead.

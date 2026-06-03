@@ -56,7 +56,7 @@ Bundled scripts:
 
 - `skills/_shared/scripts/memento-root` prints the resolved Memento root.
 - `skills/_shared/scripts/memento-run <command>` runs a command from the resolved Memento root.
-- `skills/_shared/scripts/eval-score` (node) — the deterministic golden-query scorer behind the eval gate. `compile` runs it before committing; `health-check eval` runs it on demand. Emits the verdict contract; `--self-test` proves it fails a poisoned hot set.
+- `skills/_shared/scripts/eval-score` (node) — the deterministic golden-query scorer behind the eval gate. `compile` runs it before committing; `health-check eval` runs it read-only on demand. Emits the verdict contract; `--self-test` proves it fails a poisoned hot set.
 
 ## Directory structure
 
@@ -126,17 +126,24 @@ loads, `compile` runs a **deterministic eval gate (Step 7.5)** between the hot-s
 and the commit:
 
 - **Fixtures** are committed golden queries under `sources/eval/fixtures/`
-  (`regression.json` — must stay 100%; `capability.json` — threshold). Each names the
-  evidence paths and `required_answer_atoms` that must survive a compile. Anchor them to
-  **human-asserted ground truth**, not to the wiki they police — where they disagree, the
-  wiki is what's wrong (authoring the fixtures doubles as a staleness audit).
+  (`regression.json` — must stay 100%; `capability.json` — threshold). Each names
+  source `required_evidence_paths` for provenance and optional compiled
+  `answer_surface_paths` / `compiled_evidence_paths` (`AGENTS.md`, `CLAUDE.md`,
+  or `wiki/...`) for where the compiled answer should be found. Anchor them to
+  **human-asserted ground truth**, not to the wiki they police — where they
+  disagree, the wiki is what's wrong (authoring the fixtures doubles as a
+  staleness audit).
 - **`eval-score`** (node, `_shared/scripts/`) checks mechanically — no LLM judge — that
-  every required atom is still present in the freshly-compiled `AGENTS.md` + evidence pages,
-  emits the verdict contract, and logs it to `sources/eval/runs/<date>.jsonl`.
+  every required atom is still present in the freshly-compiled answer surface
+  (`AGENTS.md` plus named wiki pages). Raw `sources/...` evidence proves provenance
+  but does not satisfy answer atoms. It emits the verdict contract and logs it to
+  `sources/eval/runs/<date>.jsonl` during compile.
 - **On `verdict: fail`** (a regression dropped) **or a scorer that can't run**, `compile`
   **rolls back** `AGENTS.md` + `wiki/` to the pre-compile SHA and does not commit
   (fail-closed), emitting a defect follow-up. `MEMENTO_EVAL_GATE=warn` downgrades to
   warn-only; default is `enforce`.
+- **On `verdict: ungated`** (no scored regression fixtures), `compile` warns and
+  commits. The Memento remains usable, but Gate-0 did not protect the run.
 
 `health-check eval` runs the same scorer on demand. The forbidden-atom / abstain checks in
 the fixtures are answer-level — verifiable only by an LLM-answering eval, not the static
@@ -155,8 +162,9 @@ duplicates capability" are grep queries, not folklore.
 - **`promote` is the sole writer** of the ledger and the stage frontmatter.
   Hand-edited stage values desync the ledger from the pages — `health-check`
   flags a stage with no backing ledger entry as a contradiction.
-- **Gate-1** is `actuary --tier <tier>` (invoked via the Skill tool): a
-  privacy/genericization scan + L1 spec check turned into a readiness verdict.
+- **Gate-1** is `actuary --tier <tier>` (invoked through harness-native skill
+  composition when available, or by applying the Actuary skill workflow directly):
+  a privacy/genericization scan + L1 spec check turned into a readiness verdict.
   Privacy is a non-negotiable hard-block above `local`.
 - **Gate-2** (promptfoo behavioral CI) is a later phase; `promote` reports it as
   unproven rather than synthesizing a pass.
@@ -177,7 +185,7 @@ stage change.
 | `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, (at most one, confirmed) follow-up, and a structured trajectory record per substantive session |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) |
-| `promote` | Gated `local -> toolshed -> marketplace` promotion of a skill/tool; composes `actuary --tier` (Gate-1: privacy + spec) via the Skill tool, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
+| `promote` | Gated `local -> toolshed -> marketplace` promotion of a skill/tool; composes `actuary --tier` (Gate-1: privacy + spec) through the harness's skill-composition surface when available, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
 descend into `wiki/` and `sources/` as needed). For passive capture, edit

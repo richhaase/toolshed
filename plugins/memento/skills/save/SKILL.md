@@ -3,7 +3,7 @@ name: save
 description: Save a session by extracting useful data, persisting it to sources, and closing down. Captures the current conversation — including any results that background agents or workflows reported back into it. Use when wrapping up any session ("we're done", "wrap up", "save", "close out") or when the user wants session context captured. Also triggers on "session-log", "log this", "anything to capture?". Default action is immediate; pass `ask` to review the capture plan before writing.
 argument-hint: "[ask]"
 user-invocable: true
-allowed-tools: Read Write Edit Glob Grep Bash
+allowed-tools: Read Write Edit Glob Grep Bash AskUserQuestion
 ---
 
 # Save
@@ -35,7 +35,9 @@ is no separate out-of-band handle to debrief.
   within a week and act on it. Any item that fails that test belongs in the
   issue tracker, in `sources/notes/` as durable knowledge, in a session
   decision file, or nowhere at all. Default mode confirms the proposed
-  follow-up with the user before writing — no implicit creation. See Step 4.
+  follow-up with the user before writing — use `AskUserQuestion` when
+  available, otherwise a single plain chat confirmation. No implicit creation.
+  See Step 4.
 - **Durable knowledge goes to `sources/notes/`, not follow-ups.** "Worth not
   losing" alone is not the follow-up bar. If the value is the information
   itself rather than the open loop, write a note — `/compile` folds it into
@@ -211,8 +213,9 @@ considered and rejected as follow-ups: …") so the user can override if
 they disagree.
 
 In both default and ask modes, any new follow-up requires explicit
-confirmation via `AskUserQuestion` before it is written. Phrase the
-prompt around the bar:
+confirmation before it is written. Use `AskUserQuestion` when the harness
+exposes it; otherwise ask one concise plain chat confirmation. Phrase the prompt
+around the bar:
 
 > "Capture as follow-up? `<title>` — `<one-line why-this-passes-the-bar>`.
 > The bar is: you'd re-read this within a week and act on it. If not,

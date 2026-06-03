@@ -20,10 +20,11 @@ git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
 
 1. Stage compile output:
    ```bash
-   git -C "$MEMENTO_ROOT" add wiki/ AGENTS.md
+   git -C "$MEMENTO_ROOT" add wiki/ AGENTS.md sources/eval/runs/
    ```
    In a legacy repo without `AGENTS.md`, stage `wiki/` plus the fallback
-   `CLAUDE.md` entrypoint you updated.
+   `CLAUDE.md` entrypoint you updated. `sources/eval/runs/` is the only
+   `sources/` path compile stages; it records the Step 7.5 verdict.
 2. Check whether anything is actually staged:
    ```bash
    git -C "$MEMENTO_ROOT" diff --cached --quiet

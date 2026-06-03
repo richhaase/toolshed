@@ -12,14 +12,7 @@ description: >
   "memento config", "configure my memento", "add an entity type", "update my memento
   config", "modify my memento", or otherwise wants to bootstrap or tune the Memento.
   This is the entry point for the memento plugin.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - AskUserQuestion
+allowed-tools: Bash Read Write Edit Glob Grep AskUserQuestion
 ---
 
 # Memento Config
@@ -109,6 +102,7 @@ sources/                # L3 — raw inputs, cold storage
 ├── notes/              # Durable knowledge — folds into wiki on /compile
 ├── followups/          # Small queue of "re-read within a week, act on it"
 │                       # captures with expires_at frontmatter
+├── trajectories/       # Session telemetry from /save and /ama. NOT compiled.
 └── eval/               # Golden-query eval — NOT compiled (gate data + telemetry)
     ├── fixtures/       # regression.json + capability.json (drafted via /health-check eval)
     └── runs/           # <date>.jsonl — gate verdicts written by eval-score
@@ -380,7 +374,8 @@ the full new-Memento interview. Instead, ask one top-level question:
 
 > "What would you like to change?"
 
-Offer these options via `AskUserQuestion`:
+Offer these options via `AskUserQuestion` when the harness exposes it; otherwise
+ask one concise plain chat question:
 
 - **Add an entity type** — collect type name, `wiki_path`, `filename`
   pattern, `frontmatter` fields, `sections`, optional

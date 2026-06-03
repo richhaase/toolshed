@@ -48,7 +48,10 @@ Hard rules — environment-specific facts the agent will get wrong without these
 - **Always create new commits — never `--amend`.** Pre-commit hook failure
   means the commit didn't happen; fix the issue, re-stage, new commit.
 - **The skill commits locally only — never push.** Pushing is the user's call.
-- **For recurring/scheduled compile, drive this skill from a Routine or `CronCreate` task — don't hand-roll a polling loop.** Per the control-plane principle, rent the scheduling from the harness; this skill owns only the compile semantics.
+- **For recurring/scheduled compile, use the harness-native scheduler — don't
+  hand-roll a polling loop.** In Claude Code that may be a Routine or
+  `CronCreate`; in Codex use automations/reminders when available. This skill
+  owns only the compile semantics.
 
 **Performance — speed is a hard constraint:**
 - **Batch reads in one message — this runs them concurrently.** 17 source
@@ -239,7 +242,11 @@ is a synthesized view, not an archive.
 
 ### For full builds
 
-Launch one subagent per entity type via the Agent tool. Each agent:
+Use the harness's background-agent/subagent primitive when available and launch
+one worker per entity type. In Claude Code this is the `Agent` tool; in Codex
+use the available multi-agent/background-thread primitive when present. If the
+harness has no subagent surface, compile the entity types in the main session in
+bounded parallel read/write batches instead. Each worker:
 1. Receives all source content relevant to its entity type
 2. Receives the entity type definition from the Entity Types registry (wiki_path, filename, frontmatter, sections)
 3. Compiles all pages for that type in parallel
@@ -374,11 +381,13 @@ See `references/templates.md` for the hot-set markdown shape.
 
 ## Step 7.5: Eval gate (Gate-0) + rollback — the keystone interlock
 
-Before committing (Step 8), verify the freshly-compiled hot set + wiki still answer the
-committed golden-query fixtures. This is the gate that protects the always-resident
-`AGENTS.md` hot set from a compile that silently drops or corrupts a load-bearing fact.
-**Mechanical, deterministic, node, ~0 tokens — no LLM judge in this path.** Skip only if
-`sources/eval/fixtures/` does not exist (un-evalled Memento) — report that it is ungated.
+Before committing (Step 8), verify the freshly-compiled answer surface still
+answers the committed golden-query fixtures. This is the gate that protects the
+always-resident `AGENTS.md` hot set and named wiki answer pages from a compile
+that silently drops or corrupts a load-bearing fact. **Mechanical,
+deterministic, node, ~0 tokens — no LLM judge in this path.** If there are no
+scored regression fixtures, report `verdict: ungated`: commit may proceed, but
+the run was not protected by Gate-0.
 
 ### Run the scorer
 
@@ -390,12 +399,18 @@ node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --gate --json > /tmp/m
 rc=$?
 ```
 
-`eval-score` needs only `node` (always present in the Claude Code / Codex runtimes). It reads
-`sources/eval/fixtures/{regression,capability}.json` + `sources/eval/verdict-contract.json`,
-checks against the just-written `AGENTS.md` + wiki evidence pages that every
-`required_answer_atom` is still present (the load-bearing fact survived), appends the verdict
+`eval-score` needs only `node` (available in the Claude Code / Codex runtimes).
+It reads `sources/eval/fixtures/{regression,capability}.json` +
+`sources/eval/verdict-contract.json`, validates that every
+`required_evidence_path` exists, and checks each `required_answer_atom` against
+the compiled answer surface: `AGENTS.md` plus any explicit
+`answer_surface_paths` / `compiled_evidence_paths` (or legacy `wiki/...`
+entries in `required_evidence_paths`). Answer-surface paths must be compiled
+surfaces (`AGENTS.md`, `CLAUDE.md`, or `wiki/...`). Raw `sources/...` evidence proves
+provenance but **does not** satisfy answer atoms. The scorer appends the verdict
 to `sources/eval/runs/<today>.jsonl` (its own telemetry), and exits:
-**`0` = pass/advisory · `1` = fail (regression < 100%) · `2` = error/unavailable.**
+**`0` = pass/advisory/ungated · `1` = fail (regression < 100%) · `2` =
+error/unavailable.**
 
 ### Gate decision (default: enforce — fail-closed)
 
@@ -403,6 +418,9 @@ to `sources/eval/runs/<today>.jsonl` (its own telemetry), and exits:
 
 - **`rc == 0`, `verdict: pass`** → proceed to Step 8 (commit).
 - **`rc == 0`, `verdict: advisory`** (capability dipped, regression still 100%) → **warn, then commit.** Capability is a threshold suite, not load-bearing; a dip doesn't justify reverting.
+- **`rc == 0`, `verdict: ungated`** (no scored regression fixtures) → **warn,
+  then commit.** The Memento is usable but not protected by Gate-0; suggest
+  drafting fixtures via `health-check fixtures`.
 - **`rc >= 1`** — `verdict: fail` (a load-bearing fact was dropped) **or scorer error/unavailable** → **ROLL BACK and do NOT commit:**
   ```bash
   git -C "$MEMENTO_ROOT" checkout "$COMPILE_BASE_SHA" -- AGENTS.md wiki/
@@ -419,9 +437,10 @@ recorded) — used only to land the gate or debug a fixture. The default is `enf
 
 ### Self-test
 
-`node ../_shared/scripts/eval-score --self-test` proves the scorer fails a deliberately poisoned
-hot set. Run it if you suspect the scorer itself is broken — a gate you can't trust to fail is
-worse than no gate.
+`node ../_shared/scripts/eval-score --self-test` proves the scorer fails a
+deliberately poisoned hot set and does not let raw source evidence satisfy a
+compiled answer atom. Run it if you suspect the scorer itself is broken — a gate
+you can't trust to fail is worse than no gate.
 
 ### Named rollback verb (operationalizes "git is the recovery layer")
 
@@ -440,7 +459,7 @@ See `references/commit-flow.md` for the full flow: git-context detection,
 staging, the commit subject/body shape, and failure handling. Headline rules:
 
 - Skip silently when not in a git repo; report `commit: skipped (not a git repo)`.
-- **Only commit if the Step 7.5 eval gate passed (or was advisory)** — on a gate fail the compile was rolled back, so there is nothing to commit.
+- **Only commit if Step 7.5 passed, was advisory, or reported `ungated`** — on a gate fail the compile was rolled back, so there is nothing to commit.
 - Stage `wiki/`, `AGENTS.md` (or the legacy `CLAUDE.md` entrypoint), **and `sources/eval/runs/`** (the eval verdict telemetry for this run — the only `sources/` path compile stages).
 - Skip cleanly if nothing is staged; report `commit: skipped (no changes)`.
 - Subject: `compile: update wiki — <brief synthesis>` (≤ 72 chars).
@@ -455,8 +474,8 @@ Report to user: pages created / updated / unchanged, new entities discovered,
 hot set changes (promoted/demoted), superseded/archived sources skipped, any
 sources that couldn't be processed, any `<provider>_id` drift between sources
 and existing wiki frontmatter (manual value left in place), the **Step 7.5 eval-gate
-verdict** (regression/capability pass rates, logged to `sources/eval/runs/`), and the
-commit SHA (or the rollback / `skipped` reason).
+verdict** (regression/capability pass rates, whether it was gated, logged to
+`sources/eval/runs/`), and the commit SHA (or the rollback / `skipped` reason).
 
 ## Guidelines
 

@@ -28,7 +28,7 @@ Arguments are passed as: $ARGUMENTS
 
 - No arguments or `doctor` -> run the core read-only doctor checks.
 - `privacy` -> focus on public-surface privacy lint and forbidden-path leakage.
-- `eval` -> run the deterministic scorer, report the verdict, and surface the last gate outcome.
+- `eval` -> run the deterministic scorer read-only, report the verdict, and surface the last gate outcome.
 - `fixtures` -> assess fixture coverage and help draft missing fixtures (authoring side; does not run the gate).
 - `full` -> run all applicable checks.
 
@@ -36,7 +36,8 @@ Arguments are passed as: $ARGUMENTS
 
 - **Never read `private/`.** Do not count, list, hash, grep, or path-reference
   private files. Treat `private/` as outside the health-check input set.
-- **Do not write by default.** Print findings to the user. If the user asks to
+- **Do not write by default.** Print findings to the user. `health-check eval`
+  runs the scorer with `--no-log`; compile owns gate telemetry writes. If the user asks to
   persist a report, propose a destination first; prefer `private/` for raw
   diagnostics that may expose sensitive paths or titles.
 - **Do not modify wiki or sources.** This skill diagnoses; it does not repair.
@@ -225,7 +226,7 @@ trajectory.
 don't. **Run the scorer first:**
 
 ```bash
-node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --json   # report the verdict
+node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --json --no-log  # report current verdict, read-only
 node ../_shared/scripts/eval-score --self-test                     # prove it fails a poisoned hot set
 ls -t sources/eval/runs/*.jsonl 2>/dev/null | head -1 | xargs tail -n 1 2>/dev/null  # last recorded gate verdict
 ```
@@ -234,12 +235,16 @@ The runs-ledger line surfaces the **last gate outcome** so a recent compile
 rollback isn't invisible — a `fail` there means the last compile rolled back the
 hot set rather than committing a regression.
 
-`eval-score` (node, `_shared/scripts/`) reads `sources/eval/fixtures/{regression,capability}.json`
-+ `verdict-contract.json`, checks each fixture's `required_answer_atoms` against the compiled
-`AGENTS.md` + evidence pages, emits the verdict contract, and logs to `sources/eval/runs/`. It is
-the same gate `compile` runs at Step 7.5 (default `enforce` — auto-rollback on a regression fail).
-If `sources/eval/fixtures/` is absent, the Memento is **ungated**: offer to draft fixtures. Do not
-capture real user queries automatically.
+`eval-score` (node, `_shared/scripts/`) reads
+`sources/eval/fixtures/{regression,capability}.json` and
+`verdict-contract.json`, validates that `required_evidence_paths` exist, and checks each
+fixture's `required_answer_atoms` against the compiled answer surface (`AGENTS.md` plus
+explicit `answer_surface_paths` / `compiled_evidence_paths`, with legacy `wiki/...`
+evidence paths included). Answer-surface paths must be compiled surfaces
+(`AGENTS.md`, `CLAUDE.md`, or `wiki/...`). Raw `sources/...` evidence proves
+provenance but does not satisfy answer atoms. Compile runs the same scorer at Step 7.5 with logging enabled (default
+`enforce` — auto-rollback on a regression fail). If no regression fixture is scored, the
+verdict is **`ungated`**: offer to draft fixtures. Do not capture real user queries automatically.
 
 Fixtures are stored as JSON (node-native; the scorer is dependency-free):
 
@@ -250,6 +255,7 @@ Fixtures are stored as JSON (node-native; the scorer is dependency-free):
   "expected_layer": "L3",
   "failure_mode": "freshness",
   "required_evidence_paths": ["sources/notes/YYYY-MM-DD-rowing-report.md"],
+  "answer_surface_paths": ["wiki/topics/rowing.md"],
   "forbidden_paths": ["private/"],
   "required_answer_atoms": ["287,875"],
   "forbidden_answer_atoms": ["282,875"],
@@ -266,8 +272,9 @@ Suggested labels:
 Scoring split — what the gate can and cannot verify:
 
 - **Static gate (`eval-score`, every compile):** `required_evidence_paths` exist; every
-  `required_answer_atom` present (case-insensitive) in `AGENTS.md` + evidence — i.e. the
-  load-bearing fact survived the compile.
+  `required_answer_atom` present (case-insensitive) in the compiled answer surface —
+  `AGENTS.md` plus explicit wiki answer-surface paths. Source paths establish provenance
+  only; they cannot satisfy an answer atom.
 - **Answer-level (on-demand LLM eval only):** `forbidden_answer_atoms` absent, `forbidden_paths`
   (`private/`) never touched, and `abstain` questions don't guess. These need an actual answer —
   a corpus substring scan false-positives (the hot set mentions every entity; pages keep old

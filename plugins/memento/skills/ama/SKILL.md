@@ -3,7 +3,7 @@ name: ama
 description: Read the wiki and interview the user to fill gaps, resolve contradictions, and capture context the LLM is curious about. Use when the user says "ama", "ask me anything", "what do you want to know", "interview me", "fill in gaps", "tell me what's missing", or otherwise wants the agent to actively pull knowledge into the Memento. Captures answers as a session source so /compile can fold them into the wiki.
 argument-hint: "[<topic>]"
 user-invocable: true
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: Read Write Edit Glob Grep Bash AskUserQuestion
 ---
 
 # Ask Me Anything
@@ -40,8 +40,9 @@ Arguments are passed as: $ARGUMENTS
 
 - **Never read `private/`.** Privacy boundary. Build the question list
   from `AGENTS.md`, `wiki/`, and `sources/` only.
-- **One question per turn via `AskUserQuestion`.** No walls of questions.
-  Adapt follow-ups based on each answer.
+- **One question per turn.** Use `AskUserQuestion` when the harness exposes it;
+  otherwise ask one concise plain chat question. No walls of questions. Adapt
+  follow-ups based on each answer.
 - **Empty plan ⇒ stop.** If the wiki is genuinely sparse and there are
   no high-value questions to ask, say so and exit. Do not invent
   questions to fill space.
@@ -112,7 +113,9 @@ that's fine — ask only the strong ones.
 
 ## Step 3: Interview
 
-Run the interview through `AskUserQuestion`, one prompt at a time.
+Run the interview one prompt at a time. Prefer `AskUserQuestion` when the
+harness exposes it; otherwise use a concise plain chat question and wait for the
+answer before continuing.
 
 For each candidate:
 
@@ -124,7 +127,7 @@ For each candidate:
   wiki; "is X getting worse, resolvable, alarming?" is what only an
   interview can pull.
 - **Use options as interpretive frames, not resolutions.** If the
-  question fits `AskUserQuestion`'s 2–4-option shape, write the
+  question fits the harness's structured-question shape, write the
   options as different *readings* of what's happening (different
   diagnoses, different framings, different explanations) rather than
   different *outcomes* the user picks between. Frames are easier to

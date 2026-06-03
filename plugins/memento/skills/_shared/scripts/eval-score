@@ -7,14 +7,14 @@
 // bash/python/ruby, because node is guaranteed wherever this runs: the Claude
 // Code and Codex harnesses (CLI + desktop) ARE node, and JSON is native — zero
 // deps, zero parse code. Given the committed fixtures under sources/eval/ and
-// the COMPILED artifacts (AGENTS.md hot set + the wiki evidence pages), it checks
+// the COMPILED artifacts (AGENTS.md hot set + optional wiki answer-surface
+// pages), it checks
 // per fixture:
 //   - every required_evidence_path exists
-//   - every required_answer_atom is present in the haystack (AGENTS.md + evidence)
-//   - no forbidden_answer_atom is present in the haystack
+//   - every required_answer_atom is present in the compiled answer surface
 // and emits the frozen verdict contract. Abstain fixtures and the
-// forbidden_paths(private/) touch-check are runtime-behavioral — out of scope for
-// the static gate; they belong to the on-demand LLM-answering eval.
+// forbidden_paths(private/) touch-check are runtime-behavioral — out of scope
+// for the static gate; they belong to the on-demand LLM-answering eval.
 //
 // Used by:  memento:compile (Gate-0, between hot-set rewrite and commit) and
 //           memento:health-check (eval mode). Lives in _shared so neither skill
@@ -53,18 +53,48 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 function die(msg) { console.error('eval-score: ' + msg); process.exit(2); }
 function slurp(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+function arrayOfStrings(v) { return Array.isArray(v) ? v.filter(x => typeof x === 'string' && x) : []; }
+
+function answerSurfacePaths(fx) {
+  const explicit = [
+    ...arrayOfStrings(fx.answer_surface_paths),
+    ...arrayOfStrings(fx.compiled_evidence_paths),
+  ];
+  if (explicit.length) return explicit;
+
+  // Back-compat: older fixtures only had required_evidence_paths. Treat wiki
+  // paths there as compiled evidence, but never let source paths satisfy the
+  // answer atom. Sources prove provenance; compiled surfaces prove retrieval.
+  return arrayOfStrings(fx.required_evidence_paths).filter(p =>
+    p === 'AGENTS.md' || p === 'CLAUDE.md' || p.startsWith('wiki/')
+  );
+}
+
+function isCompiledSurfacePath(p) {
+  return p === 'AGENTS.md' || p === 'CLAUDE.md' || p.startsWith('wiki/');
+}
 
 // Score one fixture against the haystack. Returns {pass, reason, skip}.
 function scoreFixture(fx, root) {
   if (fx.abstain_required) return { pass: true, reason: 'skipped: abstain (runtime-only, not gated)', skip: true };
 
-  const evidence = fx.required_evidence_paths || [];
+  const evidence = arrayOfStrings(fx.required_evidence_paths);
   const missingPaths = evidence.filter(p => !fs.existsSync(path.join(root, p)));
   if (missingPaths.length) return { pass: false, reason: `missing evidence path(s): ${missingPaths.join(', ')}`, skip: false };
 
-  // Haystack = the always-resident hot set + this fixture's evidence pages.
+  const surfacePaths = answerSurfacePaths(fx);
+  const nonCompiledSurfacePaths = surfacePaths.filter(p => !isCompiledSurfacePath(p));
+  if (nonCompiledSurfacePaths.length) return { pass: false, reason: `answer surface path(s) are not compiled surfaces: ${nonCompiledSurfacePaths.join(', ')}`, skip: false };
+  const missingSurfacePaths = surfacePaths.filter(p => !fs.existsSync(path.join(root, p)));
+  if (missingSurfacePaths.length) return { pass: false, reason: `missing answer surface path(s): ${missingSurfacePaths.join(', ')}`, skip: false };
+
+  // Haystack = the always-resident hot set + explicitly named compiled
+  // answer-surface pages. Source evidence paths are deliberately excluded so a
+  // stale compile cannot pass just because the raw source still has the fact.
   let hay = slurp(path.join(root, 'AGENTS.md'));
-  for (const p of evidence) hay += '\n' + slurp(path.join(root, p));
+  for (const p of surfacePaths) {
+    if (p !== 'AGENTS.md') hay += '\n' + slurp(path.join(root, p));
+  }
   const hayLC = hay.toLowerCase();
 
   // The static gate verifies REQUIRED atoms are present (case-insensitive) — i.e. the
@@ -73,7 +103,8 @@ function scoreFixture(fx, root) {
   // question (the on-demand LLM eval). A corpus substring scan false-positives on them —
   // the hot set mentions every entity, and pages describe history/fixes using old values
   // (e.g. "Former role: Solutions Engineer", "text-embedding-3-small -> -large").
-  const req = (fx.required_answer_atoms || []).filter(Boolean);
+  const req = arrayOfStrings(fx.required_answer_atoms);
+  if (req.length === 0) return { pass: false, reason: 'fixture has no required_answer_atoms', skip: false };
   const missingAtoms = req.filter(a => !hayLC.includes(String(a).toLowerCase()));
   if (missingAtoms.length) return { pass: false, reason: `required atom(s) absent: ${missingAtoms.map(x => JSON.stringify(x)).join(', ')}`, skip: false };
   return { pass: true, reason: 'ok', skip: false };
@@ -110,18 +141,26 @@ function headSha(root) {
 if (opt.selfTest) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-self-'));
   fs.mkdirSync(path.join(dir, 'wiki'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'sources', 'notes'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'AGENTS.md'), 'clean hot set\n');
   fs.writeFileSync(path.join(dir, 'wiki', 'probe.md'), 'marker-present\n');
+  fs.writeFileSync(path.join(dir, 'sources', 'notes', 'probe.md'), 'source-only-marker\n');
   const fx = { id: 'ST1', required_evidence_paths: ['wiki/probe.md'], required_answer_atoms: ['marker-present'], forbidden_answer_atoms: ['poison-token'], abstain_required: false };
   const clean = scoreFixture(fx, dir);
   fs.writeFileSync(path.join(dir, 'wiki', 'probe.md'), 'the marker was dropped; poison-token injected\n');
   const poisoned = scoreFixture(fx, dir);
+  const sourceOnly = scoreFixture({
+    id: 'ST2',
+    required_evidence_paths: ['sources/notes/probe.md'],
+    required_answer_atoms: ['source-only-marker'],
+  }, dir);
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
   if (!opt.quiet) {
     console.error(`self-test: clean=${clean.pass ? 'PASS' : 'FAIL'} poisoned=${poisoned.pass ? 'PASS(!)' : 'FAIL(correct)'}`);
     console.error('self-test: poisoned reason -> ' + poisoned.reason);
+    console.error(`self-test: source-only evidence=${sourceOnly.pass ? 'PASS(!)' : 'FAIL(correct)'}`);
   }
-  if (clean.pass && !poisoned.pass) {
+  if (clean.pass && !poisoned.pass && !sourceOnly.pass) {
     if (!opt.quiet) console.error('self-test: OK — scorer correctly fails a poisoned hot set.');
     process.exit(0);
   }
@@ -138,6 +177,7 @@ const { reg: regMin, cap: capMin } = thresholds(root);
 const t0 = Date.now();
 const results = {};
 const sliceFails = [];
+let totalScored = 0;
 
 for (const suite of suites) {
   const fixtures = loadSuite(root, suite);
@@ -149,14 +189,16 @@ for (const suite of suites) {
     if (r.pass) passed++;
     else sliceFails.push({ fixture_id: fx.id, suite, reason: r.reason });
   }
+  totalScored += scored;
   const rate = scored === 0 ? 1.0 : +(passed / scored).toFixed(4);
   results[suite] = { pass: passed, scored, skipped, pass_rate: rate };
 }
 
 const regRate = results.regression ? results.regression.pass_rate : 1.0;
 const capRate = results.capability ? results.capability.pass_rate : 1.0;
+const regressionScored = results.regression ? results.regression.scored : 0;
 const elapsed = +((Date.now() - t0) / 1000).toFixed(3);
-const verdict = regRate < regMin ? 'fail' : (capRate < capMin ? 'advisory' : 'pass');
+const verdict = regressionScored === 0 ? 'ungated' : (regRate < regMin ? 'fail' : (capRate < capMin ? 'advisory' : 'pass'));
 
 const out = {
   tier: process.env.MEMENTO_EVAL_TIER || 'local',
@@ -167,6 +209,8 @@ const out = {
   cost: { tokens: 0, seconds: elapsed },
   kappa: null,
   verdict,
+  gated: verdict !== 'ungated',
+  total_scored: totalScored,
   scored_at_sha: headSha(root),
   thresholds: { regression_pass_rate_min: regMin, capability_pass_rate_min: capMin }
 };
@@ -208,6 +252,7 @@ if (opt.json) {
   for (const [s, r] of Object.entries(results)) {
     console.error(`  ${s.padEnd(11)} ${r.pass}/${r.scored} pass (${Math.round(r.pass_rate * 100)}%)${r.skipped ? ` · ${r.skipped} skipped (abstain)` : ''}`);
   }
+  if (verdict === 'ungated') console.error('  warning: no scored regression fixtures; compile is not gated');
   if (sliceFails.length) {
     console.error('  failures:');
     for (const f of sliceFails) console.error(`    [${f.suite}] ${f.fixture_id}: ${f.reason}`);
