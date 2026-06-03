@@ -9,17 +9,39 @@ skills are invoked from any project.
 
 ## Cache model
 
-The Memento treats knowledge like a CPU cache hierarchy:
+The Memento treats knowledge like a CPU cache hierarchy. The full chain is
+**L1 -> L2 -> L3 -> source of truth**:
 
 - **L1 — `AGENTS.md`** (always resident where supported): Hot set tables with
   pointers to wiki pages. `CLAUDE.md` is a thin harness entrypoint that
   points to the same canonical context. Maintained automatically by
   `/compile`.
 - **L2 — Wiki** (loaded on demand): Compiled topic pages. Read when L1 doesn't have enough detail.
-- **L3 — Sources** (cold storage): Raw ingestion — session captures, automated syncs, manual notes. Accessed when L2 doesn't resolve the question.
+- **L3 — Sources** (cold storage): Raw ingestion. **L3 is not uniformly
+  authority** — it holds two kinds of source:
+  - **Captured sources** (authoritative): session captures, manual notes,
+    meeting records. The record itself; nothing lives below them. Immutable
+    once written.
+  - **Projected sources** (cache over an external system): provider syncs that
+    mirror a live system of record — an issue tracker, a code host. The
+    authority lives *below* L3, in the source system, which updates
+    independently. A projected source caches it exactly as L2 caches L3. It
+    carries `cache: projection` + `source_of_truth: <provider>` + `as_of:`
+    frontmatter so the rest of the pipeline can tell it apart from a captured
+    source.
 - **Outputs** (outside hierarchy): Products of the system — surfaces (HTML dashboards) and reports.
 
 Compilation flows upward: L3 -> L2 -> L1. The `/compile` skill handles the full pipeline.
+
+**Events vs. state in projected sources.** A projected source records two things
+differently. *Events* — dated, immutable facts ("merged on D", "transitioned to
+done on D") — graduate to durable record like any captured source. *State* —
+mutable current status ("open", "in progress") — is a freshness-stamped cache,
+never promoted as a standing present-tense fact: `compile` stamps it `as of
+<date>`, and a lookup for live state refreshes from the source system, not from
+the cache. The relationship to an issue tracker or code host is **caching, not
+syncing**: the Memento references and snapshots their state, it never becomes a
+second place that state is tracked.
 
 ## Quick start
 
@@ -112,7 +134,9 @@ out to be a real commitment that belongs in the issue tracker).
 
 ## Health and eval discipline
 
-L1 and L2 are generated projections over L3 sources, not authority. Use
+L1 and L2 are generated projections over L3 sources, not authority — and a
+*projected* L3 source (a provider sync) is itself a projection over its upstream
+system, not authority. Use
 `health-check` before adding retrieval machinery: it audits cache freshness,
 broken evidence paths, compile metadata drift, public-surface privacy risks,
 open queue visibility, and eval readiness without reading `private/` or writing

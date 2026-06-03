@@ -82,6 +82,16 @@ Report pages or hot-set entries that appear older than active L3 evidence. Do
 not call this a definitive stale answer unless the source clearly touches the
 same entity or topic; otherwise mark it as "needs compile/routing review."
 
+**Projected sources have a freshness floor below L3.** A source marked
+`cache: projection` (a provider sync over an external system of record) is itself
+a cache over its `source_of_truth`; its `as_of` can lag the live system even when
+the wiki is perfectly in sync with the file. Flag wiki/hot-set claims derived
+from a projected source that assert mutable current state (status, open/closed,
+review state) as a bare present-tense fact rather than carrying an `as of <date>`
+qualifier — those should defer to a live refresh from the source, not the cache.
+Do not treat a projected L3 file as ground truth for current state the way a
+captured source is.
+
 ### Check 2: Broken Evidence Paths
 
 Validate inspectable public paths:

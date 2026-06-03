@@ -46,6 +46,16 @@ Hard rules — environment-specific facts the agent will get wrong without these
   `status: archived` from current-state synthesis and from L1 hot-set promotion,
   but preserve them in source traces when an active source's `supersedes` field
   points to them.
+- **Projected sources cache live state — never promote their mutable state as standing truth.**
+  A source with `cache: projection` frontmatter (a provider sync over an external
+  system of record) is not authority for current state; its `source_of_truth`
+  system is. Compile its *events* (dated, immutable — "merged on D", "moved to
+  done on D") as durable record like any captured source. Compile its *state*
+  (mutable status — "open", "in progress") only with an explicit `as of <as_of>`
+  qualifier, and never as a bare present-tense fact in `wiki/` or the L1 hot set.
+  Current state is resolved by refreshing the source, not by reading the cache —
+  so wiki/hot-set entries derived from projected sources point to the live system
+  for status rather than asserting it.
 - **Always create new commits — never `--amend`.** Pre-commit hook failure
   means the commit didn't happen; fix the issue, re-stage, new commit.
 - **The skill commits locally only — never push.** Pushing is the user's call.
