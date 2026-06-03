@@ -148,9 +148,15 @@ copy the starter blocks into the new repo, preserving placeholder markers
 Create a `.gitignore` if one doesn't exist:
 
 ```
-private/
 .DS_Store
 ```
+
+Do **not** ignore `private/`. A Memento repo is local-only by default, and
+private notes are committed there so appends have local history. The privacy
+boundary is compilation/publication: `private/` is never read into wiki,
+outputs, or pushed unless the user explicitly makes a separate encrypted/export
+decision. If an existing Memento `.gitignore` contains `private/`, report that
+private-note commits will fail and ask before removing that line.
 
 ### Initialize git
 

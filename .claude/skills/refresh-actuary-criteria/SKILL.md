@@ -9,7 +9,7 @@ description: >
   Reads upstream, diffs against the SHAs pinned in criteria.md, and
   proposes specific edits for human review. Never auto-applies bulk
   changes; every rule add/remove is surfaced for approval.
-allowed-tools: [Read, Edit, WebFetch, Bash]
+allowed-tools: Read Edit WebFetch Bash
 ---
 
 # Refresh actuary criteria

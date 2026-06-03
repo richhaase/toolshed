@@ -31,7 +31,7 @@
 //                      exempt (known-synthetic placeholders). '#' comments ok.
 //
 // Usage:
-//   node scripts/privacy-scan            scan tracked files in the current git repo
+//   node scripts/privacy-scan            scan tracked files from the git repo root
 //   node scripts/privacy-scan PATH...    scan the given files/directories instead
 //   node scripts/privacy-scan --self-test  prove the detectors fire (synthetic, tmp)
 //   node scripts/privacy-scan --help
@@ -139,6 +139,14 @@ function gitTrackedFiles() {
     die('not a git repository (or git unavailable) — cannot resolve the file set', 2);
   }
   return out.split('\0').filter(Boolean);
+}
+
+function gitRepoRoot() {
+  try {
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+  } catch (e) {
+    die('not a git repository (or git unavailable) — cannot resolve the repository root', 2);
+  }
 }
 
 function isProbablyBinary(buf) {
@@ -302,6 +310,7 @@ function main() {
   if (process.env.PRIVACY_ALLOWLIST) excluded.add(path.resolve(process.env.PRIVACY_ALLOWLIST));
 
   const explicit = argv.filter((a) => !a.startsWith('--'));
+  if (!explicit.length) process.chdir(gitRepoRoot());
   const files = explicit.length ? explicitFiles(explicit) : gitTrackedFiles();
   if (!files.length) die('no files to scan', 2);
 

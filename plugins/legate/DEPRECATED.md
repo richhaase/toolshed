@@ -27,9 +27,8 @@ six-skill plugin built around a tmux watch loop.
 
 ## Marketplace state
 
-- Codex (`.agents/plugins/marketplace.json`): `policy.installation: NOT_AVAILABLE`.
-- Claude Code (`.claude-plugin/marketplace.json`): description marked `[DEPRECATED]`
-  (Claude's marketplace schema has no install-policy field).
+- Codex (`.agents/plugins/marketplace.json`): no marketplace entry.
+- Claude Code (`.claude-plugin/marketplace.json`): no marketplace entry.
 
 The plugin directory and git history remain intact. To revive, restore the
-marketplace policy/description and bump the version.
+marketplace entries/policy and bump the version.

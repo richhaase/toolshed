@@ -10,9 +10,10 @@ allowed-tools: Read Write Edit Glob Grep Bash Agent
 
 Compile all sources into a topic-organized wiki. Each wiki page covers one entity,
 organized by entity type as defined in the canonical `AGENTS.md` Entity Types
-registry. In legacy Memento repos without `AGENTS.md`, fall back to an existing
-`CLAUDE.md` registry and report that the repo should be migrated.
-Pages accumulate knowledge over time — this is additive, not destructive.
+registry. Repos with only a full `CLAUDE.md` Memento context must be migrated
+with `memento-config` before compile runs; `CLAUDE.md` should be only a thin
+Claude Code entrypoint that points to `AGENTS.md`. Pages accumulate knowledge
+over time — this is additive, not destructive.
 
 ## Memento root
 
@@ -38,7 +39,7 @@ Hard rules — environment-specific facts the agent will get wrong without these
 
 **Safety:**
 - **NEVER read files in `private/`** — that directory is a privacy boundary, and reading it can surface content the user has explicitly walled off from synthesis.
-- **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs; writing back into `sources/` corrupts the audit trail the wiki is derived from. Two narrow exceptions: a legacy repo without `AGENTS.md` (update the existing entrypoint that owns the hot set and report the migration need); and the **Step 7.5 eval gate**, whose `eval-score` tool writes its own telemetry under `sources/eval/runs/` and (on a gate fail) a defect follow-up under `sources/followups/` — operational records the scorer owns, never synthesis inputs. The compile agent itself still writes only `wiki/` + `AGENTS.md`.
+- **NEVER write files outside `wiki/` and `AGENTS.md`** — sources are read-only inputs; writing back into `sources/` corrupts the audit trail the wiki is derived from. One narrow exception: the **Step 7.5 eval gate**, whose `eval-score` tool writes its own telemetry under `sources/eval/runs/` and (on a gate fail) a defect follow-up under `sources/followups/` — operational records the scorer owns, never synthesis inputs. The compile agent itself still writes only `wiki/` + `AGENTS.md`.
 - **All Memento paths are relative to the resolved Memento root** — `sources/`, not the caller's current repo.
 - **Only active sources shape current state.** Treat source files with no `status`
   frontmatter as `active`. Exclude files marked `status: superseded` or
@@ -102,9 +103,10 @@ Read `AGENTS.md` and parse the `## Entity Types` section. This tells you:
 - What frontmatter fields each type needs (`frontmatter`)
 - What sections each type's wiki pages should have (`sections`)
 
-If `AGENTS.md` is missing or lacks an Entity Types registry, check the legacy
-`CLAUDE.md` entrypoint. If neither has a registry, fall back to a flat `wiki/`
-with the generic template (Overview, Current State, Recent Activity, History).
+If `AGENTS.md` is missing or lacks an Entity Types registry, stop and tell the
+user to run `memento-config` to migrate or repair the Memento root. Do not
+compile from a legacy `CLAUDE.md` registry; `CLAUDE.md` is a thin harness
+entrypoint, not the canonical cache surface.
 
 ## Step 1: Determine scope
 
@@ -362,10 +364,6 @@ After the wiki is updated, rebuild the dynamic hot set section in canonical
 4. For each entry, write one row: name, one-line summary, link to wiki page.
 5. Replace everything between the HOT SET markers in `AGENTS.md` with the new tables.
 
-For a legacy repo that does not have `AGENTS.md`, update the existing
-`CLAUDE.md` entrypoint with hot set markers and report that the repo should
-migrate to canonical `AGENTS.md` plus a thin `CLAUDE.md` entrypoint.
-
 ### Hot set format
 
 See `references/templates.md` for the hot-set markdown shape.
@@ -460,7 +458,7 @@ staging, the commit subject/body shape, and failure handling. Headline rules:
 
 - Skip silently when not in a git repo; report `commit: skipped (not a git repo)`.
 - **Only commit if Step 7.5 passed, was advisory, or reported `ungated`** — on a gate fail the compile was rolled back, so there is nothing to commit.
-- Stage `wiki/`, `AGENTS.md` (or the legacy `CLAUDE.md` entrypoint), **and `sources/eval/runs/`** (the eval verdict telemetry for this run — the only `sources/` path compile stages).
+- Stage `wiki/`, `AGENTS.md`, **and `sources/eval/runs/`** (the eval verdict telemetry for this run — the only `sources/` path compile stages).
 - Skip cleanly if nothing is staged; report `commit: skipped (no changes)`.
 - Subject: `compile: update wiki — <brief synthesis>` (≤ 72 chars).
 - Body lists sources processed, pages updated, hot-set deltas, and any

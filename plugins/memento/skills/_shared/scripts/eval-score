@@ -123,17 +123,35 @@ function thresholds(root) {
   let reg = 1.0, cap = 0.8;
   const p = path.join(root, 'sources', 'eval', 'verdict-contract.json');
   if (fs.existsSync(p)) {
+    let doc;
     try {
-      const t = (JSON.parse(fs.readFileSync(p, 'utf8')).thresholds) || {};
-      if (t.regression_pass_rate_min != null) reg = +t.regression_pass_rate_min;
-      if (t.capability_pass_rate_min != null) cap = +t.capability_pass_rate_min;
-    } catch { /* fall back to defaults */ }
+      doc = JSON.parse(fs.readFileSync(p, 'utf8'));
+    } catch (e) {
+      die(`could not parse ${p}: ${e.message}`);
+    }
+    const t = doc.thresholds || {};
+    if (t.regression_pass_rate_min != null) reg = thresholdValue(t.regression_pass_rate_min, 'regression_pass_rate_min', p);
+    if (t.capability_pass_rate_min != null) cap = thresholdValue(t.capability_pass_rate_min, 'capability_pass_rate_min', p);
   }
   return { reg, cap };
 }
 
+function thresholdValue(raw, key, file) {
+  const parsed = parseThreshold(raw, key, file);
+  if (!parsed.ok) die(parsed.reason);
+  return parsed.value;
+}
+
+function parseThreshold(raw, key, file) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || n > 1) {
+    return { ok: false, reason: `${file} threshold ${key} must be a finite number between 0 and 1` };
+  }
+  return { ok: true, value: n };
+}
+
 function headSha(root) {
-  try { return cp.execSync(`git -C ${JSON.stringify(root)} rev-parse HEAD`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); }
+  try { return cp.execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); }
   catch { return ''; }
 }
 
@@ -154,13 +172,27 @@ if (opt.selfTest) {
     required_evidence_paths: ['sources/notes/probe.md'],
     required_answer_atoms: ['source-only-marker'],
   }, dir);
+  const contractDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-contract-self-'));
+  fs.mkdirSync(path.join(contractDir, 'sources', 'eval'), { recursive: true });
+  fs.writeFileSync(path.join(contractDir, 'sources', 'eval', 'verdict-contract.json'), JSON.stringify({ thresholds: { regression_pass_rate_min: 0.5, capability_pass_rate_min: '0.25' } }));
+  const validContract = thresholds(contractDir);
+  const invalidContractFailed = !parseThreshold('not-a-number', 'regression_pass_rate_min', path.join(contractDir, 'sources', 'eval', 'verdict-contract.json')).ok;
+  const malformedContractDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-contract-bad-self-'));
+  fs.mkdirSync(path.join(malformedContractDir, 'sources', 'eval'), { recursive: true });
+  fs.writeFileSync(path.join(malformedContractDir, 'AGENTS.md'), 'hot set\n');
+  fs.writeFileSync(path.join(malformedContractDir, 'sources', 'eval', 'verdict-contract.json'), '{ not json');
+  const malformed = cp.spawnSync(process.execPath, [__filename, '--root', malformedContractDir, '--json', '--no-log'], { encoding: 'utf8' });
+  const malformedContractFailed = malformed.status === 2 && String(malformed.stderr || '').includes('could not parse');
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+  try { fs.rmSync(contractDir, { recursive: true, force: true }); } catch { /* best effort */ }
+  try { fs.rmSync(malformedContractDir, { recursive: true, force: true }); } catch { /* best effort */ }
   if (!opt.quiet) {
     console.error(`self-test: clean=${clean.pass ? 'PASS' : 'FAIL'} poisoned=${poisoned.pass ? 'PASS(!)' : 'FAIL(correct)'}`);
     console.error('self-test: poisoned reason -> ' + poisoned.reason);
     console.error(`self-test: source-only evidence=${sourceOnly.pass ? 'PASS(!)' : 'FAIL(correct)'}`);
+    console.error(`self-test: verdict-contract=${validContract.reg === 0.5 && validContract.cap === 0.25 && invalidContractFailed && malformedContractFailed ? 'PASS' : 'FAIL'}`);
   }
-  if (clean.pass && !poisoned.pass && !sourceOnly.pass) {
+  if (clean.pass && !poisoned.pass && !sourceOnly.pass && validContract.reg === 0.5 && validContract.cap === 0.25 && invalidContractFailed && malformedContractFailed) {
     if (!opt.quiet) console.error('self-test: OK — scorer correctly fails a poisoned hot set.');
     process.exit(0);
   }
@@ -233,7 +265,7 @@ if (opt.gate && verdict === 'fail') {
     fs.mkdirSync(fdir, { recursive: true });
     const exp = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
     const fails = sliceFails.map(f => `- [${f.suite}] ${f.fixture_id}: ${f.reason}`).join('\n');
-    const md = `---\ndate: ${today()}\nexpires_at: ${exp}\nkind: eval-defect\n---\n\n` +
+    const md = `---\ndate: ${today()}\nexpires_at: ${exp}\nkind: eval-defect\nrationale: Compile gate failed; reread within a week to repair the dropped regression fact or update the stale fixture.\n---\n\n` +
       `# Compile eval gate FAILED — ${today()}\n\n` +
       `The in-compile eval gate (Gate-0) failed: a regression fixture's load-bearing fact ` +
       `was missing from the freshly-compiled hot set + wiki, so the compile was rolled back ` +

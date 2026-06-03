@@ -10,6 +10,10 @@ cd "$repo_root"
 
 fail=0
 
+manifest_version() {
+  jq -er '.version | select(type == "string" and length > 0)' "$1" 2>/dev/null || true
+}
+
 # 1. JSON syntax across all plugin.json + marketplace.json
 while IFS= read -r f; do
   if ! jq empty "$f" >/dev/null 2>&1; then
@@ -31,8 +35,8 @@ fi
 # 3. Version parity per plugin (claude vs codex manifests must match)
 for dir in plugins/*/; do
   plugin=$(basename "$dir")
-  claude_v=$(jq -r '.version' "$dir/.claude-plugin/plugin.json" 2>/dev/null || echo "")
-  codex_v=$(jq -r '.version' "$dir/.codex-plugin/plugin.json" 2>/dev/null || echo "")
+  claude_v=$(manifest_version "$dir/.claude-plugin/plugin.json")
+  codex_v=$(manifest_version "$dir/.codex-plugin/plugin.json")
   if [ -z "$claude_v" ] || [ -z "$codex_v" ]; then
     echo "error: $plugin — missing manifest version (claude=$claude_v codex=$codex_v)" >&2
     fail=1

@@ -5,18 +5,6 @@
   },
   "plugins": [
     {
-      "name": "legate",
-      "source": {
-        "source": "local",
-        "path": "./plugins/legate"
-      },
-      "policy": {
-        "installation": "NOT_AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
       "name": "memento",
       "source": {
         "source": "local",

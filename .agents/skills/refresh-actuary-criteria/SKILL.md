@@ -9,7 +9,7 @@ description: >
   Reads upstream, diffs against the SHAs pinned in criteria.md, and
   proposes specific edits for human review. Never auto-applies bulk
   changes; every rule add/remove is surfaced for approval.
-allowed-tools: [Read, Edit, WebFetch, Bash]
+allowed-tools: Read Edit WebFetch Bash
 ---
 
 # Refresh actuary criteria
@@ -112,7 +112,7 @@ publishes. For each diff, ask:
 The platform pages aren't SHA-pinned. Re-read them with WebFetch:
 
 ```
-WebFetch https://docs.Codex.com/en/docs/agents-and-tools/agent-skills/best-practices
+WebFetch https://docs.claude.com/en/docs/agents-and-tools/agent-skills/best-practices
 WebFetch https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
 ```
 

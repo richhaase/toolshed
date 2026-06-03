@@ -22,9 +22,9 @@ git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
    ```bash
    git -C "$MEMENTO_ROOT" add wiki/ AGENTS.md sources/eval/runs/
    ```
-   In a legacy repo without `AGENTS.md`, stage `wiki/` plus the fallback
-   `CLAUDE.md` entrypoint you updated. `sources/eval/runs/` is the only
-   `sources/` path compile stages; it records the Step 7.5 verdict.
+   `sources/eval/runs/` is the only `sources/` path compile stages; it records
+   the Step 7.5 verdict. Compile requires canonical `AGENTS.md`; migrate old
+   `CLAUDE.md`-only Mementos with `memento-config` before running it.
 2. Check whether anything is actually staged:
    ```bash
    git -C "$MEMENTO_ROOT" diff --cached --quiet

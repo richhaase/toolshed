@@ -357,17 +357,46 @@ check_followup_hygiene() {
 
   local today
   today="$(date '+%Y-%m-%d')"
-  local missing=0
+  local invalid=0
+  local missing_expires=0
+  local missing_rationale=0
   local expired=0
   while IFS= read -r f; do
-    if ! awk '
+    local schema
+    schema="$(awk '
       NR == 1 && $0 == "---" { in_fm = 1; next }
-      in_fm && $0 == "---" { exit found ? 0 : 1 }
-      in_fm && /^expires_at:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]*$/ { found = 1 }
-    ' "$f"; then
-      missing=$((missing + 1))
+      NR == 1 { bad = 1; exit }
+      in_fm && $0 == "---" { closed = 1; exit }
+      in_fm && /^expires_at:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]*$/ { expires = 1 }
+      in_fm && /^rationale:[[:space:]]*[^[:space:]]/ { rationale = 1 }
+      END {
+        if (bad || !in_fm || !closed) {
+          print "invalid"
+        } else {
+          if (!expires) print "expires"
+          if (!rationale) print "rationale"
+        }
+      }
+    ' "$f")"
+
+    case "$schema" in
+      *invalid*)
+        invalid=$((invalid + 1))
+        continue
+        ;;
+    esac
+    case "$schema" in
+      *expires*) missing_expires=$((missing_expires + 1)) ;;
+    esac
+    case "$schema" in
+      *rationale*) missing_rationale=$((missing_rationale + 1)) ;;
+    esac
+    case "$schema" in
+      *expires*)
       continue
-    fi
+      ;;
+    esac
+
     local exp
     exp="$(sed -n '/^---$/,/^---$/{s/^expires_at:[[:space:]]*\([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\).*/\1/p;}' "$f" 2>/dev/null | head -n 1)"
     if [ -n "$exp" ] && [ "$exp" \< "$today" ]; then
@@ -375,8 +404,8 @@ check_followup_hygiene() {
     fi
   done < <(find sources/followups -type f -name '*.md' 2>/dev/null | sort)
 
-  if [ "$missing" -gt 0 ]; then
-    emit P3 "Follow-ups missing expires_at" "sources/followups/" "$missing legacy item(s) without an expires_at frontmatter. Triage via /followups walk to bring them under the new bar."
+  if [ "$invalid" -gt 0 ] || [ "$missing_expires" -gt 0 ] || [ "$missing_rationale" -gt 0 ]; then
+    emit P3 "Follow-ups missing required frontmatter" "sources/followups/" "$invalid malformed item(s), $missing_expires missing expires_at, $missing_rationale missing rationale. Triage via /followups walk to bring them under the new bar."
   fi
   if [ "$expired" -gt 0 ]; then
     emit P2 "Expired follow-ups awaiting triage" "sources/followups/" "$expired item(s) past their expires_at — either dismiss or bump via /followups walk."

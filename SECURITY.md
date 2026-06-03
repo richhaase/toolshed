@@ -14,9 +14,11 @@ machine when the plugin is installed and a skill is invoked.
 - `plugins/legate/` interacts with `tmux`, `gh`, and `git`.
 - `plugins/memento/` reads and writes files inside the resolved Memento
   root and may invoke `git` against that root.
+- `plugins/actuary/` is read-only by design; it reads skill files and may use
+  local shell utilities to measure or grep them.
 
-Neither plugin has network access of its own; any network calls go through
-tools the agent already has (e.g., `gh`, `curl` if a skill writes to it).
+No plugin has network access of its own; any network calls go through tools the
+agent already has (e.g., `gh`, `curl` if a skill invokes it).
 
 ## Reporting issues
 

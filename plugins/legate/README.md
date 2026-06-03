@@ -104,6 +104,6 @@ There is no external registry.
 
 ## Installation
 
-Legate is deprecated and intentionally not installable from the Codex
+Legate is deprecated and intentionally not installable from the toolshed
 marketplace. Do not install it for new work; use the harness-native agents view
 instead.

@@ -8,12 +8,6 @@
   },
   "plugins": [
     {
-      "name": "legate",
-      "source": "./plugins/legate",
-      "description": "[DEPRECATED — superseded by Claude Code's native agents view] Dispatch, watch, and debrief delegated agent work running in tagged tmux windows.",
-      "category": "Productivity"
-    },
-    {
       "name": "memento",
       "source": "./plugins/memento",
       "description": "Personal memory base with sources, wiki, and an always-resident hot set.",

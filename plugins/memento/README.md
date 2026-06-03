@@ -153,8 +153,10 @@ this Memento is working.
 ### Promotion (gated, human-triggered)
 
 A local experiment graduates outward through `promote`:
-`experiment -> local-ok -> toolshed-ready -> toolshed -> marketplace-ready ->
-marketplace` (or `retired`). Promotion state lives as **data**:
+`experiment -> marketplace-ready -> marketplace` (or `retired`). A promote
+flow always targets a marketplace git repo. The default target is `memento`,
+the active Memento/RSI target; toolshed is one other marketplace target, not a
+separate lifecycle stage. Promotion state lives as **data**:
 `promotion_stage` frontmatter on `wiki/skills/` + `wiki/tools/` pages plus an
 append-only `wiki/skills/_promotion-ledger.md`, so "what is ready" and "what
 duplicates capability" are grep queries, not folklore.
@@ -165,7 +167,7 @@ duplicates capability" are grep queries, not folklore.
 - **Gate-1** is `actuary --tier <tier>` (invoked through harness-native skill
   composition when available, or by applying the Actuary skill workflow directly):
   a privacy/genericization scan + L1 spec check turned into a readiness verdict.
-  Privacy is a non-negotiable hard-block above `local`.
+  Privacy is a non-negotiable marketplace hard-block.
 - **Gate-2** (promptfoo behavioral CI) is a later phase; `promote` reports it as
   unproven rather than synthesizing a pass.
 - The deterministic backstop is `scripts/privacy-scan` (toolshed repo infra,
@@ -185,7 +187,7 @@ stage change.
 | `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, (at most one, confirmed) follow-up, and a structured trajectory record per substantive session |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) |
-| `promote` | Gated `local -> toolshed -> marketplace` promotion of a skill/tool; composes `actuary --tier` (Gate-1: privacy + spec) through the harness's skill-composition surface when available, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
+| `promote` | Gated promotion of a local skill/tool to a marketplace git repo, defaulting to the active Memento/RSI target; composes `actuary --tier` (Gate-1: privacy + spec) through the harness's skill-composition surface when available, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
 descend into `wiki/` and `sources/` as needed). For passive capture, edit

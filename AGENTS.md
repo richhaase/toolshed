@@ -102,13 +102,15 @@ This catches the bump-only-one-side mistake before it leaves your machine.
 ## Current plugins
 
 - **memento** — Memory-base workflows (memento-config, compile, health-check,
-  save, ama, followups). Six-skill core: idempotent setup/config, sources ->
-  wiki -> AGENTS.md hot set compilation, read-only cache/provenance/privacy
-  diagnostics, passive session capture, active LLM-driven interview, and queue
-  review.
-- **legate** — Delegated work orchestration (dispatch, debrief, watch, logs,
-  stop, attach). A thin coordination layer over tmux: each handle is a
-  tagged tmux window running an agent runtime (`claude` or `codex`).
+  save, ama, followups, promote). Seven-skill core: idempotent setup/config,
+  sources -> wiki -> AGENTS.md hot set compilation, read-only
+  cache/provenance/privacy diagnostics, passive session capture, active
+  LLM-driven interview, queue review, and gated promotion to a marketplace git
+  repo, defaulting to the Memento RSI target.
+- **legate** — Retired delegated-work orchestration. Code is retained for
+  history/reference, but the plugin is not installable from toolshed
+  marketplace surfaces. Use harness-native background agents / agents view
+  instead of Legate's tmux coordination layer.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.
@@ -125,8 +127,9 @@ This catches the bump-only-one-side mistake before it leaves your machine.
   routes to it, not a duplicated copy of the same Memento state.
 - Prefer generic wording in skills: "agent entrypoint" rather than only
   `CLAUDE.md`, unless the instruction is explicitly Claude-specific.
-- Keep `memento` and `legate` separate plugins. Memento may use `legate` when
-  installed, but must degrade cleanly when it is not.
+- Keep `memento` independent from retired `legate`; Memento should use
+  harness-native background-agent primitives where available and degrade cleanly
+  when no delegation surface exists.
 
 ## Public-repo hygiene
 

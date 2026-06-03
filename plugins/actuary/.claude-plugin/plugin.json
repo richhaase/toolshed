@@ -1,6 +1,6 @@
 {
   "name": "actuary",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Audit and evaluate Agent Skills against the agentskills.io spec and authoring best practices. skill-audit produces a layered L1 spec / L2 structural / L3 craft report, and with --tier emits a promotion-readiness verdict gated on a privacy/genericization scan (real IDs, machine paths, key material, real people/groups — personal or business) — the Gate-1 input the memento:promote flow consumes.",
   "author": {
     "name": "Rich Haase",

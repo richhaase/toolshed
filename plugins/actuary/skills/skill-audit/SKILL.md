@@ -8,7 +8,7 @@ description: >
   disclosure, or Gotchas opportunities. Produces a layered report — L1 spec
   compliance (pass/fail), L2 structural metrics (counts), L3 craft
   recommendations (ranked) — plus a prioritized quick-wins list. With
-  `--tier <local|toolshed|marketplace>` it also emits a promotion-readiness
+  `--tier local, toolshed, or marketplace` it also emits a promotion-readiness
   verdict gated on a privacy/genericization scan (real IDs, machine paths, key
   material) and L1 spec compliance. Read-only: never modifies the audited
   skills. Trigger even when the user doesn't say "audit" if they're asking for a
