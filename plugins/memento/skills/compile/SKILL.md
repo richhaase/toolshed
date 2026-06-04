@@ -70,6 +70,14 @@ Hard rules — environment-specific facts the agent will get wrong without these
   for Glob/Grep when you have a known list of paths.
 - **Batch writes in one message.** Same rule for Edit/Write — issue the
   full set of updated pages in one parallel batch.
+- **Fan out substantive page synthesis — don't generate many pages serially in
+  one context.** Batched tool calls parallelize I/O, not the model's token
+  generation. Writing several substantively-merged pages back-to-back in a
+  single context is serial and is the dominant latency on a multi-page
+  incremental. Once Step 3 fixes the affected set, hand each substantive page to
+  its own subagent and launch them concurrently (see Step 4, "For incremental
+  updates"). Cheap activity-log appends stay inline — they have no synthesis to
+  parallelize.
 - **Read only what's affected.** Skip wiki pages for entities not mentioned
   in the changed sources. Keep `AGENTS.md` in context once read; don't
   re-read it.
@@ -234,9 +242,58 @@ without the field are unaffected.
 
 ### For incremental updates
 
-Do NOT launch subagents — the overhead isn't worth it for updating a subset of pages.
-After reading all sources and wiki pages (Steps 2-3), synthesize all updates in your
-context and write them all in one parallel batch of Edit/Write calls.
+Once Step 3 fixes the affected-page set, the pages are independent units of work —
+synthesizing them one after another in a single context is serial token generation and the
+dominant latency on a multi-page run. Split the set by work type and parallelize the
+expensive half:
+
+**Class A — activity-log appends.** Pages whose only change is one or more dated lines at
+the top of a `Recent Activity` / `Activity Log` section (PR-author activity, meeting
+attendance, incidental mentions). Each is a single targeted `Edit` with no synthesis. Do
+all of them inline in one parallel batch of `Edit` calls — a subagent's spin-up costs more
+than a one-line insert saves.
+
+**Class B — substantive synthesis.** New pages, pages with >2 changed non-activity
+sections, complex state merges, person-enrichment merges. Each Class-B page is an
+independent synthesis unit. **When there are 3 or more, fan them out — one subagent per
+page (or one per same-type batch), issued in a single parallel batch so they run
+concurrently.** With 2 or fewer, synthesize inline; the fan-out overhead isn't worth it.
+The write phase then tracks the slowest single page, not the sum of all of them.
+
+Each Class-B subagent receives the entity name, its entity-type definition (wiki_path,
+filename, frontmatter, sections), the relevant source excerpts, and the current page
+content. It synthesizes and **writes its own page**, then returns a one-line summary
+(sections touched, any `<provider>_id` drift to surface). It must NOT read `private/`, must
+NOT touch any page but its own, and must NOT run cross-linking, the hot set, the eval gate,
+or the commit — those stay with the orchestrator, which runs them after every subagent has
+returned. Pages are partitioned one-per-subagent, so there are no concurrent writes to the
+same file and no worktree isolation is needed; INDEX.md and AGENTS.md are written only by
+the orchestrator.
+
+**Class-B subagent brief template:**
+```
+Compile a single wiki page for entity "<name>" (type "<type>").
+
+Entity type definition:
+- wiki_path: <path>
+- filename: <filename>
+- frontmatter fields: <fields>
+- sections: <sections>
+
+Current page content (merge into, do not discard accumulated sections):
+<current page body, or "NEW PAGE" if none exists>
+
+Source material for this entity:
+<relevant source excerpts>
+
+Synthesize the update and WRITE the page to <wiki_path>/<filename> following the
+per-page write mechanics (Write vs targeted Edit, capped activity sections). Do NOT
+read private/. Do NOT touch any other page, INDEX.md, or AGENTS.md. Return a one-line
+summary: sections touched + any <provider>_id drift.
+```
+
+The per-page write mechanics below apply to every page written — the inline Class-A batch
+and each Class-B subagent alike.
 
 **Hard cap on affected pages.** A typical incremental run (≈13 changed sources)
 should touch fewer than 25 wiki pages. If you're loading more than that, you're
@@ -363,12 +420,12 @@ When running incrementally (not a full build):
 2. **Read ALL changed source files in one parallel batch.** Honor any `touches` frontmatter to skip mention-extraction on those sources.
 3. Extract entity mentions by type for sources without `touches`. Build the list of affected wiki pages.
 4. **Read ALL affected wiki pages in one parallel batch.**
-5. Synthesize updates. **Write ALL updated wiki pages + INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`) in one parallel batch.**
+5. Partition the affected pages (Step 4): activity-log appends (Class A) go inline as one parallel batch of `Edit` calls; substantive pages (Class B) fan out to concurrent subagents when there are 3+, each writing its own page. Wait for all subagents to return, then **write INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`).**
 6. **Read `AGENTS.md`, rebuild the hot set between markers, write `AGENTS.md`.**
 7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
 8. **Eval gate + commit (Steps 7.5 → 8).** Run `eval-score --gate` before committing; on `verdict: fail` (or scorer error) roll back `AGENTS.md` + `wiki/` to `COMPILE_BASE_SHA` and do NOT commit. Otherwise commit (staging `wiki/`, `AGENTS.md`, and `sources/eval/runs/`). Always the last action; skip cleanly when not a git repo or nothing staged.
 
-The entire incremental compile should be **5-6 roundtrips**: resolve change set → read sources → read wiki pages → write wiki updates → write L1 hot set → commit.
+The entire incremental compile should be **5-6 orchestrator roundtrips**: resolve change set → read sources → read wiki pages → write wiki updates (Class-A append batch + a single concurrent Class-B subagent dispatch) → write INDEX + L1 hot set → commit. The Class-B subagents run in parallel within that one dispatch, so wall-clock tracks the slowest page, not the page count.
 
 ## Step 7: Distill L2 -> L1 (`AGENTS.md` hot set)
 
