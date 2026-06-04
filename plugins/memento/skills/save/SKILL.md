@@ -95,6 +95,17 @@ This enables entity-aware routing in Step 3.
 
 ## Step 3: Extract value
 
+**Fast path — take it on the common case.** Most substantive sessions resolve to
+exactly two writes: one session decision/research file (when the session made
+decisions or surfaced findings worth keeping) and one trajectory record. Follow-ups,
+private notes, and analyses are exceptions, not defaults — the expected follow-up
+count per session is **zero**. Classify quickly against the table below, write the
+session file + trajectory, and report. Only spend deliberation on the detailed rules
+that follow (the follow-up bar, entity routing, commitment surfacing) when a candidate
+actually trips them. Do not re-derive the whole rubric on a session that plainly
+produced one decision file and nothing else — decisiveness here is what keeps `/save`
+cheap enough to run every session.
+
 Review the session content and identify items in these categories:
 
 | Category | What to look for | Destination |
@@ -227,7 +238,7 @@ require confirmation — they are continuations, not new captures.
 
 ### Mode behavior
 
-**Default mode (no arg, `approve`):** print the plan as a record of what's about to happen. Run the per-follow-up confirmation gate above for any proposed new follow-up. Then proceed to Step 5 for everything else.
+**Default mode (no arg, `approve`):** when nothing in the plan is gated — no new follow-up, no private-note — skip the plan print: write the files and report a one-line `captured: <files>` after. The plan-print/confirmation ceremony exists for gated items; don't run it when there's nothing to gate. When the plan *does* include a new follow-up, run the per-follow-up confirmation gate above before writing it, then proceed to Step 5 for everything else.
 
 **Ask mode (`ask`):** print the plan and wait for explicit user approval of the whole plan before proceeding to Step 5. The follow-up gate still runs inside ask mode — it is a stricter check on top of the broader plan approval.
 

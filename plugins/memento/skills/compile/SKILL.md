@@ -73,6 +73,10 @@ Hard rules — environment-specific facts the agent will get wrong without these
 - **Read only what's affected.** Skip wiki pages for entities not mentioned
   in the changed sources. Keep `AGENTS.md` in context once read; don't
   re-read it.
+- **Activity-log appends use one targeted `Edit`, never a full-page `Write`.**
+  Re-emitting a whole accumulated page to add one dated activity line is the
+  top output-token sink on heavy-activity days (a sync digest naming many PR
+  authors fans a one-line append across every person page) — see Step 4.
 - **Target: under 3 minutes for incremental compiles.** If you're slower,
   you're sequential where you should be parallel.
 
@@ -239,18 +243,31 @@ should touch fewer than 25 wiki pages. If you're loading more than that, you're
 over-reading — re-check the entity-graph from Step 3 and prune entities that
 were only incidentally mentioned (passing reference, no new content).
 
-**Prefer `Write` over multi-`Edit` when >2 sections of a page change.** Chained
-Edits incur diff-search overhead and emit the surrounding context tokens for
-each hunk. When a wiki page needs updates to more than two distinct sections,
-rewrite the whole page with a single `Write` call — one full write costs fewer
-output tokens than 3+ Edits. Use targeted `Edit` only for narrow updates (one
-or two sections, frontmatter tweaks).
+**Activity-log appends are always a single targeted `Edit`, never a `Write` — this
+is the dominant incremental case and the #1 source of wasted output tokens.** When
+the only change to a page is a new dated entry in its `Recent Activity` / `Activity
+Log` section (e.g. PR-author activity from a sync digest fanning across many person
+pages), insert the new line(s) at the top of that section with one `Edit`. Do not
+regenerate the page body. Being *named* as a PR author or meeting attendee is
+incidental activity, not substantive new state — append the one-line entry and touch
+nothing else on that page unless its other sections genuinely changed. Regenerating a
+150-line person page to land one activity line is exactly the cost this rule kills.
+
+**Otherwise, prefer `Write` over multi-`Edit` when >2 *substantive* sections change.**
+Chained Edits incur diff-search overhead and emit the surrounding context tokens for
+each hunk. When a page needs updates to more than two distinct non-activity sections
+(Current State, Current Focus, Key Decisions, …), rewrite the whole page with a single
+`Write` call — one full write costs fewer output tokens than 3+ Edits. Use targeted
+`Edit` for narrow updates (one or two sections, frontmatter tweaks, or any activity-log
+append per the rule above).
 
 **Cap accumulating sections.** `Recent Activity` / `Activity Log` sections keep
 the last 30 days inline. Older entries collapse to one-line per-week summaries
 (or per-month, for entries older than 90 days). The full source files remain
 under `sources/` for re-derivation if deeper history is ever needed — the wiki
-is a synthesized view, not an archive.
+is a synthesized view, not an archive. This periodic collapse of aged entries is
+the *only* time an activity section warrants a full `Write`; routine top-of-section
+appends never do.
 
 ### For full builds
 
