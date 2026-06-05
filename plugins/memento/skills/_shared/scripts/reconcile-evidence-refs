@@ -1,0 +1,351 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const cp = require('child_process');
+
+const argv = process.argv.slice(2);
+const opt = {
+  root: process.env.MEMENTO_ROOT || process.cwd(),
+  dryRun: false,
+  json: false,
+  includeAgents: false
+};
+
+for (let i = 0; i < argv.length; i++) {
+  const arg = argv[i];
+  if (arg === '--root') opt.root = argv[++i];
+  else if (arg === '--dry-run') opt.dryRun = true;
+  else if (arg === '--json') opt.json = true;
+  else if (arg === '--include-agents') opt.includeAgents = true;
+  else if (arg === '--help' || arg === '-h') {
+    process.stdout.write('Usage: reconcile-evidence-refs [--root DIR] [--dry-run] [--json] [--include-agents]\n');
+    process.exit(0);
+  } else {
+    process.stderr.write(`reconcile-evidence-refs: unknown argument ${arg}\n`);
+    process.exit(64);
+  }
+}
+
+function resolveRoot(root) {
+  if (root && fs.existsSync(root)) return path.resolve(root);
+  try {
+    return cp.execFileSync(path.join(__dirname, 'memento-root'), { encoding: 'utf8' }).trim();
+  } catch {
+    return path.resolve(root || process.cwd());
+  }
+}
+
+const root = resolveRoot(opt.root);
+
+function relExists(rel) {
+  if (!rel || rel.startsWith('private/') || rel.includes('/../') || rel.startsWith('../')) return false;
+  return fs.existsSync(path.join(root, rel));
+}
+
+function replacementFor(rel) {
+  if (rel.startsWith('sources/sync/')) {
+    const moved = rel.replace(/^sources\/sync\//, 'sources/syncs/');
+    if (relExists(moved)) return moved;
+  }
+  return null;
+}
+
+function walk(dir) {
+  if (!fs.existsSync(dir)) return [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...walk(full));
+    else if (entry.isFile() && entry.name.endsWith('.md')) files.push(full);
+  }
+  return files;
+}
+
+function bodyPathTokenRegex() {
+  return /`?((?:sources|wiki|data|outputs)\/[A-Za-z0-9._/-]+\.md)`?/g;
+}
+
+function splitFrontmatter(text) {
+  const lines = text.split('\n');
+  if (lines[0] !== '---') return { before: [], frontmatter: null, after: lines };
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i] === '---') {
+      return {
+        before: [lines[0]],
+        frontmatter: lines.slice(1, i),
+        after: lines.slice(i)
+      };
+    }
+  }
+  return { before: [], frontmatter: null, after: lines };
+}
+
+function cleanFrontmatter(lines, stats, fileRel) {
+  const out = [];
+  let inSources = false;
+  let sourceIndent = -1;
+
+  for (const line of lines) {
+    const sourcesMatch = line.match(/^(\s*)sources:\s*$/);
+    if (sourcesMatch) {
+      inSources = true;
+      sourceIndent = sourcesMatch[1].length;
+      out.push(line);
+      continue;
+    }
+
+    if (inSources) {
+      const indent = line.match(/^(\s*)/)[1].length;
+      const item = line.match(/^(\s*)-\s+(.+?)\s*$/);
+      if (!item || indent <= sourceIndent) {
+        inSources = false;
+      } else {
+        const rawValue = item[2].replace(/^["']|["']$/g, '');
+        const ref = rawValue.match(/^(sources|wiki|data|outputs)\/[A-Za-z0-9._/-]+$/);
+        if (ref) {
+          if (relExists(rawValue)) {
+            out.push(line);
+          } else {
+            const moved = replacementFor(rawValue);
+            if (moved) {
+              out.push(`${item[1]}- ${moved}`);
+              stats.rewritten++;
+              stats.changedRefs.push({ file: fileRel, from: rawValue, to: moved });
+            } else {
+              stats.removed++;
+              stats.changedRefs.push({ file: fileRel, from: rawValue, to: null });
+            }
+          }
+          continue;
+        }
+      }
+    }
+
+    out.push(line);
+  }
+
+  return out;
+}
+
+function citationMatch(line) {
+  const patterns = [
+    { kind: 'source', pattern: /\bSources?:/i },
+    { kind: 'source', pattern: /\bEvidence:/i },
+    { kind: 'clause', pattern: /\bCaptured (?:in|as)\b/i },
+    { kind: 'clause', pattern: /\bReply task open:/i }
+  ];
+  const matches = patterns.map((entry) => {
+    const match = line.match(entry.pattern);
+    return match ? { kind: entry.kind, index: match.index } : null;
+  }).filter(Boolean);
+  if (matches.length === 0) return null;
+  matches.sort((a, b) => a.index - b.index);
+  return matches[0];
+}
+
+function cleanCitationSegment(segment, stats, fileRel) {
+  let changed = false;
+  const next = segment.replace(bodyPathTokenRegex(), (match, rel) => {
+    if (relExists(rel)) return match;
+    const moved = replacementFor(rel);
+    changed = true;
+    if (moved) {
+      stats.rewritten++;
+      stats.changedRefs.push({ file: fileRel, from: rel, to: moved });
+      return match.startsWith('`') ? `\`${moved}\`` : moved;
+    }
+    stats.removed++;
+    stats.changedRefs.push({ file: fileRel, from: rel, to: null });
+    return '';
+  });
+
+  if (!changed) return segment;
+
+  let cleaned = next
+    .replace(/,\s*,+/g, ', ')
+    .replace(/:\s*,\s*/g, ': ')
+    .replace(/\(\s*,\s*/g, '(')
+    .replace(/,\s*\)/g, ')')
+    .replace(/\[\s*,\s*/g, '[')
+    .replace(/,\s*\]/g, ']')
+    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/([[(])\s+([)\]])/g, '$1$2')
+    .replace(/,\s*([.;])/g, '$1')
+    .replace(/^\s*Captured (?:in|as)\s*[,.;-]*\s*$/i, '')
+    .replace(/\bCaptured (?:in|as)\s*[,.;-]*\s*$/i, '')
+    .replace(/^\s*Captured (?:in|as)\s*[—-]\s*/i, '')
+    .replace(/\bcaptured (?:in|as)\s*;\s*/i, 'captured previously; ')
+    .replace(/\bcaptured (?:in|as)\s*([,.;])\s*$/i, 'captured previously$1')
+    .replace(/\bReply task open:\s*[,.;-]*\s*$/i, '')
+    .replace(/Sources?:\s*\.\s*$/i, '')
+    .replace(/Sources?:\s*,\s*/i, 'Sources: ')
+    .replace(/\s{2,}/g, ' ')
+    .trimEnd();
+
+  if (/^\s*(Sources?|Evidence):\s*[,.;-]*\s*$/i.test(cleaned)) return null;
+  if (/^\s*[-*]\s*(Sources?|Evidence):\s*[,.;-]*\s*$/i.test(cleaned)) return null;
+  if (/^\s*Captured (?:in|as)\s*[,.;-]*\s*$/i.test(cleaned)) return null;
+  if (/^\s*Reply task open:\s*[,.;-]*\s*$/i.test(cleaned)) return null;
+  return cleaned;
+}
+
+function proseReplacement(match, rel, stats, fileRel) {
+  if (relExists(rel)) return match;
+  const moved = replacementFor(rel);
+  if (moved) {
+    stats.rewritten++;
+    stats.changedRefs.push({ file: fileRel, from: rel, to: moved });
+    return match.startsWith('`') ? `\`${moved}\`` : moved;
+  }
+  if (rel.startsWith('sources/tasks/done/')) {
+    stats.removed++;
+    stats.changedRefs.push({ file: fileRel, from: rel, to: null });
+    return 'completed task record';
+  }
+  if (rel.startsWith('sources/tasks/')) {
+    stats.removed++;
+    stats.changedRefs.push({ file: fileRel, from: rel, to: null });
+    return 'closed task record';
+  }
+  if (rel.startsWith('sources/followups/')) {
+    stats.removed++;
+    stats.changedRefs.push({ file: fileRel, from: rel, to: null });
+    return 'closed follow-up record';
+  }
+  if (/^sources\/syncs?\/(github|jira|calendar)\//.test(rel)) {
+    stats.removed++;
+    stats.changedRefs.push({ file: fileRel, from: rel, to: null });
+    return 'live-system state';
+  }
+  return match;
+}
+
+function cleanProseLine(line, stats, fileRel) {
+  let changed = false;
+  const next = line.replace(bodyPathTokenRegex(), (match, rel) => {
+    const replacement = proseReplacement(match, rel, stats, fileRel);
+    if (replacement !== match) changed = true;
+    return replacement;
+  });
+  if (!changed) return line;
+  return next
+    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/\(\s+/g, '(')
+    .replace(/\s+\)/g, ')')
+    .replace(/\s{2,}/g, ' ')
+    .trimEnd();
+}
+
+function tidyRemovedClauseLine(line) {
+  return line
+    .replace(/\bCaptured (?:in|as)\.\s*/i, '')
+    .replace(/\bOpen bug\s+fix\b/i, 'Open bug: fix')
+    .replace(/([.!?])\s+Bug\s*$/i, '$1')
+    .replace(/\bBug\s*$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trimEnd();
+}
+
+function cleanBodyLineOnce(line, stats, fileRel) {
+  const match = citationMatch(line);
+  if (!match) return cleanProseLine(line, stats, fileRel);
+  const prefix = line.slice(0, match.index);
+  let segment = line.slice(match.index);
+  let suffix = '';
+
+  if (match.kind === 'clause') {
+    const semicolon = segment.indexOf(';');
+    if (semicolon >= 0) {
+      const end = semicolon + 1;
+      suffix = segment.slice(end);
+      segment = segment.slice(0, end);
+    }
+  }
+
+  const cleaned = cleanCitationSegment(segment, stats, fileRel);
+  if (cleaned === segment) {
+    if (!suffix) return line;
+    const cleanedSuffix = cleanBodyLine(suffix, stats, fileRel);
+    if (cleanedSuffix === null) return `${prefix}${segment}`.trimEnd();
+    return `${prefix}${segment}${cleanedSuffix}`.trimEnd();
+  }
+  if (cleaned === null || cleaned === '') {
+    const joined = tidyRemovedClauseLine(`${prefix}${suffix.replace(/^[;.\s]+/, ' ')}`);
+    return joined.trim() ? joined : null;
+  }
+  return tidyRemovedClauseLine(`${prefix}${cleaned}${suffix}`);
+}
+
+function cleanBodyLine(line, stats, fileRel) {
+  let current = line;
+  for (let i = 0; i < 8; i++) {
+    const next = cleanBodyLineOnce(current, stats, fileRel);
+    if (next === null) return null;
+    if (next === current) return current;
+    current = next;
+  }
+  return current;
+}
+
+function cleanFile(file) {
+  const fileRel = path.relative(root, file);
+  const original = fs.readFileSync(file, 'utf8');
+  const ending = original.endsWith('\n') ? '\n' : '';
+  const body = ending ? original.slice(0, -1) : original;
+  const parts = splitFrontmatter(body);
+  const stats = { file: fileRel, removed: 0, rewritten: 0, changedRefs: [] };
+  let lines;
+
+  if (parts.frontmatter) {
+    const fm = cleanFrontmatter(parts.frontmatter, stats, fileRel);
+    const bodyLines = parts.after.map((line) => cleanBodyLine(line, stats, fileRel)).filter((line) => line !== null);
+    lines = [...parts.before, ...fm, ...bodyLines];
+  } else {
+    lines = parts.after.map((line) => cleanBodyLine(line, stats, fileRel)).filter((line) => line !== null);
+  }
+
+  const updated = lines.join('\n') + ending;
+  if (updated !== original && !opt.dryRun) fs.writeFileSync(file, updated);
+  return {
+    file: fileRel,
+    changed: updated !== original,
+    removed: stats.removed,
+    rewritten: stats.rewritten,
+    changedRefs: stats.changedRefs
+  };
+}
+
+const targets = walk(path.join(root, 'wiki'));
+if (opt.includeAgents) {
+  for (const agentFile of ['AGENTS.md', 'CLAUDE.md', 'GEMINI.md']) {
+    const full = path.join(root, agentFile);
+    if (fs.existsSync(full)) targets.push(full);
+  }
+}
+
+const results = targets.map(cleanFile).filter((result) => result.changed || result.removed || result.rewritten);
+const summary = {
+  root,
+  dry_run: opt.dryRun,
+  files_changed: results.filter((result) => result.changed).length,
+  refs_removed: results.reduce((sum, result) => sum + result.removed, 0),
+  refs_rewritten: results.reduce((sum, result) => sum + result.rewritten, 0),
+  files: results
+};
+
+if (opt.json) {
+  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+} else {
+  process.stdout.write(`Root: ${summary.root}\n`);
+  process.stdout.write(`Mode: ${summary.dry_run ? 'dry-run' : 'apply'}\n`);
+  process.stdout.write(`Files changed: ${summary.files_changed}\n`);
+  process.stdout.write(`References rewritten: ${summary.refs_rewritten}\n`);
+  process.stdout.write(`References removed: ${summary.refs_removed}\n`);
+  for (const result of results.slice(0, 20)) {
+    process.stdout.write(`- ${result.file}: rewritten ${result.rewritten}, removed ${result.removed}\n`);
+  }
+  if (results.length > 20) process.stdout.write(`- ... ${results.length - 20} more file(s)\n`);
+}

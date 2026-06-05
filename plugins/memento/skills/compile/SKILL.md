@@ -383,6 +383,27 @@ After all pages are written, ensure cross-links are consistent:
 - Add cross-links in prose where entities are mentioned (e.g., "Working with [[jane-doe]] on [[api-migration]]").
 - Update `related` frontmatter arrays to reflect actual cross-references.
 
+## Step 5.5: Reconcile Evidence References
+
+After page writes and cross-link cleanup, run the deterministic evidence-reference
+reconciler before rebuilding `INDEX.md` and `AGENTS.md`:
+
+```bash
+node ../_shared/scripts/reconcile-evidence-refs --root "$MEMENTO_ROOT"
+```
+
+The reconciler only edits generated public cache surfaces under `wiki/` by
+default. It rewrites legacy `sources/sync/...` paths to `sources/syncs/...` when
+the moved source exists, removes citations to paths that no longer exist, and
+leaves synthesized prose intact. This is the garbage-collection pass for stale
+evidence references left by source renames, projected-source retirement, task
+queue deletion, or follow-up triage.
+
+If the run reports removed references, include the count in the compile report.
+Do not treat removed references as source data; they were unverifiable cache
+citations. If the script cannot run, stop before Step 6 rather than writing a new
+index over a known-stale citation graph.
+
 ## Step 6: Build INDEX.md
 
 Write `wiki/INDEX.md` with a catalog of every wiki page, grouped by entity type.
@@ -420,10 +441,11 @@ When running incrementally (not a full build):
 2. **Read ALL changed source files in one parallel batch.** Honor any `touches` frontmatter to skip mention-extraction on those sources.
 3. Extract entity mentions by type for sources without `touches`. Build the list of affected wiki pages.
 4. **Read ALL affected wiki pages in one parallel batch.**
-5. Partition the affected pages (Step 4): activity-log appends (Class A) go inline as one parallel batch of `Edit` calls; substantive pages (Class B) fan out to concurrent subagents when there are 3+, each writing its own page. Wait for all subagents to return, then **write INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`).**
-6. **Read `AGENTS.md`, rebuild the hot set between markers, write `AGENTS.md`.**
-7. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
-8. **Eval gate + commit (Steps 7.5 → 8).** Run `eval-score --gate` before committing; on `verdict: fail` (or scorer error) roll back `AGENTS.md` + `wiki/` to `COMPILE_BASE_SHA` and do NOT commit. Otherwise commit (staging `wiki/`, `AGENTS.md`, and `sources/eval/runs/`). Always the last action; skip cleanly when not a git repo or nothing staged.
+5. Partition the affected pages (Step 4): activity-log appends (Class A) go inline as one parallel batch of `Edit` calls; substantive pages (Class B) fan out to concurrent subagents when there are 3+, each writing its own page. Wait for all subagents to return.
+6. Run Step 5.5 evidence-reference reconciliation, then **write INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`).**
+7. **Read `AGENTS.md`, rebuild the hot set between markers, write `AGENTS.md`.**
+8. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
+9. **Eval gate + commit (Steps 7.5 → 8).** Run `eval-score --gate` before committing; on `verdict: fail` (or scorer error) roll back `AGENTS.md` + `wiki/` to `COMPILE_BASE_SHA` and do NOT commit. Otherwise commit (staging `wiki/`, `AGENTS.md`, and `sources/eval/runs/`). Always the last action; skip cleanly when not a git repo or nothing staged.
 
 The entire incremental compile should be **5-6 orchestrator roundtrips**: resolve change set → read sources → read wiki pages → write wiki updates (Class-A append batch + a single concurrent Class-B subagent dispatch) → write INDEX + L1 hot set → commit. The Class-B subagents run in parallel within that one dispatch, so wall-clock tracks the slowest page, not the page count.
 
@@ -555,8 +577,9 @@ staging, the commit subject/body shape, and failure handling. Headline rules:
 Report to user: pages created / updated / unchanged, new entities discovered,
 hot set changes (promoted/demoted), superseded/archived sources skipped, any
 sources that couldn't be processed, any `<provider>_id` drift between sources
-and existing wiki frontmatter (manual value left in place), the **Step 7.5 eval-gate
-verdict** (regression/capability pass rates, whether it was gated, logged to
+and existing wiki frontmatter (manual value left in place), evidence references
+rewritten/removed by Step 5.5, the **Step 7.5 eval-gate verdict**
+(regression/capability pass rates, whether it was gated, logged to
 `sources/eval/runs/`), and the commit SHA (or the rollback / `skipped` reason).
 
 ## Guidelines
