@@ -1,0 +1,453 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const cp = require('child_process');
+const os = require('os');
+
+const DEFAULT_HISTORICAL = ['history', 'historical', 'correction', 'recent activity', 'activity log', 'changelog', 'archive', 'superseded'];
+
+const argv = process.argv.slice(2);
+const opt = {
+  root: process.env.MEMENTO_ROOT || process.cwd(),
+  json: false,
+  backlinks: null,
+  neighbors: null,
+  seed: null,
+  coupled: null,
+  rediscover: false,
+  exclude: [],
+  coldDays: 60,
+  k: 2,
+  selfTest: false,
+};
+
+function usage() {
+  process.stderr.write('usage: build-graph [--root DIR] [--json] [--backlinks SLUG] [--neighbors SLUG] [--seed SLUG] [--coupled SLUG] [--rediscover [--exclude a,b,c] [--cold-days N] [--k N]] [--self-test]\n');
+}
+
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i];
+  if (a === '--root') opt.root = argv[++i];
+  else if (a === '--json') opt.json = true;
+  else if (a === '--backlinks') opt.backlinks = argv[++i];
+  else if (a === '--neighbors') opt.neighbors = argv[++i];
+  else if (a === '--seed') opt.seed = argv[++i];
+  else if (a === '--coupled') opt.coupled = argv[++i];
+  else if (a === '--rediscover') opt.rediscover = true;
+  else if (a === '--exclude') opt.exclude = String(argv[++i] || '').split(',').map(s => s.trim()).filter(Boolean);
+  else if (a === '--cold-days') opt.coldDays = parseInt(argv[++i], 10);
+  else if (a === '--k') opt.k = parseInt(argv[++i], 10);
+  else if (a === '--self-test') opt.selfTest = true;
+  else if (a === '-h' || a === '--help') { usage(); process.exit(0); }
+  else { process.stderr.write('build-graph: unknown argument ' + a + '\n'); process.exit(64); }
+}
+
+if (!Number.isFinite(opt.coldDays) || opt.coldDays < 0) { process.stderr.write('build-graph: --cold-days must be a non-negative number\n'); process.exit(64); }
+if (!Number.isFinite(opt.k) || opt.k < 0) { process.stderr.write('build-graph: --k must be a non-negative number\n'); process.exit(64); }
+
+function die(msg) { process.stderr.write('build-graph: ' + msg + '\n'); process.exit(2); }
+function slurp(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function daysBetween(fromIso, toIso) {
+  const a = Date.parse(fromIso + 'T00:00:00Z');
+  const b = Date.parse(toIso + 'T00:00:00Z');
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.round((b - a) / 86400000);
+}
+
+function resolveRoot(root) {
+  if (root && fs.existsSync(root)) return path.resolve(root);
+  try { return cp.execFileSync(path.join(__dirname, 'memento-root'), { encoding: 'utf8' }).trim(); }
+  catch { return path.resolve(root || process.cwd()); }
+}
+
+function walk(dir) {
+  if (!fs.existsSync(dir)) return [];
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walk(full));
+    else if (entry.isFile() && entry.name.endsWith('.md')) out.push(full);
+  }
+  return out;
+}
+
+function splitFrontmatter(text) {
+  const lines = text.split('\n');
+  if (lines[0] !== '---') return { frontmatter: null, body: lines };
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i] === '---') return { frontmatter: lines.slice(1, i), body: lines.slice(i + 1) };
+  }
+  return { frontmatter: null, body: lines };
+}
+
+function slugOf(target) {
+  return String(target).split('/').pop().trim();
+}
+
+function parseFrontmatter(fmLines) {
+  const fm = { type: null, related: [], sources: [], status: 'active', cache: null, date: null };
+  if (!fmLines) return fm;
+  let listKey = null;
+  let listIndent = -1;
+  for (const line of fmLines) {
+    const indent = (line.match(/^(\s*)/) || ['', ''])[1].length;
+    const listItem = line.match(/^(\s*)-\s+(.+?)\s*$/);
+    if (listKey && listItem && indent > listIndent) {
+      const raw = listItem[2].replace(/^["']|["']$/g, '');
+      if (listKey === 'related') {
+        const slug = slugOf(raw.replace(/^\[\[/, '').replace(/\]\]$/, '').replace(/\|.*$/, ''));
+        if (slug) fm.related.push(slug);
+      } else if (listKey === 'sources') {
+        fm.sources.push(raw);
+      }
+      continue;
+    }
+    listKey = null;
+    const scalar = line.match(/^(\s*)([A-Za-z0-9_]+):\s*(.*)$/);
+    if (!scalar) continue;
+    const key = scalar[2];
+    const val = scalar[3];
+    if (val === '') {
+      if (key === 'related' || key === 'sources') { listKey = key; listIndent = scalar[1].length; }
+      continue;
+    }
+    const clean = val.replace(/^["']|["']$/g, '').trim();
+    if (key === 'type') fm.type = clean;
+    else if (key === 'status') fm.status = clean;
+    else if (key === 'cache') fm.cache = clean;
+    else if (key === 'date') { const m = clean.match(/(\d{4}-\d{2}-\d{2})/); if (m) fm.date = m[1]; }
+  }
+  return fm;
+}
+
+function normalizeHeading(h) {
+  return String(h).toLowerCase().replace(/[.:;,)\]]+$/, '').replace(/\s+/g, ' ').trim();
+}
+
+function isHistorical(heading, denylist) {
+  const n = normalizeHeading(heading);
+  if (!n) return false;
+  return denylist.some(d => n === d || n.startsWith(d));
+}
+
+function extractBodyEdges(bodyLines, denylist) {
+  const edges = [];
+  let inFence = false;
+  let heading = '';
+  for (const raw of bodyLines) {
+    if (/^\s*(```|~~~)/.test(raw)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const h = raw.match(/^(#{1,6})\s+(.+?)\s*$/);
+    if (h) { heading = h[2]; continue; }
+    const line = raw.replace(/`[^`]*`/g, '');
+    const re = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      const slug = slugOf(m[1]);
+      if (slug) edges.push({ target: slug, historical: isHistorical(heading, denylist) });
+    }
+  }
+  return edges;
+}
+
+function parseRegistryHistorical(root) {
+  const text = slurp(path.join(root, 'AGENTS.md')) || slurp(path.join(root, 'CLAUDE.md'));
+  const map = {};
+  if (!text) return map;
+  const lines = text.split('\n');
+  let inRegistry = false;
+  let curType = null;
+  for (const line of lines) {
+    if (/^##\s+Entity Types\s*$/.test(line)) { inRegistry = true; continue; }
+    if (inRegistry && /^##\s+/.test(line)) break;
+    if (!inRegistry) continue;
+    const t = line.match(/^###\s+(.+?)\s*$/);
+    if (t) { curType = t[1].trim(); continue; }
+    if (!curType) continue;
+    const hist = line.match(/^[-*]\s+\*\*historical_sections:\*\*\s*(.+?)\s*$/i);
+    if (hist) {
+      map[curType] = hist[1].split(',').map(s => normalizeHeading(s)).filter(Boolean);
+    }
+  }
+  return map;
+}
+
+function buildGraph(root) {
+  const wikiDir = path.join(root, 'wiki');
+  const files = walk(wikiDir).filter(f => path.basename(f) !== 'INDEX.md');
+  const slugSet = new Set(files.map(f => path.basename(f, '.md')));
+  const registryHist = parseRegistryHistorical(root);
+  const pages = new Map();
+
+  for (const f of files) {
+    const slug = path.basename(f, '.md');
+    const parsed = splitFrontmatter(slurp(f));
+    const fm = parseFrontmatter(parsed.frontmatter);
+    const denylist = DEFAULT_HISTORICAL.concat(registryHist[fm.type] || []);
+    const bodyEdges = extractBodyEdges(parsed.body, denylist);
+    pages.set(slug, {
+      slug,
+      file: path.relative(root, f),
+      type: fm.type,
+      related: fm.related,
+      sources: fm.sources,
+      bodyEdges,
+    });
+  }
+
+  const unresolved = new Set();
+  const outbound = new Map();
+  for (const [slug, p] of pages) {
+    const set = new Set();
+    for (const r of p.related) {
+      if (slugSet.has(r)) set.add(r); else unresolved.add(r);
+    }
+    for (const e of p.bodyEdges) {
+      if (e.historical) continue;
+      if (slugSet.has(e.target)) set.add(e.target); else unresolved.add(e.target);
+    }
+    set.delete(slug);
+    outbound.set(slug, set);
+  }
+
+  const inbound = new Map();
+  for (const slug of pages.keys()) inbound.set(slug, new Set());
+  for (const [slug, set] of outbound) {
+    for (const target of set) if (inbound.has(target)) inbound.get(target).add(slug);
+  }
+
+  return { root, pages, slugSet, outbound, inbound, unresolved: [...unresolved].sort() };
+}
+
+function qualifyingSources(root, page) {
+  const out = [];
+  for (const rel of page.sources) {
+    const parsed = splitFrontmatter(slurp(path.join(root, rel)));
+    const fm = parseFrontmatter(parsed.frontmatter);
+    if (fm.cache === 'projection') continue;
+    if (fm.status === 'superseded' || fm.status === 'archived') continue;
+    out.push({ rel, date: fm.date });
+  }
+  return out;
+}
+
+function staleness(root, page, today) {
+  const qual = qualifyingSources(root, page);
+  const dated = qual.filter(s => s.date);
+  if (dated.length === 0) return { last: null, qualifying: qual.length, datedQualifying: 0, days: null };
+  let last = null;
+  for (const s of dated) if (!last || s.date > last) last = s.date;
+  return { last, qualifying: qual.length, datedQualifying: dated.length, days: daysBetween(last, today) };
+}
+
+function couplingSourceSet(root, page) {
+  return new Set(qualifyingSources(root, page).map(s => s.rel));
+}
+
+function neighborsWithin(graph, slug, maxDist) {
+  const dist = new Map([[slug, 0]]);
+  let frontier = [slug];
+  for (let d = 1; d <= maxDist; d++) {
+    const next = [];
+    for (const s of frontier) {
+      const nbrs = new Set([...(graph.outbound.get(s) || []), ...(graph.inbound.get(s) || [])]);
+      for (const n of nbrs) if (!dist.has(n)) { dist.set(n, d); next.push(n); }
+    }
+    frontier = next;
+  }
+  dist.delete(slug);
+  return dist;
+}
+
+function pageRecords(graph, root, today) {
+  const recs = [];
+  for (const [slug, p] of graph.pages) {
+    const st = staleness(root, p, today);
+    recs.push({
+      slug,
+      type: p.type,
+      in_degree: graph.inbound.get(slug).size,
+      inbound: [...graph.inbound.get(slug)].sort(),
+      outbound: [...graph.outbound.get(slug)].sort(),
+      last_source_date: st.last,
+      qualifying_sources: st.datedQualifying,
+      staleness_days: st.days,
+      cold: st.days != null && st.days > opt.coldDays,
+    });
+  }
+  recs.sort((a, b) => a.slug.localeCompare(b.slug));
+  return recs;
+}
+
+function rediscover(graph, root, today, exclude, coldDays, k) {
+  const excludeSet = new Set(exclude);
+  const excluded = { in_exclude_set: 0, no_qualifying_source: 0, not_cold: 0, orphan: 0 };
+  const candidates = [];
+  for (const [slug, p] of graph.pages) {
+    if (excludeSet.has(slug)) { excluded.in_exclude_set++; continue; }
+    const st = staleness(root, p, today);
+    if (st.datedQualifying === 0 || st.days == null) { excluded.no_qualifying_source++; continue; }
+    if (st.days <= coldDays) { excluded.not_cold++; continue; }
+    const indeg = graph.inbound.get(slug).size;
+    if (indeg < 1) { excluded.orphan++; continue; }
+    candidates.push({ slug, type: p.type, staleness_days: st.days, in_degree: indeg, last_source_date: st.last });
+  }
+  candidates.sort((a, b) => (b.staleness_days - a.staleness_days) || a.slug.localeCompare(b.slug));
+  const picks = [];
+  const typesUsed = new Set();
+  for (const c of candidates) {
+    if (picks.length >= k) break;
+    const typeKey = c.type || '';
+    if (typesUsed.has(typeKey)) continue;
+    typesUsed.add(typeKey);
+    picks.push(c);
+  }
+  return { picks, excluded, candidate_count: candidates.length };
+}
+
+function emit(obj) { process.stdout.write(JSON.stringify(obj, null, 2) + '\n'); }
+
+function runModes(root) {
+  const today = todayStr();
+  const graph = buildGraph(root);
+
+  if (opt.backlinks != null) {
+    const slug = slugOf(opt.backlinks);
+    if (!graph.pages.has(slug)) die('no wiki page with slug ' + slug);
+    return emit({ slug, inbound: [...graph.inbound.get(slug)].sort() });
+  }
+  if (opt.neighbors != null) {
+    const slug = slugOf(opt.neighbors);
+    if (!graph.pages.has(slug)) die('no wiki page with slug ' + slug);
+    return emit({ slug, inbound: [...graph.inbound.get(slug)].sort(), outbound: [...graph.outbound.get(slug)].sort() });
+  }
+  if (opt.seed != null) {
+    const slug = slugOf(opt.seed);
+    if (!graph.pages.has(slug)) die('no wiki page with slug ' + slug);
+    const dist = neighborsWithin(graph, slug, 2);
+    const candidates = [];
+    for (const [n, d] of dist) {
+      const st = staleness(root, graph.pages.get(n), today);
+      if (st.datedQualifying === 0 || st.days == null || st.days <= opt.coldDays) continue;
+      candidates.push({ slug: n, distance: d, staleness_days: st.days, last_source_date: st.last });
+    }
+    candidates.sort((a, b) => (b.staleness_days - a.staleness_days) || a.slug.localeCompare(b.slug));
+    return emit({ seed: slug, candidates });
+  }
+  if (opt.coupled != null) {
+    const slug = slugOf(opt.coupled);
+    if (!graph.pages.has(slug)) die('no wiki page with slug ' + slug);
+    const mine = couplingSourceSet(root, graph.pages.get(slug));
+    const coupled = [];
+    for (const [other, p] of graph.pages) {
+      if (other === slug) continue;
+      const theirs = couplingSourceSet(root, p);
+      const shared = [...mine].filter(s => theirs.has(s));
+      if (shared.length === 0) continue;
+      const st = staleness(root, p, today);
+      if (st.days == null || st.days <= opt.coldDays) continue;
+      coupled.push({ slug: other, shared_sources: shared.sort(), staleness_days: st.days, last_source_date: st.last });
+    }
+    coupled.sort((a, b) => (b.staleness_days - a.staleness_days) || a.slug.localeCompare(b.slug));
+    return emit({ slug, coupled });
+  }
+  if (opt.rediscover) {
+    const r = rediscover(graph, root, today, opt.exclude, opt.coldDays, opt.k);
+    return emit({ root, today, cold_days: opt.coldDays, k: opt.k, picks: r.picks, candidate_count: r.candidate_count, excluded: r.excluded });
+  }
+
+  return emit({
+    root,
+    today,
+    cold_days: opt.coldDays,
+    pages: pageRecords(graph, root, today),
+    unresolved_targets: graph.unresolved,
+    edges_total: [...graph.outbound.values()].reduce((n, s) => n + s.size, 0),
+  });
+}
+
+function selfTest() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'build-graph-self-'));
+  const today = todayStr();
+  const old = '2000-01-01';
+  const mk = (p, content) => { fs.mkdirSync(path.dirname(path.join(dir, p)), { recursive: true }); fs.writeFileSync(path.join(dir, p), content); };
+
+  mk('AGENTS.md', '# Memory Base\n\n## Entity Types\n\n### topics\n- **historical_sections:** Postmortems\n');
+  mk('sources/notes/old.md', '---\ndate: ' + old + '\n---\nold\n');
+  mk('sources/notes/new.md', '---\ndate: ' + today + '\n---\nnew\n');
+  mk('sources/syncs/github/proj.md', '---\ndate: ' + old + '\ncache: projection\nsource_of_truth: github\n---\nproj\n');
+
+  mk('wiki/topics/alpha.md', '---\ntitle: Alpha\ntype: topics\nsources:\n  - sources/notes/new.md\nrelated:\n  - "[[beta]]"\n---\n\n# Alpha\n\n## Overview\nSee [[gamma]].\n\n## History & Context\nOld link [[delta]].\n\n## Notes\n```\ncode [[epsilon]]\n```\n');
+  mk('wiki/topics/beta.md', '---\ntitle: Beta\ntype: topics\nsources:\n  - sources/notes/old.md\n---\n\n# Beta\n');
+  mk('wiki/topics/gamma.md', '---\ntitle: Gamma\ntype: topics\nsources:\n  - sources/notes/new.md\n---\n\n# Gamma\n');
+  mk('wiki/topics/delta.md', '---\ntitle: Delta\ntype: topics\nsources:\n  - sources/notes/new.md\n---\n\n# Delta\n');
+  mk('wiki/topics/epsilon.md', '---\ntitle: Epsilon\ntype: topics\nsources:\n  - sources/notes/new.md\n---\n\n# Epsilon\n');
+  mk('wiki/topics/keydec.md', '---\ntitle: KeyDec\ntype: topics\nsources:\n  - sources/notes/new.md\n---\n\n# KeyDec\n\n## Key Decisions\nChose [[beta]].\n');
+  mk('wiki/topics/arch.md', '---\ntitle: Arch\ntype: topics\nsources:\n  - sources/notes/new.md\n---\n\n# Arch\n\n## Architecture Notes\nUses [[delta]].\n');
+  mk('wiki/topics/post.md', '---\ntitle: Post\ntype: topics\nsources:\n  - sources/notes/new.md\n---\n\n# Post\n\n## Postmortems\nRef [[beta]].\n');
+  mk('wiki/topics/proj.md', '---\ntitle: Proj\ntype: topics\nsources:\n  - sources/syncs/github/proj.md\n---\n\n# Proj\n');
+  mk('wiki/topics/zeta.md', '---\ntitle: Zeta\ntype: topics\nsources:\n  - sources/notes/old.md\n---\n\n# Zeta\n');
+
+  const graph = buildGraph(dir);
+  const indeg = s => graph.inbound.get(s).size;
+  const checks = [];
+
+  checks.push(['beta in_degree == 2 (alpha related + keydec Key Decisions; post Postmortems excluded by registry)', indeg('beta') === 2]);
+  checks.push(['gamma in_degree == 1 (alpha Overview)', indeg('gamma') === 1]);
+  checks.push(['delta in_degree == 1 (arch Architecture Notes current; alpha History excluded)', indeg('delta') === 1]);
+  checks.push(['epsilon in_degree == 0 (code-fenced link ignored)', indeg('epsilon') === 0]);
+
+  const r = rediscover(graph, dir, today, [], opt.coldDays, opt.k);
+  const pickSlugs = r.picks.map(p => p.slug);
+  checks.push(['rediscover picks beta (cold + in_degree>=1)', pickSlugs.includes('beta')]);
+  checks.push(['rediscover excludes proj (projection-only, no qualifying source)', !pickSlugs.includes('proj')]);
+  checks.push(['rediscover excludes gamma (recent, not cold)', !pickSlugs.includes('gamma')]);
+  checks.push(['rediscover <=1 per type yields a single topics pick', r.picks.length === 1]);
+
+  const st = staleness(dir, graph.pages.get('beta'), today);
+  checks.push(['beta staleness derives from old qualifying source date', st.last === old && st.days != null && st.days > opt.coldDays]);
+  checks.push(['proj has no dated qualifying source (projection excluded)', staleness(dir, graph.pages.get('proj'), today).datedQualifying === 0]);
+
+  const bl = [...graph.inbound.get('beta')].sort();
+  checks.push(['backlinks(beta) == [alpha, keydec]', bl.length === 2 && bl[0] === 'alpha' && bl[1] === 'keydec']);
+
+  const nOut = [...graph.outbound.get('alpha')].sort();
+  const nIn = [...graph.inbound.get('alpha')].sort();
+  checks.push(['neighbors(alpha) outbound == [beta, gamma], inbound == []', nOut.length === 2 && nOut[0] === 'beta' && nOut[1] === 'gamma' && nIn.length === 0]);
+
+  const seedDist = neighborsWithin(graph, 'alpha', 2);
+  const seedCold = [...seedDist.keys()].filter(s => { const ss = staleness(dir, graph.pages.get(s), today); return ss.datedQualifying > 0 && ss.days != null && ss.days > opt.coldDays; });
+  checks.push(['seed(alpha) surfaces cold neighbor beta within distance 2', seedCold.includes('beta') && seedDist.get('beta') === 1]);
+
+  const mine = couplingSourceSet(dir, graph.pages.get('beta'));
+  const coupled = [];
+  for (const [other, p] of graph.pages) {
+    if (other === 'beta') continue;
+    const shared = [...mine].filter(s => couplingSourceSet(dir, p).has(s));
+    const ss = staleness(dir, p, today);
+    if (shared.length && ss.days != null && ss.days > opt.coldDays) coupled.push(other);
+  }
+  checks.push(['coupled(beta) == [zeta] (shares old.md, both cold)', coupled.length === 1 && coupled[0] === 'zeta']);
+
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+
+  let ok = true;
+  for (const [label, pass] of checks) {
+    if (!pass) ok = false;
+    process.stderr.write('self-test: ' + (pass ? 'PASS' : 'FAIL') + ' — ' + label + '\n');
+  }
+  if (ok) { process.stderr.write('self-test: OK — connection graph + rediscovery behave as specified.\n'); process.exit(0); }
+  process.stderr.write('self-test: BROKEN — refusing to certify.\n');
+  process.exit(2);
+}
+
+if (opt.selfTest) { selfTest(); }
+else {
+  const root = resolveRoot(opt.root);
+  if (!fs.existsSync(path.join(root, 'wiki'))) die('not a Memento root (no wiki/ at ' + root + ')');
+  runModes(root);
+}

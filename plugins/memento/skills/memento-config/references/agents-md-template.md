@@ -130,6 +130,9 @@ Follow the cache layers:
 
 1. **L1 (this file)** — Check the hot set tables below first.
 2. **L2 (`wiki/`)** — Cache miss. Read `wiki/INDEX.md`, then the relevant page.
+   To find what links *to* a page (backlinks), `grep -rlF '[[<slug>]]' wiki/` — a
+   coarse superset (matches history sections and superseded pages, undeduped; `-F`
+   is required). The memento skills compute exact current-state backlinks on demand.
 3. **L3 (`sources/`)** — Deep miss. Trace back to raw data.
 4. **Ask the user** — If no layer has what you need.
 

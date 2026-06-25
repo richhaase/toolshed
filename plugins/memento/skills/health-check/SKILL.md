@@ -230,6 +230,33 @@ deterministic frontmatter check, confirm by eye that a trajectory carries no
 `private_notes`-class entity assessment — that routes to `private/`, never a
 trajectory.
 
+### Check 13: Connection-Graph & Rediscovery Integrity
+
+The connection graph (`_shared/scripts/build-graph`) is the read-only substrate for
+backlink traversal and proactive rediscovery. It writes nothing; run it read-only:
+
+```bash
+node ../_shared/scripts/build-graph --self-test          # prove the parser is sound
+node ../_shared/scripts/build-graph --root "$MEMENTO_ROOT" --json   # current-state graph
+```
+
+Report:
+
+- **Orphans** — pages with `in_degree: 0` and not pinned. Often incomplete
+  cross-linking rather than true rot (compile's Step 5 cross-linking is
+  opportunistic); flag as P3 and note they are invisible to rediscovery's
+  `in_degree ≥ 1` floor until a current edge points at them.
+- **Unresolved current-state targets** — entries in `unresolved_targets` are
+  `[[wikilinks]]`/`related:` slugs with no backing page (P3 — rot or intentional
+  forward-reference; this is the current-state-scoped companion to `doctor.sh`'s
+  `check_wikilink_targets`, which does not exclude historical sections).
+- **Rediscovery state** (once the Phase 2 ambient block ships) — `rediscovery_recent`
+  slugs in `wiki/INDEX.md` frontmatter that no longer resolve to a page (P2); and
+  `<!-- REDISCOVERY START/END -->` markers in `AGENTS.md` that are unbalanced or
+  outside the hot-set region (P1 — the eval gate will fail-closed on these).
+
+Read-only; never reads `private/` (`build-graph` globs `wiki/` only).
+
 ## Golden-query eval design
 
 `eval` runs the deterministic scorer when fixtures exist, and helps draft them when they

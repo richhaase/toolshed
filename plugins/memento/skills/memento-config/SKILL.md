@@ -298,6 +298,7 @@ Key properties per entity type:
 - **frontmatter** — YAML frontmatter fields for wiki pages (always includes title, type, sources, related; do not include `last_compiled`, because freshness belongs in `wiki/INDEX.md`)
 - **sections** — markdown sections each wiki page of this type should have
 - **private_notes** (optional) — if `yes`, this entity type has private observations that route to `private/` instead of wiki. Include the filename pattern.
+- **historical_sections** (optional) — comma-separated section headings whose `[[wikilinks]]` are treated as historical and excluded from the connection graph's current-state in-degree (`_shared/scripts/build-graph`). Defaults to History, Corrections, Recent Activity, Activity Log, Changelog, Archive, Superseded when omitted; declare this only to add type-specific historical sections (e.g. `Postmortems`).
 
 #### Other `AGENTS.md` additions
 
