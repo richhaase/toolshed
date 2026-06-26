@@ -77,6 +77,8 @@ last_compile_commit: <40-char sha of HEAD captured at compile-start; omit on non
 pages: <count>
 pinned:
   - <slug>
+rediscovery_recent:
+  - <slug>
 ---
 
 # Wiki Index
@@ -105,5 +107,17 @@ is the machine-readable source of truth.
 |------|---------|---------|
 | Entity Name | One-line context | wiki/<type>/entity-slug.md |
 
+<!-- REDISCOVERY START — additive, /compile; cold + still-linked; NOT counted in caps -->
+### Rediscovery
+| Name | Why surfaced | Details |
+|------|--------------|---------|
+| Cold Entity | dormant ~135d; 4 current links | wiki/<type>/cold-slug.md |
+<!-- REDISCOVERY END -->
+
 <!-- HOT SET END -->
 ```
+
+The `### Rediscovery` sub-block is optional and additive: `/compile` renders it from
+`build-graph --rediscover` only when there are picks, always nested inside the HOT SET
+markers, and never counts its rows against the per-type or total hot-set caps. Omitted
+entirely (no markers) when there are no picks or `build-graph` failed.

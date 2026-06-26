@@ -55,6 +55,16 @@ function die(msg) { console.error('eval-score: ' + msg); process.exit(2); }
 function slurp(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
 function arrayOfStrings(v) { return Array.isArray(v) ? v.filter(x => typeof x === 'string' && x) : []; }
 
+function stripRediscoveryRegion(text) {
+  const starts = [...text.matchAll(/<!-- REDISCOVERY START\b/g)].map(m => m.index);
+  const ends = [...text.matchAll(/<!-- REDISCOVERY END\b/g)].map(m => m.index);
+  if (starts.length === 0 && ends.length === 0) return { text, status: 'absent' };
+  if (starts.length !== 1 || ends.length !== 1 || ends[0] < starts[0]) return { text, status: 'malformed' };
+  const endClose = text.indexOf('-->', ends[0]);
+  if (endClose < 0) return { text, status: 'malformed' };
+  return { text: text.slice(0, starts[0]) + text.slice(endClose + 3), status: 'balanced' };
+}
+
 function answerSurfacePaths(fx) {
   const explicit = [
     ...arrayOfStrings(fx.answer_surface_paths),
@@ -91,7 +101,7 @@ function scoreFixture(fx, root) {
   // Haystack = the always-resident hot set + explicitly named compiled
   // answer-surface pages. Source evidence paths are deliberately excluded so a
   // stale compile cannot pass just because the raw source still has the fact.
-  let hay = slurp(path.join(root, 'AGENTS.md'));
+  let hay = stripRediscoveryRegion(slurp(path.join(root, 'AGENTS.md'))).text;
   for (const p of surfacePaths) {
     if (p !== 'AGENTS.md') hay += '\n' + slurp(path.join(root, p));
   }
@@ -183,6 +193,11 @@ if (opt.selfTest) {
   fs.writeFileSync(path.join(malformedContractDir, 'sources', 'eval', 'verdict-contract.json'), '{ not json');
   const malformed = cp.spawnSync(process.execPath, [__filename, '--root', malformedContractDir, '--json', '--no-log'], { encoding: 'utf8' });
   const malformedContractFailed = malformed.status === 2 && String(malformed.stderr || '').includes('could not parse');
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), 'clean hot set\n<!-- REDISCOVERY START -->\nrediscovery-only-atom\n<!-- REDISCOVERY END -->\n');
+  const rdExcised = !scoreFixture({ id: 'RD1', required_evidence_paths: ['AGENTS.md'], answer_surface_paths: ['AGENTS.md'], required_answer_atoms: ['rediscovery-only-atom'] }, dir).pass;
+  const rdControl = scoreFixture({ id: 'RD2', required_evidence_paths: ['AGENTS.md'], answer_surface_paths: ['AGENTS.md'], required_answer_atoms: ['clean hot set'] }, dir).pass;
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), 'clean hot set\n<!-- REDISCOVERY START -->\norphan marker\n');
+  const rdMalformed = stripRediscoveryRegion(slurp(path.join(dir, 'AGENTS.md'))).status === 'malformed';
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
   try { fs.rmSync(contractDir, { recursive: true, force: true }); } catch { /* best effort */ }
   try { fs.rmSync(malformedContractDir, { recursive: true, force: true }); } catch { /* best effort */ }
@@ -191,9 +206,10 @@ if (opt.selfTest) {
     console.error('self-test: poisoned reason -> ' + poisoned.reason);
     console.error(`self-test: source-only evidence=${sourceOnly.pass ? 'PASS(!)' : 'FAIL(correct)'}`);
     console.error(`self-test: verdict-contract=${validContract.reg === 0.5 && validContract.cap === 0.25 && invalidContractFailed && malformedContractFailed ? 'PASS' : 'FAIL'}`);
+    console.error(`self-test: rediscovery-region excised=${rdExcised ? 'PASS' : 'FAIL(!)'} control-atom=${rdControl ? 'PASS' : 'FAIL(!)'} malformed-detected=${rdMalformed ? 'PASS' : 'FAIL(!)'}`);
   }
-  if (clean.pass && !poisoned.pass && !sourceOnly.pass && validContract.reg === 0.5 && validContract.cap === 0.25 && invalidContractFailed && malformedContractFailed) {
-    if (!opt.quiet) console.error('self-test: OK — scorer correctly fails a poisoned hot set.');
+  if (clean.pass && !poisoned.pass && !sourceOnly.pass && validContract.reg === 0.5 && validContract.cap === 0.25 && invalidContractFailed && malformedContractFailed && rdExcised && rdControl && rdMalformed) {
+    if (!opt.quiet) console.error('self-test: OK — scorer correctly fails a poisoned hot set and ignores the rediscovery region.');
     process.exit(0);
   }
   console.error('self-test: BROKEN — scorer did not catch a poisoned hot set. Refusing to certify.');
@@ -203,6 +219,7 @@ if (opt.selfTest) {
 // --- normal scoring ----------------------------------------------------------
 const root = path.resolve(opt.root);
 if (!fs.existsSync(path.join(root, 'AGENTS.md'))) die(`not a Memento root (no AGENTS.md at ${root})`);
+if (stripRediscoveryRegion(slurp(path.join(root, 'AGENTS.md'))).status === 'malformed') die('unbalanced <!-- REDISCOVERY --> markers in AGENTS.md hot set — refusing to certify');
 
 const suites = opt.suite === 'regression' ? ['regression'] : opt.suite === 'capability' ? ['capability'] : ['regression', 'capability'];
 const { reg: regMin, cap: capMin } = thresholds(root);

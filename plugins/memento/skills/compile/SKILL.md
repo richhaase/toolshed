@@ -93,6 +93,14 @@ Hard rules — environment-specific facts the agent will get wrong without these
   frontmatter. Page-level freshness is the `Last Updated` column in INDEX.md.
 - **No `<!-- Compile run ... -->` HTML comments in INDEX.md.** The git log is
   the durable record. Step 8's commit message carries the synthesis.
+- **`build-graph` (Step 5.6) is fail-open.** It writes nothing; on a nonzero exit,
+  warn, skip the Step 7 rediscovery block, and keep going. It never blocks or rolls
+  back a compile — the asymmetry against the fail-closed eval gate, because the graph
+  guards no hard invariant.
+- **The `<!-- REDISCOVERY START/END -->` markers are maintained like the HOT SET
+  markers** — regenerated each compile, never hand-edited, always nested inside the
+  HOT SET markers. Compile runs a render-time balance check and omits the block on
+  imbalance; a malformed pair makes the eval gate fail-closed.
 
 ## Source status metadata
 
@@ -404,6 +412,23 @@ Do not treat removed references as source data; they were unverifiable cache
 citations. If the script cannot run, stop before Step 6 rather than writing a new
 index over a known-stale citation graph.
 
+## Step 5.6: Build connection graph (fail-open)
+
+After reconcile, recompute the current-state connection graph — reverse edges plus
+per-page in-degree over the `[[wikilinks]]` + `related:` the wiki already carries —
+so Step 7 can surface proactive rediscovery and on-demand backlink/neighbor queries
+have a substrate. The script writes nothing.
+
+```bash
+node ../_shared/scripts/build-graph --root "$MEMENTO_ROOT" --json > /tmp/memento-graph.$$.json
+```
+
+**Fail-open** (the asymmetry against the Step 7.5 fail-closed eval gate — the graph
+guards no hard invariant): on a nonzero exit, log a warning, skip the Step 7
+rediscovery block for this run, and continue. Knowledge must still compile and commit.
+See `../_shared/references/connection-graph.md` for the current-state edge rule, the
+L3-derived staleness signal, and the query modes.
+
 ## Step 6: Build INDEX.md
 
 Write `wiki/INDEX.md` with a catalog of every wiki page, grouped by entity type.
@@ -411,7 +436,9 @@ The INDEX tracks pinned status — pages marked as pinned always appear in the
 `AGENTS.md` hot set regardless of recency.
 
 Preserve the existing `pinned` list from the INDEX.md frontmatter — don't drop
-manual pins. Add any new pages to the table but don't auto-pin them.
+manual pins. Add any new pages to the table but don't auto-pin them. Likewise
+preserve the `rediscovery_recent` list (the bounded rotation cursor Step 7
+advances); a full INDEX rewrite must not drop it.
 
 INDEX.md is the wiki's single source of compile metadata: it carries
 `last_compiled` (date) and `last_compile_commit` (the `COMPILE_BASE_SHA`
@@ -442,8 +469,8 @@ When running incrementally (not a full build):
 3. Extract entity mentions by type for sources without `touches`. Build the list of affected wiki pages.
 4. **Read ALL affected wiki pages in one parallel batch.**
 5. Partition the affected pages (Step 4): activity-log appends (Class A) go inline as one parallel batch of `Edit` calls; substantive pages (Class B) fan out to concurrent subagents when there are 3+, each writing its own page. Wait for all subagents to return.
-6. Run Step 5.5 evidence-reference reconciliation, then **write INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`).**
-7. **Read `AGENTS.md`, rebuild the hot set between markers, write `AGENTS.md`.**
+6. Run Step 5.5 evidence-reference reconciliation, then Step 5.6 `build-graph` (fail-open), then **write INDEX.md (with `last_compile_commit: $COMPILE_BASE_SHA`, preserving `pinned` and `rediscovery_recent`).**
+7. **Read `AGENTS.md`, rebuild the hot set between markers, render the additive `<!-- REDISCOVERY -->` sub-block from the graph, advance the `rediscovery_recent` cursor, write `AGENTS.md`.**
 8. Do NOT delete or rewrite content from prior compiles — this is additive. Update dynamic sections with latest data; preserve accumulated sections. Do NOT append `<!-- Compile run ... -->` HTML comments anywhere; the commit (Step 8) is the durable record.
 9. **Eval gate + commit (Steps 7.5 → 8).** Run `eval-score --gate` before committing; on `verdict: fail` (or scorer error) roll back `AGENTS.md` + `wiki/` to `COMPILE_BASE_SHA` and do NOT commit. Otherwise commit (staging `wiki/`, `AGENTS.md`, and `sources/eval/runs/`). Always the last action; skip cleanly when not a git repo or nothing staged.
 
@@ -469,6 +496,26 @@ After the wiki is updated, rebuild the dynamic hot set section in canonical
    - **Total cap**: ~20 entries across all types. The hot set must stay small.
 4. For each entry, write one row: name, one-line summary, link to wiki page.
 5. Replace everything between the HOT SET markers in `AGENTS.md` with the new tables.
+6. **Rediscovery block (additive — old-but-still-linked pages recency would never
+   surface).** From the Step 5.6 graph, compute the picks:
+   ```bash
+   node ../_shared/scripts/build-graph --root "$MEMENTO_ROOT" --rediscover \
+        --exclude "$EXCLUDE" --cold-days 60 --k 2 --json
+   ```
+   where `$EXCLUDE` is the comma-joined union of pinned pages, the slugs already in
+   the recency hot set, and INDEX `rediscovery_recent`. Render the returned picks
+   (≤2, ≤1 per type) as a sub-block **inside** the HOT SET markers, wrapped in
+   `<!-- REDISCOVERY START -->` / `<!-- REDISCOVERY END -->`, one row each (name,
+   why-surfaced, wiki path). This is **additive headroom** — NEVER carved from the
+   per-type (≤5) or total (~20) recency/pins budget, so a pick can never evict a
+   load-bearing row, which is exactly what keeps Step 7.5 from rolling back over a
+   rediscovery pick. If Step 5.6 failed or there are no picks, render NO block
+   (absent markers → the eval gate treats them as a no-op). Balance-check the
+   rendered markers (one START before one END, inside the HOT SET region); on
+   imbalance, omit the block.
+7. **Advance the rotation cursor.** Prepend the chosen slugs to `wiki/INDEX.md`
+   frontmatter `rediscovery_recent` (FIFO, capped at depth 4) with one targeted
+   `Edit`, so the same pages don't squat the slot across compiles.
 
 ### Hot set format
 
@@ -482,6 +529,10 @@ See `references/templates.md` for the hot-set markdown shape.
 - Do not append hot set markers to a thin `CLAUDE.md` file when `AGENTS.md`
   exists.
 - The hot set is fully regenerated each compile — it's not an incremental edit.
+- **The `<!-- REDISCOVERY START/END -->` block, when present, nests inside the HOT
+  SET markers and is regenerated with the hot set.** Keep it balanced (one START,
+  one END, START first); on any imbalance, omit it — an unbalanced pair makes the
+  eval gate refuse to certify.
 
 ## Step 7.5: Eval gate (Gate-0) + rollback — the keystone interlock
 
@@ -578,9 +629,11 @@ Report to user: pages created / updated / unchanged, new entities discovered,
 hot set changes (promoted/demoted), superseded/archived sources skipped, any
 sources that couldn't be processed, any `<provider>_id` drift between sources
 and existing wiki frontmatter (manual value left in place), evidence references
-rewritten/removed by Step 5.5, the **Step 7.5 eval-gate verdict**
-(regression/capability pass rates, whether it was gated, logged to
-`sources/eval/runs/`), and the commit SHA (or the rollback / `skipped` reason).
+rewritten/removed by Step 5.5, the **Step 5.6 build-graph status** (ok / failed →
+rediscovery skipped) and the **rediscovery picks surfaced** (or "none"), the
+**Step 7.5 eval-gate verdict** (regression/capability pass rates, whether it was
+gated, logged to `sources/eval/runs/`), and the commit SHA (or the rollback /
+`skipped` reason).
 
 ## Guidelines
 

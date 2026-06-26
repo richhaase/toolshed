@@ -82,6 +82,11 @@ Report pages or hot-set entries that appear older than active L3 evidence. Do
 not call this a definitive stale answer unless the source clearly touches the
 same entity or topic; otherwise mark it as "needs compile/routing review."
 
+**Exclude the `<!-- REDISCOVERY START/END -->` span** when judging hot-set
+staleness. That sub-block intentionally injects cold-but-still-linked pages
+(see compile Step 7); flagging them as "older than active L3 evidence" is crying
+wolf on the feature working as designed.
+
 **Projected sources have a freshness floor below L3.** A source marked
 `cache: projection` (a provider sync over an external system of record) is itself
 a cache over its `source_of_truth`; its `as_of` can lag the live system even when
@@ -126,7 +131,8 @@ Validate the L1 hot set in `AGENTS.md`:
 - Hot-set summaries agree with the corresponding `wiki/INDEX.md` row where the
   same entity appears.
 - Hot-set claims with dates or counts are not older than known newer active L3
-  evidence without a warning.
+  evidence without a warning. **Skip the `<!-- REDISCOVERY START/END -->` span
+  here** — those rows are deliberately cold (compile Step 7), not staleness drift.
 
 L1 is a convenience cache. If L3 appears newer, report that L1 should be treated
 as stale until compile catches up.
