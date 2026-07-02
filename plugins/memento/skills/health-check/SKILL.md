@@ -167,15 +167,20 @@ Inspect active `sources/followups/*.md`:
 
 ### Check 7: Harness And Plugin Drift
 
-Look for mismatches across harness entrypoints and installed plugin source:
+Look for source-of-truth mismatches across harness entrypoints and durable plugin
+metadata:
 
 - `AGENTS.md` vs `CLAUDE.md`/`GEMINI.md` when present.
 - References to renamed plugins or stale skill names.
-- Local notes/follow-ups about stale plugin caches.
-- Plugin source paths that contradict installed cache paths.
+- Local notes/follow-ups about stale plugin update behavior.
+- Plugin source paths that point at non-source locations or deprecated source
+  repos.
 
-Do not edit downstream plugin caches. Report source-of-truth drift and the
-canonical source path.
+Plugin caches are opaque generated artifacts. Do not browse, compare, or use
+cache internals as evidence for drift. Treat cache paths only as harness-provided
+skill invocation handles when a skill has been explicitly invoked. Report only
+drift that can be proven from checked-in source repos, manifests, or public
+wiki/source metadata.
 
 ### Check 8: Source Frontmatter
 
