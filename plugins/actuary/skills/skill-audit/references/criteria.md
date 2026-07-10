@@ -30,7 +30,8 @@ Additional sources:
 
 ## Contents
 
-- L1 — Spec compliance: hard frontmatter and body checks.
+- L1 — Portable spec compliance: hard frontmatter and body checks.
+- Harness profiles: compatibility checks that are not open-spec defects.
 - L2 — Structural metrics: size, progressive disclosure, and scripts.
 - L3 — Craft recommendations: description quality, body craft, references,
   gotchas, templates, validation, and scripts.
@@ -38,7 +39,7 @@ Additional sources:
 - Rule catalog: stable keys every finding must cite.
 - Deliberate non-goals: what this audit does not do.
 
-## L1 — Spec compliance (hard pass/fail)
+## L1 — Portable spec compliance (hard pass/fail)
 
 Every finding here is a defect. Block the skill from claiming "spec-conformant."
 
@@ -52,14 +53,10 @@ Every finding here is a defect. Block the skill from claiming "spec-conformant."
 - Matches `^[a-z0-9](?:[a-z0-9]|-(?!-))*[a-z0-9]$|^[a-z0-9]$` — lowercase
   alphanumerics and single hyphens; no leading, trailing, or consecutive hyphens.
 - Equals the parent directory name.
-- Must not contain XML tag characters (`<`, `>`) — Anthropic best-practices.
-- Must not contain reserved words `anthropic` or `claude` — Anthropic
-  best-practices.
 
 ### `description` field
 - Length 1–1024 characters (count rendered text, not YAML syntax).
 - Non-empty.
-- Must not contain XML tag characters — Anthropic best-practices.
 
 ### `compatibility` field (optional)
 - If present, length 1–500 characters.
@@ -69,7 +66,8 @@ Every finding here is a defect. Block the skill from claiming "spec-conformant."
   reference to a bundled license file."
 
 ### `metadata` field (optional)
-- If present, must be a map of string keys.
+- If present, must be a map whose keys and values are strings. Nested values,
+  arrays, numbers, booleans, and null are not portable spec-conformant metadata.
 
 ### `allowed-tools` field (optional, experimental)
 - If present, a string (space-separated) per the spec. YAML list form is
@@ -77,6 +75,20 @@ Every finding here is a defect. Block the skill from claiming "spec-conformant."
 
 ### Body
 - Markdown body present after frontmatter.
+
+## Harness profiles (reported separately)
+
+These checks come from a harness's authoring guidance rather than the portable
+Agent Skills specification. Report them under the named profile, not as L1
+portable-spec defects.
+
+### Claude profile
+
+- `name` and `description` contain no XML tag characters (`<`, `>`).
+- `name` does not contain the reserved words `anthropic` or `claude`.
+
+Profile findings are compatibility signals. They do not fail portable L1 and
+do not block a tier unless that tier explicitly says otherwise.
 
 ## L2 — Structural metrics (quantitative)
 
@@ -244,8 +256,11 @@ Apply these by reading + grepping the audited skill's files (SKILL.md,
 - **Real groups / affiliations.** A real team, employer, family, household,
   community, club, school, or friend-circle named concretely instead of a
   generic placeholder (`your team`, `<group>`).
-- **`private/` path references.** Literal references to a Memento `private/`
-  path (or other walled-off data) from a file destined for a public repo.
+- **Concrete private-data references.** A subpath, identity, fixture, copied
+  content, or example that reveals what is inside a Memento `private/` area (or
+  another walled-off store). Generic structural boundary language is safe:
+  naming the root, documenting the directory layout, or saying "never read
+  `private/`" does not reveal private data and must not be flagged.
 
 Instance-specific *patterns* (a specific employer domain, customer/tenant slugs,
 a Slack workspace's ID shapes) are **not** hard-coded here — they live in the
@@ -258,18 +273,21 @@ the *classes*; the auditor recognizes concrete instances of each.
 ### Tier bars
 
 `--tier <local|toolshed|marketplace>` turns the per-layer findings into a
-graduation verdict. The bars are cumulative:
+**static Gate-1** verdict. The bars are cumulative:
 
 | Tier | Privacy | L1 spec | L2/L3 craft | Extra |
 |---|---|---|---|---|
 | `local` | advisory | advisory | advisory | — |
-| `toolshed` | **hard-block** (any `privacy-*` finding ⇒ `not-ready`) | must be clean (zero L1 defects) | advisory | — |
-| `marketplace` | **hard-block** | must be clean | advisory | behavioral CI + dedup clean (out of audit scope — report as an unmet prerequisite, not a pass) |
+| `toolshed` | **hard-block** (any `privacy-*` finding ⇒ `not-ready`) | portable L1 must be clean | advisory | profile findings are reported separately |
+| `marketplace` | **hard-block** | portable L1 must be clean | advisory | behavioral CI + dedup clean remain final-promotion prerequisites outside this static gate |
 
 Privacy is the one **non-negotiable hard-block at every tier above `local`** —
 no advisory-with-override. Everything else is advisory unless a tier names it a
-hard requirement. The verdict is `ready` only if every hard requirement for the
-tier is met; otherwise `not-ready` with the blocking rule keys listed.
+hard requirement. `static-verdict: ready` means only that this read-only gate's
+inspectable hard requirements passed. It never means final marketplace
+readiness: behavioral CI and dedup must be proven elsewhere. Preserve
+`verdict: ready|not-ready` as a compatibility alias for consumers that have not
+yet migrated, and label it static Gate-1 only.
 
 ## Severity assignment
 
@@ -286,7 +304,7 @@ kebab-case rule keys. The keys keep the rendered report
 (`assets/templates/report.md`) machine-parseable for future eval runners.
 Adding a new detection means adding a new key here.
 
-### L1 — spec compliance
+### L1 — portable spec compliance
 
 | Key | What it checks |
 |---|---|
@@ -296,16 +314,21 @@ Adding a new detection means adding a new key here.
 | `name-length` | `name` is 1–64 characters |
 | `name-format` | lowercase alnum + single hyphens, no leading/trailing/consecutive hyphens |
 | `name-matches-directory` | `name` equals parent directory name |
-| `name-no-xml-tags` | `name` contains no `<` or `>` characters |
-| `name-no-reserved-words` | `name` does not contain "anthropic" or "claude" |
 | `description-non-empty` | `description` is non-empty |
 | `description-length-max` | `description` ≤ 1024 characters |
-| `description-no-xml-tags` | `description` contains no `<` or `>` characters |
 | `compatibility-length-max` | `compatibility`, if present, ≤ 500 characters |
 | `license-shape` | `license`, if present, is a string |
-| `metadata-shape` | `metadata`, if present, is a string-keyed map |
+| `metadata-shape` | `metadata`, if present, is a map of string keys to string values |
 | `allowed-tools-shape` | `allowed-tools`, if present, is a string (warn on YAML list) |
 | `body-present` | Markdown body exists after frontmatter |
+
+### Harness profiles
+
+| Key | Profile | What it checks |
+|---|---|---|
+| `name-no-xml-tags` | Claude | `name` contains no `<` or `>` characters |
+| `name-no-reserved-words` | Claude | `name` does not contain "anthropic" or "claude" |
+| `description-no-xml-tags` | Claude | `description` contains no `<` or `>` characters |
 
 ### L2 — structural metrics
 
@@ -371,7 +394,8 @@ a **hard-block at `toolshed` and `marketplace` tiers**, advisory at `local`.
 | `privacy-customer-slug` | Real customer / tenant / account identifier (SaaS slug, `*.atlassian.net` cloud ID, project key, account number) in an example or fixture |
 | `privacy-real-person` | Real individual (friend, family, colleague, contact) used as a concrete example / trigger / fixture instead of a placeholder |
 | `privacy-real-group` | Real group or affiliation (team, employer, family, household, community, club, school, friend-circle) named concretely as an example |
-| `privacy-private-path-ref` | Literal `private/` (or other walled-off) path reference in a public-bound file |
+| `privacy-private-path-ref` | Concrete private-data subpath, identity, fixture, or copied content; generic root/boundary language is allowed |
+| `privacy-instance-specific` | A private local ruleset matched an instance-specific sensitive pattern not covered by a more specific canonical class |
 
 ## What this audit deliberately does *not* do
 

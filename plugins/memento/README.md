@@ -7,6 +7,21 @@ The plugin can be installed globally. Its skills resolve the Memento data root b
 reading or writing, so the wiki can live in one configured directory while the
 skills are invoked from any project.
 
+## Runtime requirements
+
+- Bash runs the bundled root and safety helpers.
+- Git is required for local-history workflows and commit-backed incremental
+  detection. Compile also supports non-Git Mementos with mtime detection.
+- Node.js is required for compile's evidence reconciliation, connection graph,
+  and deterministic eval gate, and for the corresponding health diagnostics.
+
+Claude Code and Codex do not by themselves guarantee that `node` is installed or
+available on `PATH`; the skills preflight it before Node-backed work.
+
+Release-oriented trigger fixtures live beside the collision-prone skills under
+`evals/trigger-queries.json`. They are balanced, harness-neutral inputs for
+measuring activation; they are evidence data, not a claimed behavioral pass.
+
 ## Cache model
 
 The Memento treats knowledge like a CPU cache hierarchy. The full chain is
@@ -77,7 +92,12 @@ Or add a `.memento-root` file to a project:
 Bundled scripts:
 
 - `skills/_shared/scripts/memento-root` prints the resolved Memento root.
+- `skills/_shared/scripts/memento-root --self-test` verifies environment,
+  marker, relative, tilde, fallback, allow-missing, and failure behavior.
 - `skills/_shared/scripts/memento-run <command>` runs a command from the resolved Memento root.
+- `skills/_shared/scripts/compile-output-guard` rejects dirty generated
+  surfaces, snapshots compile output, and restores it on failure;
+  `--self-test` exercises non-Git restoration and the Git dirty-output gate.
 - `skills/_shared/scripts/eval-score` (node) — the deterministic golden-query scorer behind the eval gate. `compile` runs it before committing; `health-check eval` runs it read-only on demand. Emits the verdict contract; `--self-test` proves it fails a poisoned hot set.
 
 ## Directory structure
@@ -190,10 +210,11 @@ duplicates capability" are grep queries, not folklore.
   flags a stage with no backing ledger entry as a contradiction.
 - **Gate-1** is `actuary --tier <tier>` (invoked through harness-native skill
   composition when available, or by applying the Actuary skill workflow directly):
-  a privacy/genericization scan + L1 spec check turned into a readiness verdict.
-  Privacy is a non-negotiable marketplace hard-block.
-- **Gate-2** (promptfoo behavioral CI) is a later phase; `promote` reports it as
-  unproven rather than synthesizing a pass.
+  a privacy/genericization scan + portable L1 spec check turned into a static
+  Gate-1 verdict. Privacy is a non-negotiable marketplace hard-block; static
+  readiness is not final promotion readiness.
+- **Gate-2** (harness-neutral behavioral evals) is a later phase; `promote`
+  reports it as unproven rather than synthesizing a pass.
 - The deterministic backstop is `scripts/privacy-scan` (toolshed repo infra,
   fail-closed) at the pre-push hook — real IDs/paths/keys never reach the public
   repo even if Gate-1 is skipped.
@@ -206,12 +227,12 @@ stage change.
 | Skill | Description |
 |-------|-------------|
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
-| `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set), with a deterministic eval gate + auto-rollback (Step 7.5) protecting the hot set before commit |
+| `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set), with a deterministic eval gate + snapshot-backed rollback protecting the exact pre-run output state |
 | `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, golden-query eval readiness, and promotion-ledger integrity; `eval` runs the deterministic scorer (`eval-score`) against the committed fixtures |
 | `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, (at most one, confirmed) follow-up, and a structured trajectory record per substantive session |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) |
-| `promote` | Gated promotion of a local skill/tool to a marketplace git repo, defaulting to the active Memento/RSI target; composes `actuary --tier` (Gate-1: privacy + spec) through the harness's skill-composition surface when available, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
+| `promote` | Gated promotion of a local skill/tool to a marketplace git repo, defaulting to the active Memento/RSI target; composes `actuary --tier` (static Gate-1: privacy + portable spec) through the harness's skill-composition surface when available, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
 descend into `wiki/` and `sources/` as needed). For passive capture, edit
@@ -244,8 +265,14 @@ and hot-set synthesis.
 - **Convention over configuration.** File existence = open task. Frontmatter = metadata. Directories = organization.
 - **Local-first.** Git repo, no remote required.
 - **Additive.** Wiki compilation never destroys historical content.
-- **Gated, not trusted.** `compile` auto-rolls-back if the eval gate finds a load-bearing fact dropped from the hot set — the privileged surface is never committed unverified.
-- **Private by default.** `private/` is never compiled or referenced externally.
+- **Gated, not trusted.** `compile` restores its exact pre-run output snapshot if
+  the eval gate finds a load-bearing fact missing; pre-existing edits are never
+  swept into the compile commit.
+- **Private is a synthesis boundary, not encryption.** `private/` is never
+  compiled into public surfaces, but committed private history is pushable if a
+  remote exists. Save/AMA require explicit confirmation before adding private
+  content to a repository with a remote; use a separate non-remote or encrypted
+  store when that risk is unacceptable.
 - **Opinionated defaults, customizable.** Works immediately; `memento-config` interview tunes it on first run, and updates it on subsequent runs.
 
 ## File conventions

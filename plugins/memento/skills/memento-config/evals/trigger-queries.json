@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Set up a new Memento in this empty repository for Project Bluebird notes, including the standard directories and agent entrypoints.",
+    "should_trigger": true
+  },
+  {
+    "query": "Initialize this empty repository as a TypeScript package with npm, ESLint, Vitest, and a basic src directory.",
+    "should_trigger": false
+  },
+  {
+    "query": "memento config: add a `services` entity type keyed by service slug, with owner and lifecycle fields",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a Service entity to the ExampleCo application database and generate the ORM migration.",
+    "should_trigger": false
+  },
+  {
+    "query": "Turn this notes repo into my Memento knowledge base. Interview me for the profile, nicknames, labels, and entity types before scaffolding it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create a docs wiki for the Example Plugin using MkDocs, with pages for installation, configuration, and troubleshooting.",
+    "should_trigger": false
+  },
+  {
+    "query": "Update my existing Memento configuration so Project Atlas can be recognized by the nicknames `atlas` and `pa`.",
+    "should_trigger": true
+  },
+  {
+    "query": "Edit AGENTS.md to add the build, lint, and test commands for this ordinary application repository.",
+    "should_trigger": false
+  },
+  {
+    "query": "My Memento is missing outputs/ and its thin Claude entrypoint. Re-scaffold only the missing pieces without replacing my existing sources.",
+    "should_trigger": true
+  },
+  {
+    "query": "Scaffold a new ExampleCo CLI plugin with a manifest, README, src folder, and test fixtures.",
+    "should_trigger": false
+  },
+  {
+    "query": "Initialize a personal knowledge base here using the Memento layout, with AGENTS.md as the canonical shared context.",
+    "should_trigger": true
+  },
+  {
+    "query": "Configure this repository's git hooks, branch protection notes, and conventional commit rules.",
+    "should_trigger": false
+  },
+  {
+    "query": "Modify my Memento's `people` entity type to add a synthetic `team` field while preserving the current wiki and sources.",
+    "should_trigger": true
+  },
+  {
+    "query": "Update the YAML config for the ExampleCo deployment so the staging environment has three replicas.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure my Memento profile: use the display name `Example User`, timezone UTC, and label `Project Cedar` for the cedar notes.",
+    "should_trigger": true
+  },
+  {
+    "query": "Set up a generic memory feature for the ExampleCo support agent using a vector database and conversation embeddings.",
+    "should_trigger": false
+  },
+  {
+    "query": "I already have sources/ and wiki/ in this Memento; run the idempotent setup path and help me add a `decisions` entity type.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create CLAUDE.md as a pointer to AGENTS.md in this repo, but don't set up any knowledge base or Memento directories.",
+    "should_trigger": false
+  },
+  {
+    "query": "Bootstrap this repository as a Memento, then ask the minimum questions needed to customize its entity taxonomy and aliases.",
+    "should_trigger": true
+  },
+  {
+    "query": "Make a config file for the Example Plugin that maps aliases to canonical command names; this is runtime application config, not a Memento.",
+    "should_trigger": false
+  }
+]

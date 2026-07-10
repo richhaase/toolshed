@@ -2,17 +2,12 @@
 name: promote
 description: >
   Promote a local skill or tool into a chosen marketplace git repo, gated on a
-  privacy + spec verdict and a single human decision. Use when the user says
-  "promote", "graduate this skill", "is X ready to promote", "advance the
-  promotion stage", "promote to toolshed", or "promote to marketplace".
-  Always resolve the target marketplace repo first; if the user did not provide
-  one, default to the Memento RSI target (`memento`) and ask only if that cannot
-  resolve to a git repo marketplace. Toolshed is one marketplace target, not a
-  separate lifecycle stage. Composes actuary --tier (Gate-1:
-  privacy/genericization + spec),
-  surfaces capability duplication, and on your explicit OK performs the
-  promotion mechanics. This skill is the SOLE WRITER of the promotion ledger and
-  the promotion_stage frontmatter — never hand-edit those.
+  static privacy + portable-spec verdict and explicit user confirmation. Use
+  when the user asks to promote, graduate, assess readiness, or advance a local
+  skill/tool to toolshed or another marketplace. Resolve the target repo first,
+  defaulting to the active Memento/RSI target when available. Composes Actuary's
+  static Gate-1, surfaces unproven behavioral/dedup evidence, and is the sole
+  writer of the promotion ledger and `promotion_stage` frontmatter.
 argument-hint: "skill-or-tool [--marketplace repo-path-or-name] [--to marketplace-ready|marketplace] [--dry-run]"
 user-invocable: true
 allowed-tools: Read Glob Grep Bash Edit Write Skill AskUserQuestion
@@ -121,7 +116,7 @@ against an unresolved alias.
 6. Determine the target stage (`--to` or next-up). If the entity is already at
    or above the target, report and stop.
 
-## Step 2: Gate-1 — actuary tier verdict (privacy + spec)
+## Step 2: Static Gate-1 — actuary tier verdict (privacy + portable spec)
 
 Invoke `actuary:skill-audit` against the entity's **source files** (the local
 skill directory or marketplace skill directory, not just the wiki page). Use
@@ -133,14 +128,17 @@ targets a marketplace repo, run Actuary with the marketplace tier:
 actuary:skill-audit <source-skill-or-plugin> --tier marketplace
 ```
 
-Read back the tier verdict: `verdict: ready|not-ready`, the privacy findings
-(by `privacy-*` rule key, masked), and the L1 spec result. Privacy hard-blocks
-marketplace promotion; L1 must be clean.
+Read back `static-verdict: ready|not-ready`, the privacy findings (by
+`privacy-*` rule key, masked), and the portable L1 result. Accept the legacy
+`verdict:` alias only when `static-verdict:` is absent. Privacy hard-blocks
+marketplace promotion and portable L1 must be clean, but a static-ready result
+does not prove behavioral or final promotion readiness.
 
 ## Step 3: Gate-2 — behavioral (deferred)
 
-The promptfoo behavioral gate (skill-used + outcome + cost) is Phase 3 and not
-yet wired. Treat it as:
+The harness-neutral behavioral gate (skill-used + outcome + cost) is not yet
+wired. Checked-in eval fixtures are evidence inputs, not a synthesized pass.
+Treat it as:
 
 - `marketplace-ready`: **advisory** — note it is unproven, do not block on it.
 - `marketplace`: **required-but-unproven** — report it as an unmet prerequisite

@@ -38,6 +38,8 @@ Add the marketplace:
 
 ```bash
 codex plugin marketplace add richhaase/toolshed
+codex plugin add memento@toolshed
+codex plugin add actuary@toolshed
 ```
 
 Codex reads `.agents/plugins/marketplace.json` and each plugin's
@@ -49,6 +51,18 @@ For local development:
 codex plugin marketplace add /path/to/toolshed
 ```
 
+## Runtime requirements
+
+The skill instructions themselves are Markdown. Optional bundled helpers use
+Node.js (dependency-free JavaScript), Bash, and Git. Install all three to use
+the complete Memento workflow and the repository validation/privacy gates.
+Memento also expects standard Unix utilities; its health check uses `rg` when
+available and falls back to `grep`.
+
+The host agent may use its own configured tools for workflow steps, including
+network access described by a skill. Bundled helper scripts do not install
+packages or make network requests on their own.
+
 ## Plugins
 
 ### [Memento](plugins/memento/) — Personal Memory Base
@@ -56,7 +70,7 @@ codex plugin marketplace add /path/to/toolshed
 Multi-layer cache memory base with automated compilation. Treats knowledge
 like a CPU cache hierarchy: L1 (`AGENTS.md` hot set) -> L2 (wiki, loaded on
 demand) -> L3 (sources, cold storage). Claude Code uses a thin `CLAUDE.md`
-entrypoint that points to `AGENTS.md`. Includes setup, compilation, read-only
+entrypoint that imports `AGENTS.md`. Includes setup, compilation, read-only
 health checks, session capture, active interview, follow-up queue review, and
 gated skill/tool promotion.
 
@@ -69,9 +83,10 @@ resolved root instead of assuming the current repo is the Memento.
 ### [Actuary](plugins/actuary/) — Skill Audit
 
 Audit and evaluate Agent Skills against the agentskills.io specification and
-authoring best practices. The `skill-audit` skill produces a layered L1 spec /
-L2 structural / L3 craft report. With `--tier`, it adds privacy/genericization
-checks and a promotion-readiness verdict used by Memento's `promote` flow.
+authoring best practices. The `skill-audit` skill separates portable L1 spec
+compliance from named harness profiles, then reports L2 structure and L3 craft.
+With `--tier`, it adds privacy/genericization checks and a static Gate-1 verdict
+used by Memento's `promote` flow; final behavioral readiness remains separate.
 
 ### [Legate](plugins/legate/) — Delegated Work Orchestration _(deprecated)_
 

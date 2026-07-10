@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Before I merge this branch, audit plugins/example-plugin/skills/release-notes/SKILL.md for Agent Skills spec compliance, progressive disclosure, and description quality.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the implementation in src/release-notes.ts for bugs, security issues, and missing unit tests before I open a PR.",
+    "should_trigger": false
+  },
+  {
+    "query": "Can you lint the ExampleCo agent plugin in plugins/example-plugin and give me the L1 failures, L2 metrics, and the highest-value L3 fixes?",
+    "should_trigger": true
+  },
+  {
+    "query": "Run the release-notes skill against these five prompts and compare its answers with the old version so we can measure whether behavior improved.",
+    "should_trigger": false
+  },
+  {
+    "query": "Does this SKILL.md load too much context up front? Audit its references, scripts, Gotchas section, and trigger description, but do not change anything.",
+    "should_trigger": true
+  },
+  {
+    "query": "Read docs/agent-architecture.md and critique whether our coordinator-and-worker design is too complex for the ExampleCo support bot.",
+    "should_trigger": false
+  },
+  {
+    "query": "Please do a marketplace-tier audit of ./plugins/example-plugin and tell me whether it clears the static privacy and packaging gate.",
+    "should_trigger": true
+  },
+  {
+    "query": "Decide whether ExampleCo's plugin is fully ready to publish, including running behavioral tests, judging answer quality, and making the final promotion decision.",
+    "should_trigger": false
+  },
+  {
+    "query": "triage this skill folder for me: plugins/example-plugin/skills/incident-helper. i mostly care about broken frontmatter, portability, and quick wins",
+    "should_trigger": true
+  },
+  {
+    "query": "Triage the open bug in ExampleCo's incident service: requests intermittently return 502 after the retry middleware change.",
+    "should_trigger": false
+  },
+  {
+    "query": "Check whether every skill exposed by .agents/plugins/marketplace.json follows the open Agent Skills format and report harness-specific findings separately.",
+    "should_trigger": true
+  },
+  {
+    "query": "Validate this marketplace.json as ordinary JSON and fix any duplicate keys or malformed package URLs you find.",
+    "should_trigger": false
+  },
+  {
+    "query": "I shortened the description in plugins/example-plugin/skills/oncall/SKILL.md. Audit it for under-triggering, collisions with adjacent skills, and anti-trigger clarity.",
+    "should_trigger": true
+  },
+  {
+    "query": "Rewrite the on-call assistant system prompt so it sounds friendlier and gives shorter answers to ExampleCo employees.",
+    "should_trigger": false
+  },
+  {
+    "query": "Do a read-only --tier toolshed review of the ExampleCo plugin and return only the prioritized quick wins from the skill audit.",
+    "should_trigger": true
+  },
+  {
+    "query": "Scan the ExampleCo web application dependencies for known CVEs and produce a remediation plan for the engineering team.",
+    "should_trigger": false
+  },
+  {
+    "query": "Is this skill over-prescriptive? Review SKILL.md plus only the referenced files needed to assess its workflow and authoring craft.",
+    "should_trigger": true
+  },
+  {
+    "query": "Proofread the ExampleCo employee handbook for unclear sentences, inconsistent capitalization, and overly prescriptive policy language.",
+    "should_trigger": false
+  },
+  {
+    "query": "Audit the plugin before release and verify that skill names match directories, descriptions state when to trigger, and bundled resources use progressive disclosure.",
+    "should_trigger": true
+  },
+  {
+    "query": "Inspect the git diff for the ExampleCo CLI release and tell me whether the code change is backward compatible with the current API.",
+    "should_trigger": false
+  }
+]

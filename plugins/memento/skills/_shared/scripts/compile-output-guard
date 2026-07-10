@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: compile-output-guard begin --root <memento-root>
+       compile-output-guard restore --snapshot <snapshot-dir>
+       compile-output-guard cleanup --snapshot <snapshot-dir>
+       compile-output-guard --self-test
+
+Protect AGENTS.md and wiki/ during a compile. `begin` refuses dirty generated
+outputs or a pre-populated Git index, snapshots the current outputs, and prints
+the snapshot directory. `restore` replaces generated outputs from that snapshot.
+`cleanup` removes a successful run's snapshot.
+EOF
+}
+
+die() {
+  printf 'compile-output-guard: %s\n' "$*" >&2
+  exit 73
+}
+
+canonical_dir() {
+  (cd "$1" 2>/dev/null && pwd -P)
+}
+
+begin_guard() {
+  local root="$1" snapshot dirty
+  root="$(canonical_dir "$root")" || die "Memento root does not exist: $root"
+  [[ ! -L "$root/AGENTS.md" ]] || die "AGENTS.md must not be a symlink"
+  [[ ! -L "$root/wiki" ]] || die "wiki/ must not be a symlink"
+  if [[ -d "$root/wiki" ]] && find "$root/wiki" -type l -print -quit | grep -q .; then
+    die "wiki/ must not contain symlinks; generated output must stay inside the Memento root"
+  fi
+
+  if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C "$root" diff --cached --quiet \
+      || die "Git index already has staged changes; commit or unstage them before compiling"
+    dirty="$(git -C "$root" status --porcelain -- AGENTS.md wiki/ sources/eval/runs/)"
+    [[ -z "$dirty" ]] \
+      || die "generated outputs or eval-run telemetry are dirty; preserve or commit them before compiling:\n$dirty"
+  fi
+
+  snapshot="$(mktemp -d "${TMPDIR:-/tmp}/memento-compile.XXXXXX")"
+  : > "$snapshot/compile-output-guard.snapshot"
+  printf '%s\n' "$root" > "$snapshot/root"
+  if [[ -f "$root/AGENTS.md" ]]; then
+    : > "$snapshot/had-agents"
+    cp -p "$root/AGENTS.md" "$snapshot/AGENTS.md"
+  fi
+  if [[ -d "$root/wiki" ]]; then
+    : > "$snapshot/had-wiki"
+    cp -pR "$root/wiki" "$snapshot/wiki"
+  fi
+  printf '%s\n' "$snapshot"
+}
+
+restore_one() {
+  local root="$1" snapshot="$2" name="$3" had_marker="$4"
+  local incoming backup
+  incoming="$root/.memento-restore-${name}.$$"
+  backup="$root/.memento-failed-${name}.$$"
+  rm -rf -- "$incoming" "$backup"
+
+  if [[ -e "$snapshot/$had_marker" ]]; then
+    cp -pR "$snapshot/$name" "$incoming"
+    if [[ -e "$root/$name" ]]; then
+      mv "$root/$name" "$backup"
+    fi
+    if ! mv "$incoming" "$root/$name"; then
+      [[ ! -e "$backup" ]] || mv "$backup" "$root/$name"
+      die "could not restore $name"
+    fi
+    rm -rf -- "$backup"
+  else
+    rm -rf -- "${root:?}/$name"
+  fi
+}
+
+restore_guard() {
+  local snapshot="$1" root
+  [[ -d "$snapshot" && -f "$snapshot/root" && -f "$snapshot/compile-output-guard.snapshot" ]] \
+    || die "invalid snapshot: $snapshot"
+  IFS= read -r root < "$snapshot/root"
+  root="$(canonical_dir "$root")" || die "snapshot root no longer exists: $root"
+  restore_one "$root" "$snapshot" AGENTS.md had-agents
+  restore_one "$root" "$snapshot" wiki had-wiki
+}
+
+cleanup_guard() {
+  local snapshot="$1"
+  [[ -d "$snapshot" && -f "$snapshot/root" && -f "$snapshot/compile-output-guard.snapshot" \
+     && "$(basename "$snapshot")" == memento-compile.* ]] \
+    || die "refusing to remove an invalid snapshot path: $snapshot"
+  rm -rf -- "$snapshot"
+}
+
+self_test() {
+  local script tmp root snapshot rc
+  script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/compile-output-guard-test.XXXXXX")"
+  trap 'rm -rf "$tmp"' RETURN
+  root="$tmp/root"
+  mkdir -p "$root/wiki"
+  printf 'original agents\n' > "$root/AGENTS.md"
+  printf 'original page\n' > "$root/wiki/page.md"
+
+  snapshot="$("$script" begin --root "$root")"
+  printf 'mutated agents\n' > "$root/AGENTS.md"
+  printf 'mutated page\n' > "$root/wiki/page.md"
+  printf 'new page\n' > "$root/wiki/new.md"
+  "$script" restore --snapshot "$snapshot"
+  grep -qx 'original agents' "$root/AGENTS.md"
+  grep -qx 'original page' "$root/wiki/page.md"
+  [[ ! -e "$root/wiki/new.md" ]]
+  "$script" cleanup --snapshot "$snapshot"
+
+  rm -rf "$root/wiki"
+  snapshot="$("$script" begin --root "$root")"
+  mkdir -p "$root/wiki"
+  printf 'new page\n' > "$root/wiki/new.md"
+  "$script" restore --snapshot "$snapshot"
+  [[ ! -e "$root/wiki" ]]
+  "$script" cleanup --snapshot "$snapshot"
+
+  mkdir -p "$root/wiki"
+  ln -s ../AGENTS.md "$root/wiki/linked-page.md"
+  set +e
+  "$script" begin --root "$root" >/dev/null 2>&1
+  rc=$?
+  set -e
+  [[ $rc -eq 73 ]] || { printf 'self-test: nested-symlink exit was %s, expected 73\n' "$rc" >&2; return 1; }
+  rm "$root/wiki/linked-page.md"
+
+  if command -v git >/dev/null 2>&1; then
+    git -C "$root" init -q
+    git -C "$root" add AGENTS.md
+    git -C "$root" -c user.name=test -c user.email=test@example.invalid commit -qm init
+    printf 'dirty agents\n' > "$root/AGENTS.md"
+    set +e
+    "$script" begin --root "$root" >/dev/null 2>&1
+    rc=$?
+    set -e
+    [[ $rc -eq 73 ]] || { printf 'self-test: dirty-output exit was %s, expected 73\n' "$rc" >&2; return 1; }
+
+    git -C "$root" checkout -q -- AGENTS.md
+    printf 'unrelated\n' > "$root/unrelated.md"
+    git -C "$root" add unrelated.md
+    set +e
+    "$script" begin --root "$root" >/dev/null 2>&1
+    rc=$?
+    set -e
+    [[ $rc -eq 73 ]] || { printf 'self-test: staged-index exit was %s, expected 73\n' "$rc" >&2; return 1; }
+  fi
+
+  printf 'self-test: OK\n'
+}
+
+case "${1:-}" in
+  --help|-h)
+    usage
+    ;;
+  --self-test)
+    self_test
+    ;;
+  begin)
+    [[ "${2:-}" == --root && -n "${3:-}" && $# -eq 3 ]] || { usage >&2; exit 64; }
+    begin_guard "$3"
+    ;;
+  restore)
+    [[ "${2:-}" == --snapshot && -n "${3:-}" && $# -eq 3 ]] || { usage >&2; exit 64; }
+    restore_guard "$3"
+    ;;
+  cleanup)
+    [[ "${2:-}" == --snapshot && -n "${3:-}" && $# -eq 3 ]] || { usage >&2; exit 64; }
+    cleanup_guard "$3"
+    ;;
+  *)
+    usage >&2
+    exit 64
+    ;;
+esac

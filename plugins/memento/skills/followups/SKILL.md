@@ -1,6 +1,6 @@
 ---
 name: followups
-description: Inventory, view, or triage open follow-ups in sources/followups/ — the user's small queue of "re-read within a week, act on it" captures. Subcommands list (default; print open items, expired first), show (display one item read-only), and walk (interactive triage one at a time — keep, dismiss, answer, note, or file-and-dismiss to the issue tracker). Use when the user says "list my open items", "what's open", "show me followup X", "review followups", "go through my open items", "triage my queue", or "walk follow-ups".
+description: Inventory, view, or triage the Memento follow-up queue. Use when the user names Memento follow-ups, asks to list/review this Memento's open items, says "show me followup X", or wants to walk the queue one item at a time (keep, dismiss, answer, note, or file-and-dismiss). List mode is expired-first. Do not trigger on generic task, issue, PR, email, or "what's open" requests without Memento context.
 argument-hint: "[list|show|walk] [<slug> ...] [oldest|newest|expired]"
 user-invocable: true
 allowed-tools: Read Write Edit Glob Grep Bash AskUserQuestion

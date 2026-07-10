@@ -18,6 +18,10 @@ git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
 
 ## Commit flow (when in a git repo)
 
+The Step -1 output guard has already required a clean Git index and clean
+`AGENTS.md`, `wiki/`, and `sources/eval/runs/` paths. Do not skip that preflight;
+it is what makes the scoped directory pathspecs below safe.
+
 1. Stage compile output:
    ```bash
    git -C "$MEMENTO_ROOT" add wiki/ AGENTS.md sources/eval/runs/
@@ -25,13 +29,29 @@ git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
    `sources/eval/runs/` is the only `sources/` path compile stages; it records
    the Step 7.5 verdict. Compile requires canonical `AGENTS.md`; migrate old
    `CLAUDE.md`-only Mementos with `memento-config` before running it.
-2. Check whether anything is actually staged:
+2. Verify the staged scope before committing:
+   ```bash
+   invalid=""
+   while IFS= read -r path; do
+     case "$path" in
+       AGENTS.md|wiki/*|sources/eval/runs/*) ;;
+       *) invalid+="${invalid:+, }$path" ;;
+     esac
+   done <<< "$(git -C "$MEMENTO_ROOT" diff --cached --name-only)"
+   if [[ -n "$invalid" ]]; then
+     echo "compile: refusing commit; unexpected staged paths: $invalid" >&2
+     exit 1
+   fi
+   ```
+   If this fails, do not commit or clean up `COMPILE_SNAPSHOT`; report the
+   snapshot path so the user can inspect or restore the run.
+3. Check whether anything is actually staged:
    ```bash
    git -C "$MEMENTO_ROOT" diff --cached --quiet
    ```
    If exit code is `0` (no staged changes), skip the commit — there is nothing
    to record. Report `commit: skipped (no changes)`.
-3. Commit. Subject and body together replace the old HTML compile-run comment.
+4. Commit. Subject and body together replace the old HTML compile-run comment.
    - **Subject** (≤ 72 chars): `compile: update wiki — <brief synthesis>`
      where `<brief synthesis>` is the one-line theme of the run.
    - **Body** (multi-line): the synthesis that previously went in the inline
@@ -49,13 +69,19 @@ git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
      EOF
      )"
      ```
-4. Never push. The skill only commits locally — pushing is the user's call,
+5. After a successful commit, or a not-a-repo/no-changes skip, remove the
+   successful run's snapshot:
+   ```bash
+   ../_shared/scripts/compile-output-guard cleanup --snapshot "$COMPILE_SNAPSHOT"
+   ```
+6. Never push. The skill only commits locally — pushing is the user's call,
    not the skill's.
 
 ## Failure handling
 
 - If `git add` or `git commit` fails for an unexpected reason (hooks, locked
   index, etc.), surface the exact stderr to the user and stop. Do not retry,
-  do not `--no-verify`, do not amend prior commits.
+  do not `--no-verify`, do not amend prior commits. Keep `COMPILE_SNAPSHOT` and
+  report its path; it is the recovery point for the partially completed run.
 - Pre-commit hook failure means the commit did not happen — fix the underlying
   issue, re-stage, and create a new commit. Never amend.

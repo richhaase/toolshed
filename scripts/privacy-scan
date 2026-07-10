@@ -24,8 +24,12 @@
 //
 // Optional environment:
 //   PRIVACY_RULESET    Path to a JSON file of additional detectors + allowlist:
-//                        { "rules": [ { "key": "...", "pattern": "...", "flags": "g" } ],
+//                        { "rules": [ { "key": "detector-id", "rule_key": "privacy-...",
+//                                       "pattern": "...", "flags": "g" } ],
 //                          "allow": [ "literal-synthetic-substring", ... ] }
+//                      `key` remains the detector identifier for compatibility.
+//                      `rule_key` is the canonical Actuary privacy class. Legacy
+//                      rules without `rule_key` emit `privacy-instance-specific`.
 //                      Unreadable/invalid when set => exit 2 (fail-closed).
 //   PRIVACY_ALLOWLIST  Path to a newline-delimited file of literal substrings to
 //                      exempt (known-synthetic placeholders). '#' comments ok.
@@ -43,12 +47,29 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+const CANONICAL_INSTANCE_RULE = 'privacy-instance-specific';
+const CANONICAL_PRIVACY_RULES = new Set([
+  'privacy-machine-path',
+  'privacy-cloud-key',
+  'privacy-key-material',
+  'privacy-slack-id',
+  'privacy-internal-email',
+  'privacy-customer-slug',
+  'privacy-real-person',
+  'privacy-real-group',
+  'privacy-private-path-ref',
+  CANONICAL_INSTANCE_RULE,
+]);
+
 // --- generic built-in detectors (PUBLIC-safe; no instance data) ----------------
-// Each: { key, re (RegExp with /g), why }. High precision — low false-positive,
+// Each: { detectorId, ruleKey, re (RegExp with /g), why }. `ruleKey` is from
+// Actuary's canonical privacy-* catalog; `detectorId` identifies the concrete
+// regex. High precision — low false-positive,
 // because this is a HARD BLOCK and false positives train --no-verify erosion.
 const BUILTIN = [
   {
-    key: 'aws-access-key',
+    detectorId: 'aws-access-key',
+    ruleKey: 'privacy-cloud-key',
     re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
     why: 'AWS access key ID',
   },
@@ -57,18 +78,21 @@ const BUILTIN = [
     // `-----BEGIN ... PRIVATE KEY-----` appears legitimately in docs/runbooks
     // describing PEM formats, and a hard-block on that trains --no-verify. A
     // real key always carries a long base64 body.
-    key: 'private-key-block',
+    detectorId: 'private-key-block',
+    ruleKey: 'privacy-key-material',
     re: /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----\s*[A-Za-z0-9+/=]{40,}/g,
     why: 'PEM private key material',
   },
   {
-    key: 'slack-object-id',
+    detectorId: 'slack-object-id',
+    ruleKey: 'privacy-slack-id',
     re: /\b[CUW][A-Z0-9]{10}\b/g,
     why: 'Slack channel/user/workspace object ID (11-char)',
   },
   {
     // Machine-specific home directory. Allows generic placeholders.
-    key: 'home-path',
+    detectorId: 'home-path',
+    ruleKey: 'privacy-machine-path',
     re: /\/(?:Users|home)\/(?!(?:you|user|username|name|me|runner|example|placeholder)\b)[A-Za-z0-9._-]+/g,
     why: 'absolute machine home path (use ~/ or /path/to/ instead)',
   },
@@ -123,7 +147,11 @@ function loadRuleset(p) {
     } catch (e) {
       die(`PRIVACY_RULESET ${p} rule '${r.key}' has an uncompilable regex: ${e.message}`, 2);
     }
-    rules.push({ key: r.key, re, why: r.why || 'instance ruleset' });
+    const ruleKey = r.rule_key || (r.key.startsWith('privacy-') ? r.key : CANONICAL_INSTANCE_RULE);
+    if (!CANONICAL_PRIVACY_RULES.has(ruleKey)) {
+      die(`PRIVACY_RULESET ${p} rule '${r.key}' has unknown rule_key '${ruleKey}'`, 2);
+    }
+    rules.push({ detectorId: r.key, ruleKey, re, why: r.why || 'instance ruleset' });
   }
   for (const a of obj.allow || []) {
     if (typeof a === 'string' && a) PLACEHOLDER_TOKENS.add(a);
@@ -169,6 +197,16 @@ function allowed(matchText) {
   return false;
 }
 
+function decodeTextEscapes(text) {
+  // Secrets in JSON/YAML/string fixtures can hide path and identifier
+  // separators behind Unicode or escaped-slash syntax. Decode only escapes
+  // that preserve line boundaries, then scan both views. This keeps reported
+  // line numbers stable while closing a trivial raw-text scanner bypass.
+  return text
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_match, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\\//g, '/');
+}
+
 function scanFile(file, detectors, findings, excluded) {
   if (excluded.has(path.resolve(file))) return;
   let buf;
@@ -179,14 +217,30 @@ function scanFile(file, detectors, findings, excluded) {
   }
   if (isProbablyBinary(buf)) return;
   const text = buf.toString('utf8');
+  const decoded = decodeTextEscapes(text);
+  const variants = decoded === text ? [text] : [text, decoded];
+  const seen = new Set();
   for (const d of detectors) {
-    d.re.lastIndex = 0;
-    let m;
-    while ((m = d.re.exec(text)) !== null) {
-      const hit = m[0];
-      if (m.index === d.re.lastIndex) d.re.lastIndex++; // guard zero-width
-      if (allowed(hit)) continue;
-      findings.push({ file, line: lineOf(text, m.index), key: d.key, why: d.why, masked: mask(hit) });
+    for (const variant of variants) {
+      d.re.lastIndex = 0;
+      let m;
+      while ((m = d.re.exec(variant)) !== null) {
+        const hit = m[0];
+        if (m.index === d.re.lastIndex) d.re.lastIndex++; // guard zero-width
+        if (allowed(hit)) continue;
+        const line = lineOf(variant, m.index);
+        const identity = `${d.ruleKey}:${d.detectorId}:${line}:${hit}`;
+        if (seen.has(identity)) continue;
+        seen.add(identity);
+        findings.push({
+          file,
+          line,
+          key: d.ruleKey,
+          detector_id: d.detectorId,
+          why: d.why,
+          masked: mask(hit),
+        });
+      }
     }
   }
 }
@@ -248,28 +302,55 @@ function selfTest() {
   // file, and assert each detector fires on its plant and not on the clean file.
   // Synthetic data only — nothing is committed, so the repo is never flagged.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-scan-selftest-'));
-  const plants = {
-    'aws-access-key': 'token AKIAXXXXXXXXXXXXXXXX here',
-    'private-key-block': '-----BEGIN TEST PRIVATE KEY-----\nMIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAoSyntheticKeyBodyForSelfTestOnly0123456789',
-    'slack-object-id': 'channel CXXXXXXXXXX mentioned',
-    'home-path': 'path /Users/synthetic-machine-acct/notes',
-  };
+  const plants = [
+    {
+      detectorId: 'aws-access-key',
+      ruleKey: 'privacy-cloud-key',
+      content: 'token AKIAXXXXXXXXXXXXXXXX here',
+    },
+    {
+      detectorId: 'private-key-block',
+      ruleKey: 'privacy-key-material',
+      content: '-----BEGIN TEST PRIVATE KEY-----\nMIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAoSyntheticKeyBodyForSelfTestOnly0123456789',
+    },
+    {
+      detectorId: 'slack-object-id',
+      ruleKey: 'privacy-slack-id',
+      content: 'channel CXXXXXXXXXX mentioned',
+    },
+    {
+      detectorId: 'home-path',
+      ruleKey: 'privacy-machine-path',
+      content: 'path /Users/synthetic-machine-acct/notes',
+    },
+  ];
   // Includes a lone PEM header (format-label documentation, no key body) — it
   // must NOT fire, guarding the private-key-block detector against re-loosening.
   const clean = 'the quick brown fox ~/src/project /Users/you/x noreply@example.com\nformat note: -----BEGIN PRIVATE KEY----- is PKCS#8';
   try {
-    for (const [key, content] of Object.entries(plants)) {
-      fs.writeFileSync(path.join(dir, `plant-${key}.txt`), `${content}\n`);
+    for (const plant of plants) {
+      fs.writeFileSync(path.join(dir, `plant-${plant.detectorId}.txt`), `${plant.content}\n`);
     }
     fs.writeFileSync(path.join(dir, 'clean.txt'), `${clean}\n`);
 
     const detectors = BUILTIN.slice();
     let ok = true;
-    for (const [key] of Object.entries(plants)) {
+    const canonicalOk = detectors.every(
+      (d) => d.detectorId && CANONICAL_PRIVACY_RULES.has(d.ruleKey),
+    );
+    process.stdout.write(
+      `  ${canonicalOk ? 'PASS' : 'FAIL'}  every built-in exposes detectorId + canonical privacy-* ruleKey\n`,
+    );
+    if (!canonicalOk) ok = false;
+    for (const plant of plants) {
       const findings = [];
-      scanFile(path.join(dir, `plant-${key}.txt`), detectors, findings, new Set());
-      const hit = findings.some((f) => f.key === key);
-      process.stdout.write(`  ${hit ? 'PASS' : 'FAIL'}  detector '${key}' fires on its synthetic plant\n`);
+      scanFile(path.join(dir, `plant-${plant.detectorId}.txt`), detectors, findings, new Set());
+      const hit = findings.some(
+        (f) => f.detector_id === plant.detectorId && f.key === plant.ruleKey,
+      );
+      process.stdout.write(
+        `  ${hit ? 'PASS' : 'FAIL'}  detector '${plant.detectorId}' emits canonical '${plant.ruleKey}'\n`,
+      );
       if (!hit) ok = false;
     }
     const cleanFindings = [];
@@ -282,9 +363,47 @@ function selfTest() {
     }
     const explicitDirFindings = [];
     for (const f of explicitFiles([dir])) scanFile(f, detectors, explicitDirFindings, new Set());
-    const explicitDirOk = explicitDirFindings.length >= Object.keys(plants).length;
+    const explicitDirOk = explicitDirFindings.length >= plants.length;
     process.stdout.write(`  ${explicitDirOk ? 'PASS' : 'FAIL'}  explicit directory scan recurses into files\n`);
     if (!explicitDirOk) ok = false;
+
+    const escapedPath = path.join(dir, 'escaped.json');
+    fs.writeFileSync(escapedPath, '{"path":"/Users\\u002fescaped-machine-account/notes"}\n');
+    const escapedFindings = [];
+    scanFile(escapedPath, detectors, escapedFindings, new Set());
+    const escapedOk = escapedFindings.some(
+      (f) => f.detector_id === 'home-path' && f.key === 'privacy-machine-path',
+    );
+    process.stdout.write(
+      `  ${escapedOk ? 'PASS' : 'FAIL'}  Unicode-escaped sensitive paths cannot bypass scanning\n`,
+    );
+    if (!escapedOk) ok = false;
+
+    const rulesetPath = path.join(dir, 'ruleset.json');
+    const customPath = path.join(dir, 'custom.txt');
+    fs.writeFileSync(rulesetPath, JSON.stringify({
+      rules: [
+        { key: 'legacy-detector', pattern: 'LEGACY_SYNTHETIC_TOKEN' },
+        {
+          key: 'email-detector',
+          rule_key: 'privacy-internal-email',
+          pattern: 'person\\@internal\\.invalid',
+        },
+      ],
+    }));
+    fs.writeFileSync(customPath, 'LEGACY_SYNTHETIC_TOKEN person@internal.invalid\n');
+    const customFindings = [];
+    scanFile(customPath, loadRuleset(rulesetPath), customFindings, new Set());
+    const legacyOk = customFindings.some(
+      (f) => f.detector_id === 'legacy-detector' && f.key === CANONICAL_INSTANCE_RULE,
+    );
+    const explicitRuleOk = customFindings.some(
+      (f) => f.detector_id === 'email-detector' && f.key === 'privacy-internal-email',
+    );
+    process.stdout.write(
+      `  ${legacyOk && explicitRuleOk ? 'PASS' : 'FAIL'}  custom rules preserve detector_id and emit canonical rule keys\n`,
+    );
+    if (!legacyOk || !explicitRuleOk) ok = false;
     if (!ok) die('self-test FAILED — a detector is broken; refusing to certify (fail-closed)', 2);
     process.stdout.write('privacy-scan: self-test PASSED\n');
     process.exit(0);
@@ -325,7 +444,7 @@ function main() {
   findings.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1));
   process.stderr.write(`privacy-scan: ${findings.length} finding(s) — these must not reach a public repo:\n`);
   for (const f of findings) {
-    process.stderr.write(`  ${f.file}:${f.line}: [${f.key}] ${f.masked}  (${f.why})\n`);
+    process.stderr.write(`  ${f.file}:${f.line}: [${f.key}] detector_id=${f.detector_id} ${f.masked}  (${f.why})\n`);
   }
   process.stderr.write('\nprivacy-scan: replace real values with generic placeholders, then re-run.\n');
   process.exit(1);

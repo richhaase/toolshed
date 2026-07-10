@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Save this session to my Memento. Capture the decision to use Project Bluebird as the synthetic fixture and the two unresolved validation questions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Great, we're done here. Thanks for the help!",
+    "should_trigger": false
+  },
+  {
+    "query": "log this to my memento before we stop — include the ExampleCo rollout plan and the follow-up about retry limits",
+    "should_trigger": true
+  },
+  {
+    "query": "Wrap up by giving me a three-bullet summary of what we changed; don't write anything to the repository.",
+    "should_trigger": false
+  },
+  {
+    "query": "Anything worth capturing from this conversation in the Memento? Go ahead and persist the useful parts if so.",
+    "should_trigger": true
+  },
+  {
+    "query": "Save the edits to src/example.ts and commit them with the message 'fix: handle empty input'.",
+    "should_trigger": false
+  },
+  {
+    "query": "Use the Memento save workflow in ask mode; show me what you would retain from today's Project Atlas debugging session before writing it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Please save this meeting recap as a new page in our ExampleCo Notion workspace.",
+    "should_trigger": false
+  },
+  {
+    "query": "Persist this session in my memory base, especially the naming convention we settled on and the result reported by the background agent.",
+    "should_trigger": true
+  },
+  {
+    "query": "Close out the task and tell me the final test status.",
+    "should_trigger": false
+  },
+  {
+    "query": "memento save: record that the Example Plugin release is blocked on a synthetic privacy fixture, then finish the session",
+    "should_trigger": true
+  },
+  {
+    "query": "Archive this chat in the Codex sidebar so it no longer appears in my active tasks.",
+    "should_trigger": false
+  },
+  {
+    "query": "Before I sign off, capture our conclusions and open questions as a new Memento session source.",
+    "should_trigger": true
+  },
+  {
+    "query": "Draft an email to dev@example.test summarizing this session, but leave it unsent for review.",
+    "should_trigger": false
+  },
+  {
+    "query": "Run save ask for this conversation. I want to review the proposed Memento capture because one tangent should probably be omitted.",
+    "should_trigger": true
+  },
+  {
+    "query": "Can you remember that I prefer concise answers for the rest of this chat? No file changes needed.",
+    "should_trigger": false
+  },
+  {
+    "query": "We're done with Project Cedar; please log the durable decisions and remaining action item into my Memento before closing.",
+    "should_trigger": true
+  },
+  {
+    "query": "Thanks, that solved it. You can stop now.",
+    "should_trigger": false
+  },
+  {
+    "query": "Capture the useful context from this whole session in the Memento, including the verification results that the worker agent just returned.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write the final answer to outputs/session-summary.md so I can share it with the ExampleCo team.",
+    "should_trigger": false
+  }
+]

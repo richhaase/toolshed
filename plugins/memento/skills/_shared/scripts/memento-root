@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2088 # Literal ~/ inputs are the behavior under test and expansion target.
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
 Usage: memento-root [--allow-missing]
+       memento-root --self-test
 
 Print the configured Memento root.
 
@@ -19,10 +21,12 @@ EOF
 }
 
 allow_missing=false
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+if [[ ( "${1:-}" == "--help" || "${1:-}" == "-h" ) && $# -eq 1 ]]; then
   usage
   exit 0
-elif [[ "${1:-}" == "--allow-missing" ]]; then
+elif [[ "${1:-}" == "--self-test" && $# -eq 1 ]]; then
+  self_test=true
+elif [[ "${1:-}" == "--allow-missing" && $# -eq 1 ]]; then
   allow_missing=true
 elif [[ $# -gt 0 ]]; then
   usage >&2
@@ -35,7 +39,7 @@ expand_path() {
 
   case "$raw" in
     "~") raw="$HOME" ;;
-    "~/"*) raw="$HOME/${raw#~/}" ;;
+    "~/"*) raw="$HOME/${raw#\~/}" ;;
   esac
 
   if [[ "$raw" = /* ]]; then
@@ -45,6 +49,75 @@ expand_path() {
   else
     printf '%s/%s\n' "$(pwd)" "$raw"
   fi
+}
+
+self_test() {
+  local script tmp home out rc
+  script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/memento-root-test.XXXXXX")"
+  trap 'rm -rf "$tmp"' RETURN
+  tmp="$(cd "$tmp" && pwd -P)"
+  home="$tmp/home"
+
+  mkdir -p "$home/tilde-root" \
+    "$tmp/env-root" "$tmp/env-work" \
+    "$tmp/marker-absolute/nested" "$tmp/marker-relative/nested" \
+    "$tmp/marker-tilde/nested" "$tmp/relative-root" \
+    "$tmp/cwd-memento/sources" "$tmp/cwd-memento/wiki" \
+    "$tmp/unconfigured" "$tmp/empty-marker"
+  : > "$tmp/cwd-memento/AGENTS.md"
+
+  # Environment value wins over a nearby marker.
+  printf '%s\n' "$tmp/relative-root" > "$tmp/env-work/.memento-root"
+  out="$(cd "$tmp/env-work" && HOME="$home" MEMENTO_ROOT="$tmp/env-root" "$script")"
+  [[ "$out" == "$tmp/env-root" ]] || { printf 'self-test: env precedence failed: %s\n' "$out" >&2; return 1; }
+
+  # Relative environment paths resolve from the caller's current directory.
+  out="$(cd "$tmp" && HOME="$home" MEMENTO_ROOT="env-root" "$script")"
+  [[ "$out" == "$tmp/env-root" ]] || { printf 'self-test: relative env failed: %s\n' "$out" >&2; return 1; }
+
+  # Tilde environment paths expand against HOME, without retaining a literal '~'.
+  out="$(cd "$tmp" && HOME="$home" MEMENTO_ROOT='~/tilde-root' "$script")"
+  [[ "$out" == "$home/tilde-root" ]] || { printf 'self-test: tilde env failed: %s\n' "$out" >&2; return 1; }
+
+  printf '%s\n' "$tmp/env-root" > "$tmp/marker-absolute/.memento-root"
+  out="$(cd "$tmp/marker-absolute/nested" && unset MEMENTO_ROOT; HOME="$home" "$script")"
+  [[ "$out" == "$tmp/env-root" ]] || { printf 'self-test: absolute marker failed: %s\n' "$out" >&2; return 1; }
+
+  printf '%s\n' '../relative-root' > "$tmp/marker-relative/.memento-root"
+  out="$(cd "$tmp/marker-relative/nested" && unset MEMENTO_ROOT; HOME="$home" "$script")"
+  [[ "$out" == "$tmp/relative-root" ]] || { printf 'self-test: relative marker failed: %s\n' "$out" >&2; return 1; }
+
+  printf '%s\n' '~/tilde-root' > "$tmp/marker-tilde/.memento-root"
+  out="$(cd "$tmp/marker-tilde/nested" && unset MEMENTO_ROOT; HOME="$home" "$script")"
+  [[ "$out" == "$home/tilde-root" ]] || { printf 'self-test: tilde marker failed: %s\n' "$out" >&2; return 1; }
+
+  out="$(cd "$tmp/cwd-memento" && unset MEMENTO_ROOT; HOME="$home" "$script")"
+  [[ "$out" == "$tmp/cwd-memento" ]] || { printf 'self-test: cwd fallback failed: %s\n' "$out" >&2; return 1; }
+
+  out="$(cd "$tmp" && HOME="$home" MEMENTO_ROOT="$tmp/missing-root" "$script" --allow-missing)"
+  [[ "$out" == "$tmp/missing-root" ]] || { printf 'self-test: allow-missing failed: %s\n' "$out" >&2; return 1; }
+
+  set +e
+  (cd "$tmp" && HOME="$home" MEMENTO_ROOT="$tmp/missing-root" "$script" >/dev/null 2>&1)
+  rc=$?
+  set -e
+  [[ $rc -eq 66 ]] || { printf 'self-test: missing-root exit was %s, expected 66\n' "$rc" >&2; return 1; }
+
+  set +e
+  (cd "$tmp/unconfigured" && unset MEMENTO_ROOT; HOME="$home" "$script" >/dev/null 2>&1)
+  rc=$?
+  set -e
+  [[ $rc -eq 69 ]] || { printf 'self-test: unconfigured exit was %s, expected 69\n' "$rc" >&2; return 1; }
+
+  : > "$tmp/empty-marker/.memento-root"
+  set +e
+  (cd "$tmp/empty-marker" && unset MEMENTO_ROOT; HOME="$home" "$script" >/dev/null 2>&1)
+  rc=$?
+  set -e
+  [[ $rc -eq 65 ]] || { printf 'self-test: empty-marker exit was %s, expected 65\n' "$rc" >&2; return 1; }
+
+  printf 'self-test: OK\n'
 }
 
 canonicalize_existing() {
@@ -102,6 +175,11 @@ find_marker_root() {
     dir="$(dirname "$dir")"
   done
 }
+
+if [[ "${self_test:-false}" == true ]]; then
+  self_test
+  exit $?
+fi
 
 if [[ -n "${MEMENTO_ROOT:-}" ]]; then
   print_root "$(expand_path "$MEMENTO_ROOT")"

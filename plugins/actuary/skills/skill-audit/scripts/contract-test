@@ -1,0 +1,84 @@
+#!/usr/bin/env node
+// contract-test — validate Actuary's report/rule-key contracts.
+//
+// Usage:
+//   node scripts/contract-test
+//   node scripts/contract-test --privacy-scan /path/to/privacy-scan
+//   node scripts/contract-test --help
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+function fail(message) {
+  process.stderr.write(`contract-test: ${message}\n`);
+  process.exit(1);
+}
+
+function read(file) {
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    fail(`cannot read ${file}: ${error.message}`);
+  }
+}
+
+function values(text, re) {
+  return new Set(Array.from(text.matchAll(re), (match) => match[1]));
+}
+
+function difference(left, right) {
+  return [...left].filter((item) => !right.has(item)).sort();
+}
+
+const argv = process.argv.slice(2);
+if (argv.includes('--help') || argv.includes('-h')) {
+  process.stdout.write('Validate report-template and privacy-scanner rule keys against the Actuary catalog.\n');
+  process.exit(0);
+}
+
+const scanFlag = argv.indexOf('--privacy-scan');
+if (scanFlag >= 0 && !argv[scanFlag + 1]) fail('--privacy-scan requires a path');
+const skillRoot = path.resolve(__dirname, '..');
+const criteriaPath = path.join(skillRoot, 'references', 'criteria.md');
+const templatePath = path.join(skillRoot, 'assets', 'templates', 'report.md');
+const defaultScanner = path.resolve(skillRoot, '..', '..', '..', '..', 'scripts', 'privacy-scan');
+const scannerPath = scanFlag >= 0 ? path.resolve(argv[scanFlag + 1]) : defaultScanner;
+if (scanFlag >= 0 && !fs.existsSync(scannerPath)) fail(`privacy scanner does not exist: ${scannerPath}`);
+
+const criteria = read(criteriaPath);
+const catalogStart = criteria.indexOf('## Rule catalog');
+if (catalogStart < 0) fail('criteria.md has no Rule catalog section');
+const catalog = values(criteria.slice(catalogStart), /^\| `([a-z0-9]+(?:-[a-z0-9]+)*)` \|/gm);
+if (catalog.size === 0) fail('criteria.md rule catalog is empty or unparsable');
+
+const templateKeys = values(read(templatePath), /rule:\s+([a-z0-9]+(?:-[a-z0-9]+)*)/g);
+const unknownTemplateKeys = difference(templateKeys, catalog);
+if (unknownTemplateKeys.length) {
+  fail(`report template uses unknown rule key(s): ${unknownTemplateKeys.join(', ')}`);
+}
+
+let scannerKeys = new Set();
+if (fs.existsSync(scannerPath)) {
+  const scanner = read(scannerPath);
+  const canonicalBlock = scanner.match(/const CANONICAL_PRIVACY_RULES = new Set\(\[([\s\S]*?)\]\);/);
+  if (!canonicalBlock) fail(`privacy scanner has no CANONICAL_PRIVACY_RULES set: ${scannerPath}`);
+  scannerKeys = values(canonicalBlock[1], /'([a-z0-9]+(?:-[a-z0-9]+)*)'/g);
+  for (const key of values(scanner, /CANONICAL_INSTANCE_RULE\s*=\s*'([a-z0-9]+(?:-[a-z0-9]+)*)'/g)) {
+    scannerKeys.add(key);
+  }
+  if (scannerKeys.size === 0) fail(`privacy scanner exposes no canonical rule keys: ${scannerPath}`);
+  const unknownScannerKeys = difference(scannerKeys, catalog);
+  if (unknownScannerKeys.length) {
+    fail(`privacy scanner emits uncataloged rule key(s): ${unknownScannerKeys.join(', ')}`);
+  }
+}
+
+process.stdout.write(`${JSON.stringify({
+  status: 'pass',
+  catalog_keys: catalog.size,
+  template_keys: [...templateKeys].sort(),
+  scanner_checked: fs.existsSync(scannerPath),
+  scanner_keys: [...scannerKeys].sort(),
+})}\n`);

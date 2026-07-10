@@ -22,7 +22,9 @@ Skills follow the [Agent Skills](https://agentskills.io) open format.
 
 This repo and `~/src/dotfiles` are Rich's personal cross-machine tooling repos.
 They do not use the normal PR workflow. When a fix is complete, verified, and
-docs are current, commit directly and push the branch.
+docs are current, commit directly and push the branch. Before every push, run
+the repository validation and privacy gates explicitly; the pre-push hook is a
+second line of defense, not the only place these checks run.
 
 ## Commands
 
@@ -30,6 +32,9 @@ docs are current, commit directly and push the branch.
 claude plugin validate .                # Validate marketplace structure
 claude plugin validate plugins/<name>   # Validate a single plugin
 codex plugin marketplace add .          # Smoke-test Codex marketplace discovery
+bash scripts/validate-manifests.sh       # Validate both harness surfaces + skills
+node scripts/privacy-scan --self-test    # Prove privacy detectors still fire
+node scripts/privacy-scan                # Scan the tracked public tree
 ```
 
 ## Adding a plugin
@@ -89,15 +94,19 @@ README and LICENSE edits don't need a bump.
 ### Local validation (enable once per clone)
 
 `scripts/validate-manifests.sh` is the single source of truth for the
-manifest/version-parity/skill-name checks. CI runs it; the in-repo
+manifest/version/frontmatter/distribution checks. Pass `--base <git-ref>` to
+also require a version bump for every plugin whose behavior changed since that
+ref. CI runs it; the in-repo
 `.githooks/pre-push` runs it locally when any `plugins/`, `.claude-plugin/`,
-or `.agents/plugins/` files are in the push. Enable hooks once per clone:
+`.agents/plugins/`, or harness-local skill files are in the push. Enable hooks
+once per clone:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-This catches the bump-only-one-side mistake before it leaves your machine.
+The hook catches mistakes before they leave your machine, but does not replace
+the explicit validation and privacy commands required by the workflow above.
 
 ## Current plugins
 

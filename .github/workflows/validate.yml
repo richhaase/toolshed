@@ -5,14 +5,76 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  validate-manifests:
+  validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        # actions/checkout v4.2.2, pinned to its verified release commit.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Validate manifests
-        run: bash scripts/validate-manifests.sh
+      - name: Validate manifests, distribution, skills, and version bumps
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$EVENT_BASE_SHA" && ! "$EVENT_BASE_SHA" =~ ^0+$ ]] && git cat-file -e "$EVENT_BASE_SHA^{commit}" 2>/dev/null; then
+            bash scripts/validate-manifests.sh --base "$EVENT_BASE_SHA" --target HEAD
+          else
+            bash scripts/validate-manifests.sh
+          fi
+
+      - name: Check Bash and Node.js syntax
+        run: |
+          mapfile -t bash_files < <(find scripts .githooks plugins -type f -exec grep -l '^#!/usr/bin/env bash$' {} +)
+          mapfile -t node_files < <(find scripts plugins -type f -exec grep -l '^#!/usr/bin/env node$' {} +)
+          for file in "${bash_files[@]}"; do bash -n "$file"; done
+          for file in "${node_files[@]}"; do node --check "$file"; done
+
+      - name: ShellCheck executable Bash helpers
+        run: |
+          mapfile -t bash_files < <(find scripts .githooks plugins -type f -exec grep -l '^#!/usr/bin/env bash$' {} +)
+          shellcheck --severity=error "${bash_files[@]}"
+
+      - name: Memento deterministic self-tests
+        run: |
+          plugins/memento/skills/_shared/scripts/memento-root --self-test
+          plugins/memento/skills/_shared/scripts/compile-output-guard --self-test
+          node plugins/memento/skills/_shared/scripts/build-graph --self-test
+          node plugins/memento/skills/_shared/scripts/eval-score --self-test
+
+      - name: Actuary contract and eval-fixture checks
+        run: |
+          plugins/actuary/skills/skill-audit/scripts/contract-test \
+            --privacy-scan scripts/privacy-scan
+          jq -e '
+            .skill_name == "skill-audit" and
+            (.evals | type == "array" and length >= 3) and
+            all(.evals[];
+              (.id | type == "number") and
+              (.prompt | type == "string" and length > 0) and
+              (.expected_output | type == "string" and length > 0) and
+              (.assertions | type == "array" and length > 0))
+          ' plugins/actuary/skills/skill-audit/evals/evals.json >/dev/null
+          while IFS= read -r file; do
+            jq -e '
+              type == "array" and length == 20 and
+              (map(select(.should_trigger == true)) | length) == 10 and
+              (map(select(.should_trigger == false)) | length) == 10 and
+              (map(.query) | unique | length) == 20 and
+              all(.[];
+                (.query | type == "string" and length > 0) and
+                (.should_trigger | type == "boolean"))
+            ' "$file" >/dev/null
+          done < <(find plugins -path '*/evals/trigger-queries.json' -type f | sort)
+
+      - name: Privacy detector self-test
+        run: node scripts/privacy-scan --self-test
 
       - name: Privacy scan (generic detectors — no real IDs/paths/keys in the public repo)
         run: node scripts/privacy-scan

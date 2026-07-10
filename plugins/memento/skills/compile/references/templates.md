@@ -3,6 +3,12 @@
 Page, INDEX, and hot-set templates referenced by `SKILL.md`. Examples below
 use synthetic placeholders.
 
+## Contents
+
+- [Wiki page template](#wiki-page-template)
+- [INDEX.md template](#indexmd-template)
+- [Hot set format](#hot-set-format)
+
 ## Wiki page template
 
 Each wiki page uses the sections defined in its entity type. The frontmatter

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Run manifest validation before pushing if any plugin or marketplace files
-# changed in the commits being pushed. Catches the bump-only-one-side mistake
-# locally so we don't push broken state to main.
+# Run repository validation before pushing if any plugin, marketplace, or local
+# skill files changed. Version checks use the actual remote/local ref pair, so a
+# behavior change cannot leave both plugin cache keys unchanged.
 #
 # Enable via: git config core.hooksPath .githooks
 # (Done once per clone; the hook lives in-repo so it's discoverable.)
@@ -33,8 +33,12 @@ fi
 # If remote-sha is all zeros, the remote ref doesn't exist yet.
 zero="0000000000000000000000000000000000000000"
 touched_relevant=0
+ranges=()
 
 while read -r local_ref local_sha remote_ref remote_sha; do
+  # Ref names are useful context when this hook is debugged, even though the
+  # validation range itself is SHA-based.
+  : "$local_ref" "$remote_ref"
   if [ -z "$local_sha" ] || [ "$local_sha" = "$zero" ]; then
     # Empty line or branch deletion — nothing to validate.
     continue
@@ -50,9 +54,11 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   else
     files=$(git -C "$repo_root" diff --name-only "$base" "$local_sha")
   fi
-  if echo "$files" | grep -qE '^(plugins/|\.claude-plugin/|\.agents/plugins/)'; then
+  if echo "$files" | grep -qE '^(plugins/|\.claude-plugin/|\.agents/plugins/|\.agents/skills/|\.claude/skills/)'; then
     touched_relevant=1
-    break
+    if [ -n "$base" ]; then
+      ranges+=("$base:$local_sha")
+    fi
   fi
 done
 
@@ -67,3 +73,15 @@ if ! bash "$repo_root/scripts/validate-manifests.sh"; then
   echo "pre-push: bypass with --no-verify only if you know what you're doing." >&2
   exit 1
 fi
+
+for range in "${ranges[@]}"; do
+  base=${range%%:*}
+  target=${range#*:}
+  echo "pre-push: checking plugin version bumps ($base..$target)..." >&2
+  if ! bash "$repo_root/scripts/validate-manifests.sh" --base "$base" --target "$target"; then
+    echo "" >&2
+    echo "pre-push: a plugin behavior change requires a version bump in both manifests." >&2
+    echo "pre-push: fix the errors above and re-push." >&2
+    exit 1
+  fi
+done

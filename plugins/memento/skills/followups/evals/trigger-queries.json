@@ -1,0 +1,82 @@
+[
+  {
+    "query": "List my open Memento follow-ups, with expired items first, so I can see what needs another read this week.",
+    "should_trigger": true
+  },
+  {
+    "query": "What's open across the ExampleCo repositories? Group the GitHub issues by priority and assignee.",
+    "should_trigger": false
+  },
+  {
+    "query": "show me the Memento followup named project-bluebird-retry-policy without changing it",
+    "should_trigger": true
+  },
+  {
+    "query": "Show me Jira issue EX-142 and summarize its latest comments and current blocker.",
+    "should_trigger": false
+  },
+  {
+    "query": "Walk through my Memento follow-up queue oldest first; I want to keep, dismiss, or answer each capture interactively.",
+    "should_trigger": true
+  },
+  {
+    "query": "What tasks are on my plate today? Pull them from the ExampleCo project board and rank them by urgency.",
+    "should_trigger": false
+  },
+  {
+    "query": "memento followups list expired — just inventory them for now, no edits",
+    "should_trigger": true
+  },
+  {
+    "query": "Find email threads in my inbox that I still need to follow up on and draft replies for the urgent ones.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review the open items under sources/followups/ in this Memento and help me triage them one at a time.",
+    "should_trigger": true
+  },
+  {
+    "query": "List the pull requests waiting for my review in the ExampleCo organization.",
+    "should_trigger": false
+  },
+  {
+    "query": "Use the Memento followups show command for synthetic-api-timeout and tell me what evidence the capture contains.",
+    "should_trigger": true
+  },
+  {
+    "query": "Set a calendar reminder for next Tuesday to revisit the Project Cedar API timeout investigation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Triage my Memento queue newest first. For anything resolved, offer the normal dismiss action rather than deleting files directly.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the open action items in notes/example-meeting.md and turn them into a checklist in the same document.",
+    "should_trigger": false
+  },
+  {
+    "query": "Which Memento follow-ups have expired? Print the queue and include each item's slug and review date.",
+    "should_trigger": true
+  },
+  {
+    "query": "Search Slack for messages where someone at ExampleCo asked me a question that I haven't answered.",
+    "should_trigger": false
+  },
+  {
+    "query": "Open the project-atlas-schema item from my Memento follow-up queue; this is a read-only check.",
+    "should_trigger": true
+  },
+  {
+    "query": "What is still unfinished in this coding task? Inspect git status and the test output, then give me a punch list.",
+    "should_trigger": false
+  },
+  {
+    "query": "Let's walk the follow-ups stored in this Memento. Start with expired captures and ask what I want to do with each.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review my Notion task database and show anything with Status = Open and Due Date before Friday.",
+    "should_trigger": false
+  }
+]

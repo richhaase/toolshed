@@ -286,7 +286,7 @@ if (opt.gate && verdict === 'fail') {
       `# Compile eval gate FAILED — ${today()}\n\n` +
       `The in-compile eval gate (Gate-0) failed: a regression fixture's load-bearing fact ` +
       `was missing from the freshly-compiled hot set + wiki, so the compile was rolled back ` +
-      `(\`git checkout COMPILE_BASE_SHA -- AGENTS.md wiki/\`) and NOT committed.\n\n` +
+      `from its pre-run output snapshot and NOT committed.\n\n` +
       `Failing fixtures:\n${fails}\n\n` +
       `Act: either the compile dropped a fact (re-run / fix compile) or the fixture is stale ` +
       `(update sources/eval/fixtures/). Full verdict in sources/eval/runs/${today()}.jsonl.\n`;
