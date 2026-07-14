@@ -20,10 +20,18 @@ Pinned to `agentskills/agentskills@5d4c1fd` (2026-05-20):
 Raw fetch URL pattern:
 `https://raw.githubusercontent.com/agentskills/agentskills/<sha>/<path>`.
 
+Pinned to `anthropics/skills@b0cbd3d` (2026-03-06, last commit touching the
+pinned path as of 2026-07-14):
+
+| Path | Blob SHA |
+|---|---|
+| `skills/skill-creator/SKILL.md` | `65b3a40` |
+
 Additional sources:
 
-- <https://docs.claude.com/en/docs/agents-and-tools/agent-skills/best-practices>
-- <https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md>
+- <https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices>
+  (relocated from `docs.claude.com`, which now redirects here; a web page
+  with no SHA to pin — re-read it on every refresh)
 - <https://developers.openai.com/cookbook/examples/gpt-5/gpt-5_prompting_guide>
 - <https://help.openai.com/en/articles/9358033>
 - <https://developers.openai.com/codex/skills>
@@ -147,9 +155,10 @@ produce a single craft "score" — list the findings.
   a way to reconcile the contradictions." Flag when description (or body)
   prescribes mutually-exclusive behavior.
 
-### `name` quality (from skill-creator)
+### `name` quality (from Anthropic best-practices)
 - **Vague names.** Flag `helper`, `utils`, `tools`, `assistant`, etc. —
-  the skill-creator guide warns these descriptions don't trigger reliably.
+  Anthropic best-practices lists vague and overly generic names under
+  "Avoid" in its naming conventions.
 - **Gerund-form preference.** `processing-pdfs` reads better than `pdf` for
   task-shaped skills. Low-severity recommendation.
 

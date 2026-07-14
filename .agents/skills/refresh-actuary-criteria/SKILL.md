@@ -20,12 +20,17 @@ by fetching the pinned sources at HEAD and proposing edits.
 
 ## Sources to check
 
-The criteria.md Sources block names two source tiers:
+The criteria.md Sources block names three source tiers:
 
 1. **agentskills/agentskills repo** — primary spec + best-practices.
    Pinned by SHA in criteria.md's Sources table.
-2. **Anthropic platform docs + skill-creator** — co-primary for L3
-   craft rules. Not SHA-pinned (web pages); compare by re-reading.
+2. **anthropics/skills skill-creator** — co-primary for L3 craft rules.
+   GitHub-hosted, pinned by blob SHA in criteria.md's second Sources
+   table.
+3. **Anthropic platform docs page** — co-primary for L3 craft rules.
+   A web page with no SHA to pin; drift is only detectable by
+   re-reading it, so Step 4 runs on every full refresh regardless of
+   what the SHA comparison finds.
 
 Cursor and OpenAI material was reviewed but isn't pinned; the criteria
 cite them inline only at the rules they sourced. Re-check those pages
@@ -36,8 +41,9 @@ only if you suspect rule drift.
 ### Step 1: Read the current pin
 
 Read `plugins/actuary/skills/skill-audit/references/criteria.md` and
-extract the pinned `agentskills/agentskills` ref + per-file blob SHAs
-from the Sources table. These are the anchor points.
+extract the pinned refs + per-file blob SHAs from both Sources tables
+(`agentskills/agentskills` and `anthropics/skills`). These are the
+anchor points.
 
 ### Step 2: Fetch upstream state
 
@@ -83,11 +89,19 @@ not currently pinned:
 $GH api "repos/agentskills/agentskills/contents/docs/skill-creation?ref=$HEAD" --jq '.[].path'
 ```
 
+Fetch the skill-creator blob SHA the same way — it is pinned in
+criteria.md's second Sources table:
+
+```bash
+$GH api "repos/anthropics/skills/contents/skills/skill-creator/SKILL.md" --jq .sha
+```
+
 ### Step 3: Identify what changed
 
-Compare the per-file blob SHAs from Step 2 against the pinned table in
-criteria.md. For any file whose blob SHA changed, fetch the new content
-and the pinned content:
+Compare the per-file blob SHAs from Step 2 against both pinned tables
+in criteria.md. For any file whose blob SHA changed, fetch the new
+content and the pinned content (swap in `repos/anthropics/skills` when
+the moved blob is skill-creator's):
 
 ```bash
 $GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD"        --jq .content | base64 -d > /tmp/upstream-new.mdx
@@ -107,20 +121,26 @@ publishes. For each diff, ask:
   upstream explicitly forbids the old behavior.
 - **Cosmetic/prose-only change?** Just bump the SHA in the Sources table.
 
-### Step 4: Recheck Anthropic platform docs
+### Step 4: Recheck the Anthropic platform docs page
 
-The platform pages aren't SHA-pinned. Re-read them with WebFetch:
+This page has no SHA, so a quiet Step 2 says nothing about it. Run
+this step on every full refresh:
 
 ```
-WebFetch https://docs.claude.com/en/docs/agents-and-tools/agent-skills/best-practices
-WebFetch https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+WebFetch https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 ```
 
-Compare the rules they publish against the rules in criteria.md that
-cite them. The cite trail in criteria.md (parenthetical "Anthropic
+(The old `docs.claude.com/en/docs/...` address 302-redirects here. If
+this URL ever redirects again, follow it and update the pin in
+criteria.md's Additional sources.)
+
+Compare the rules the page publishes against the rules in criteria.md
+that cite it. The cite trail in criteria.md (parenthetical "Anthropic
 best-practices" / "skill-creator" annotations) tells you which rules
 to re-validate. Flag any quoted text in criteria.md that no longer
-appears in the upstream page.
+appears upstream. skill-creator needs no content re-read here — its
+blob SHA comparison in Step 2 already detects drift; re-read it only
+when that SHA moved.
 
 ### Step 5: Propose edits
 
@@ -149,9 +169,13 @@ do not commit; the user controls git.
 - **No auto-apply on bulk diffs.** Even if upstream rewrites every file,
   the human signs off each rule change. Mass criteria edits without
   judgment is exactly the failure mode the skill exists to prevent.
-- **Don't re-fetch every run unless asked.** If the user just wants a
-  status check, Step 2's SHA comparison is enough — skip Steps 4–5
-  unless a SHA actually moved.
+- **A quiet SHA table doesn't cover the web page.** Step 2's SHA
+  comparison short-circuits only the GitHub-pinned sources. The
+  Anthropic platform docs page has no SHA, so skipping Step 4 because
+  "nothing moved" means that source is never checked at all — the
+  blind spot that once let this skill report "all current" for months
+  without looking. Skip Step 4 only when the user explicitly asks for
+  a SHA-only status check.
 - **Anthropic platform docs are SPA-rendered.** `curl` returns the
   Next.js shell, not the rule text. Use `WebFetch` for those URLs;
   use `gh api` for the GitHub-hosted skill-creator SKILL.md.

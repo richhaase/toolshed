@@ -1,6 +1,6 @@
 {
   "name": "actuary",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Audit Agent Skills against the portable agentskills.io spec, named harness profiles, and authoring best practices. skill-audit produces layered L1 portable-spec / L2 structural / L3 craft findings; with --tier it emits a static Gate-1 verdict gated on privacy/genericization and portable L1 compliance. It does not claim final marketplace readiness.",
   "author": {
     "name": "Rich Haase",
