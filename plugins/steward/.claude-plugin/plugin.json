@@ -1,0 +1,13 @@
+{
+  "name": "steward",
+  "version": "0.1.0",
+  "description": "Separate intent and assurance from software construction with portable, approved Markdown contracts. Frame turns a problem into a self-contained ticket, critique independently challenges the proposal, and assess judges completed changes claim by claim against the frozen revision.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": ["contracts", "tickets", "requirements", "assurance", "assessment", "software-delivery"],
+  "skills": "./skills/"
+}
