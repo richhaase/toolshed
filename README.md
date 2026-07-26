@@ -40,6 +40,7 @@ Add the marketplace:
 codex plugin marketplace add richhaase/toolshed
 codex plugin add memento@toolshed
 codex plugin add actuary@toolshed
+codex plugin add steward@toolshed
 ```
 
 Codex reads `.agents/plugins/marketplace.json` and each plugin's
@@ -87,6 +88,15 @@ authoring best practices. The `skill-audit` skill separates portable L1 spec
 compliance from named harness profiles, then reports L2 structure and L3 craft.
 With `--tier`, it adds privacy/genericization checks and a static Gate-1 verdict
 used by Memento's `promote` flow; final behavioral readiness remains separate.
+
+### [Steward](plugins/steward/) — Intent and Assurance Contracts
+
+Separate software intent and assurance from an interchangeable builder.
+`frame` creates a self-contained Markdown ticket and freezes an explicitly
+approved revision, `critique` independently challenges the proposal, and
+`assess` judges a completed change claim by claim against the frozen contract.
+The dependency-free CLI manages the local-file lifecycle; there is no remote
+ticket store or builder adapter.
 
 ### [Legate](plugins/legate/) — Delegated Work Orchestration _(deprecated)_
 

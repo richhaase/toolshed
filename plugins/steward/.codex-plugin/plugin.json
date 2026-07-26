@@ -1,0 +1,27 @@
+{
+  "name": "steward",
+  "version": "0.1.0",
+  "description": "Separate intent and assurance from software construction with portable, approved Markdown contracts. Frame turns a problem into a self-contained ticket, critique independently challenges the proposal, and assess judges completed changes claim by claim against the frozen revision.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": ["contracts", "tickets", "requirements", "assurance", "assessment", "software-delivery"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Steward",
+    "shortDescription": "Portable intent and assurance contracts",
+    "longDescription": "Create self-contained Markdown tickets, independently critique them, freeze an explicitly approved revision, and assess completed software changes claim by claim using observable evidence. Steward keeps intent and assurance separate from the interchangeable builder and requires no remote service or builder adapter.",
+    "developerName": "Rich Haase",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/richhaase/toolshed",
+    "defaultPrompt": [
+      "Frame this request as an approvable contract.",
+      "Critique this proposed contract independently.",
+      "Assess this change against its frozen contract."
+    ]
+  }
+}

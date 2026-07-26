@@ -18,6 +18,12 @@
       "source": "./plugins/actuary",
       "description": "Audit and evaluate Agent Skills against the agentskills.io spec and authoring best practices.",
       "category": "Developer Tools"
+    },
+    {
+      "name": "steward",
+      "source": "./plugins/steward",
+      "description": "Create, critique, freeze, and assess portable software intent contracts.",
+      "category": "Developer Tools"
     }
   ]
 }

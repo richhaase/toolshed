@@ -123,6 +123,12 @@ the explicit validation and privacy commands required by the workflow above.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.
+- **steward** — Portable intent-and-assurance contracts for software work.
+  Three separated roles: `frame` drafts and freezes explicitly approved
+  Markdown tickets, `critique` independently challenges proposed tickets, and
+  `assess` judges completed changes claim by claim against the frozen revision.
+  A dependency-free local CLI owns the deterministic lifecycle; builders need
+  only the ticket in their codebase.
 
 ## Portability rules
 
