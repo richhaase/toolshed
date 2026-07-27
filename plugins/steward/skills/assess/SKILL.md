@@ -1,12 +1,13 @@
 ---
 name: assess
 description: >
-  Independently judge a completed pull request, commit range, patch, or local
-  software change against an approved and frozen Steward Markdown contract.
-  Use when the user asks whether a build satisfies its ticket, wants
-  claim-level pass/fail/inconclusive outcomes, or needs an evidence-backed
-  assurance report with residual uncertainty. Do not use or request the
-  builder's private reasoning, and do not fix the implementation.
+  Independently judge an immutable software change against an approved and
+  frozen Steward Markdown contract. Use when the user asks whether a commit,
+  release artifact, or other fixed revision satisfies its ticket, wants
+  claim-level pass/fail/inconclusive outcomes, or needs a provenance-bound
+  assurance report with remediation classification. Do not assess a mutable
+  branch/worktree snapshot, use the builder's private reasoning, or fix the
+  implementation.
 ---
 
 # Assess
@@ -24,6 +25,9 @@ Judge observable results against the exact approved contract revision.
   building.
 - Evaluate only the frozen claims. Record improvements outside the contract as
   observations, not as extra pass criteria.
+- Bind the report to an exact commit SHA or equivalent immutable revision,
+  environment/context, and assessor identity. A branch name, `HEAD`, PR number
+  without a fixed head SHA, or "working tree" is not a change identity.
 
 ## Procedure
 
@@ -37,32 +41,57 @@ Judge observable results against the exact approved contract revision.
    node "$STEWARD_CLI" check path/to/ticket.md
    ```
 
-3. Create a report scaffold without overwriting an existing report:
+3. Resolve the immutable change identity before collecting evidence. For Git,
+   record the exact commit SHA actually inspected, not a mutable label.
+4. Create a report scaffold without overwriting an existing report:
 
    ```bash
    node "$STEWARD_CLI" assessment path/to/ticket.md \
-     --output path/to/assessment.md --change-ref "PR, range, or worktree"
+     --output path/to/assessment.md \
+     --change-id "git:<exact-commit-sha>" \
+     --environment "runtime, OS, checkout and fixture context" \
+     --assessor "Assessor identity"
    ```
 
-4. Inspect the named change and repository instructions. Establish the exact
+5. Inspect the named immutable change and repository instructions. Establish
+   the exact
    diff and relevant runtime surface.
-5. For each `AC<n>` claim, collect direct evidence using the contract's evidence
-   plan. Run proportionate, non-destructive checks when authorized.
-6. Assign exactly one outcome:
+6. For each `AC<n>` claim, follow its `EV<n>` methods and relevant `P<n>`
+   scenarios. Add stable assessment evidence blocks (`E<n>`) that name the
+   contract `EV<n>` method, command or artifact, and observed result. Run
+   proportionate, non-destructive checks when authorized.
+7. Assign exactly one outcome:
    - `pass` — sufficient evidence shows the claim is satisfied.
    - `fail` — sufficient evidence shows the claim is not satisfied.
    - `inconclusive` — evidence is missing, conflicting, inaccessible, or cannot
      distinguish pass from fail.
-7. Replace each scaffold row with concise evidence: file/line references,
-   command and result, test name, observed behavior, or artifact path. Record
-   what uncertainty remains even for passing claims.
-8. Summarize overall status:
+8. Reference one or more `E<n>` entries from every pass/fail claim. Record
+   residual uncertainty even for a passing claim; do not use an empty green
+   checkmark as evidence.
+9. Summarize overall status:
    - `pass` only if every claim passes;
    - `fail` if any claim fails;
    - `inconclusive` otherwise.
-9. List contract-level observations separately from implementation findings.
-   A defect in the frozen claim is residual uncertainty, not permission to
-   reinterpret it.
+10. If status is not pass, choose the primary remediation classification and
+    use the format's required next action:
+    - `implementation-defect`: correct the build under the same frozen
+      contract, assign a new immutable change identity, and reassess;
+    - `contract-defect`: keep the approved artifact unchanged and route to a
+      revised draft, critique, explicit approval, build, and assessment;
+    - `insufficient-or-conflicting-evidence`: collect or reconcile evidence and
+      reassess the same contract/change unless the implementation changes.
+11. List contract-level observations separately from implementation findings.
+    A defect in a frozen claim is not permission to reinterpret or edit it.
+12. Validate and freeze the completed report:
+
+    ```bash
+    node "$STEWARD_CLI" assessment-check path/to/assessment.md
+    node "$STEWARD_CLI" assessment-complete path/to/assessment.md
+    node "$STEWARD_CLI" assessment-check path/to/assessment.md
+    ```
+
+    Report the contract hash, change identity, assessment hash, outcome, and
+    remediation classification.
 
 ## Gotchas
 
@@ -70,4 +99,8 @@ Judge observable results against the exact approved contract revision.
 - A builder's explanation is a lead to verify, never proof.
 - Tests can support a claim without covering it completely. State the uncovered
   behavior in residual uncertainty.
+- Evidence collected from a different commit or environment does not establish
+  the assessed change. Record the mismatch and use `inconclusive`.
+- A contract defect requires a successor revision even when the implementation
+  appears reasonable. The approved contract remains the audit record.
 - An unrequested beneficial change does not compensate for a failed claim.

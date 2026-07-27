@@ -1,19 +1,19 @@
 {
   "name": "steward",
-  "version": "0.1.0",
-  "description": "Separate intent and assurance from software construction with portable, approved Markdown contracts. Frame turns a problem into a self-contained ticket, critique independently challenges the proposal, and assess judges completed changes claim by claim against the frozen revision.",
+  "version": "0.2.0",
+  "description": "Separate intent and assurance from software construction with traced, approved Markdown contracts. Frame maps intent through claims and evidence, critique independently challenges the proposal, and assess binds claim outcomes to an immutable change with remediation routing.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["contracts", "tickets", "requirements", "assurance", "assessment", "software-delivery"],
+  "keywords": ["contracts", "tickets", "requirements", "traceability", "assurance", "assessment", "software-delivery"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Steward",
     "shortDescription": "Portable intent and assurance contracts",
-    "longDescription": "Create self-contained Markdown tickets, independently critique them, freeze an explicitly approved revision, and assess completed software changes claim by claim using observable evidence. Steward keeps intent and assurance separate from the interchangeable builder and requires no remote service or builder adapter.",
+    "longDescription": "Create traceable Markdown contracts with representative intent probes and explicit unknowns, independently critique them, freeze an explicitly approved revision, and assess immutable software changes claim by claim with reproducible evidence and remediation routing. Steward keeps intent and assurance separate from the interchangeable builder and requires no remote service or builder adapter.",
     "developerName": "Rich Haase",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],
