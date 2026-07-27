@@ -1,5 +1,5 @@
 ---
-steward_contract: "1"
+steward_contract: "2"
 id: "ticket-id"
 title: "Ticket title"
 revision: 1
@@ -14,7 +14,7 @@ supersedes: null
 
 ## Intent
 
-TODO: State the user or business outcome.
+- I1: TODO: State the user-observable or business outcome.
 
 ## Context
 
@@ -32,15 +32,21 @@ TODO: Include the facts a builder needs without this conversation.
 
 ## Requirements
 
-- R1: TODO
+- R1 [I1]: TODO: State required behavior, not an implementation preference.
 
 ## Acceptance claims
 
-- AC1: TODO
+- AC1 [I1; R1]: TODO: State an independently assessable claim.
 
 ## Evidence plan
 
-- AC1: TODO
+- EV1 [AC1]: TODO: Name a reproducible observation, command, or artifact.
+
+## Intent probes
+
+- P1 [normal; AC1; EV1]: TODO: Given a representative normal situation, state the user-observable result.
+- P2 [boundary; AC1; EV1]: TODO: Given a representative boundary or failure situation, state the user-observable result.
+- P3 [accepted-tradeoff; AC1; EV1]: TODO: State an explicitly accepted tradeoff and its user-observable consequence.
 
 ## Constraints
 
@@ -58,4 +64,4 @@ TODO: Include the facts a builder needs without this conversation.
 
 ## Open questions
 
-- TODO
+- None.

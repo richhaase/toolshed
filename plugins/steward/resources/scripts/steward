@@ -5,8 +5,12 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const FORMAT = '1';
-const METADATA_FIELDS = [
+const CONTRACT_FORMAT_V1 = '1';
+const CONTRACT_FORMAT_V2 = '2';
+const ASSESSMENT_FORMAT_V1 = '1';
+const ASSESSMENT_FORMAT_V2 = '2';
+
+const CONTRACT_METADATA_FIELDS = [
   'steward_contract',
   'id',
   'title',
@@ -18,7 +22,7 @@ const METADATA_FIELDS = [
   'frozen_body_sha256',
   'supersedes',
 ];
-const REQUIRED_H2 = [
+const CONTRACT_H2_V1 = [
   'Intent',
   'Context',
   'Scope',
@@ -29,6 +33,61 @@ const REQUIRED_H2 = [
   'Assumptions and risks',
   'Open questions',
 ];
+const CONTRACT_H2_V2 = [
+  'Intent',
+  'Context',
+  'Scope',
+  'Requirements',
+  'Acceptance claims',
+  'Evidence plan',
+  'Intent probes',
+  'Constraints',
+  'Assumptions and risks',
+  'Open questions',
+];
+const ASSESSMENT_METADATA_FIELDS_V1 = [
+  'steward_assessment',
+  'contract_path',
+  'contract_id',
+  'contract_revision',
+  'frozen_body_sha256',
+  'change_ref',
+  'assessed_at',
+  'state',
+];
+const ASSESSMENT_METADATA_FIELDS_V2 = [
+  'steward_assessment',
+  'contract_path',
+  'contract_id',
+  'contract_revision',
+  'contract_body_sha256',
+  'change_identity',
+  'environment',
+  'assessor',
+  'created_at',
+  'completed_at',
+  'state',
+  'assessment_body_sha256',
+];
+const ASSESSMENT_H2_V2 = [
+  'Provenance',
+  'Overall',
+  'Claim outcomes',
+  'Evidence log',
+  'Contract observations',
+  'Residual risks',
+  'Remediation',
+];
+const PLACEHOLDER_PATTERN = /\b(?:TODO|TBD|FIXME|CHANGEME)\b|<[^>\n]+>/i;
+const REMEDIATION_ACTIONS = {
+  none: 'None.',
+  'implementation-defect':
+    'Correct the implementation against this frozen contract, record a new immutable change identity, and reassess.',
+  'contract-defect':
+    'Keep this approved contract immutable; derive a revised draft, critique and explicitly approve it, then build and assess the successor revision.',
+  'insufficient-or-conflicting-evidence':
+    'Collect or reconcile the missing evidence, then reassess this same frozen contract and immutable change unless the implementation changes.',
+};
 
 function usage() {
   process.stdout.write(`Steward portable Markdown contract lifecycle
@@ -36,13 +95,18 @@ function usage() {
 Usage:
   steward create PATH --id ID --title TITLE
   steward create PATH --from APPROVED_PATH
+  steward migrate V1_APPROVED_PATH --output V2_DRAFT_PATH
   steward check PATH [--json]
   steward approve PATH --by APPROVER
   steward compare OLD_PATH NEW_PATH [--json]
-  steward assessment CONTRACT_PATH --output PATH [--change-ref REF]
+  steward assessment CONTRACT_PATH --output PATH --change-id IDENTITY \\
+    --environment CONTEXT --assessor IDENTITY
+  steward assessment-check PATH [--json]
+  steward assessment-complete PATH
 
-Each revision is a separate file. create --from derives a new draft from an
-approved revision; approve is the only command that mutates an existing file.
+New contracts use format v2. Format-v1 contracts remain valid and frozen;
+migrate creates a review-required v2 successor without changing its source.
+approve and assessment-complete are the only in-place mutations.
 `);
 }
 
@@ -59,6 +123,10 @@ function bodyHash(body) {
   return crypto.createHash('sha256').update(normalizeBody(body), 'utf8').digest('hex');
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function parseScalar(raw, field) {
   const value = raw.trim();
   if (value === 'null') return null;
@@ -68,7 +136,7 @@ function parseScalar(raw, field) {
       const parsed = JSON.parse(value);
       if (typeof parsed !== 'string') throw new Error('not a string');
       return parsed;
-    } catch (error) {
+    } catch (_) {
       throw new Error(`metadata ${field} has an invalid quoted value`);
     }
   }
@@ -108,15 +176,13 @@ function readDocument(file) {
 function scalar(value) {
   if (value === null) return 'null';
   if (typeof value === 'number') return String(value);
-  if (value === 'draft' || value === 'approved') return value;
+  if (['draft', 'approved', 'completed'].includes(value)) return value;
   return JSON.stringify(value);
 }
 
-function renderDocument(document) {
+function renderDocument(document, fields) {
   const lines = ['---'];
-  for (const field of METADATA_FIELDS) {
-    lines.push(`${field}: ${scalar(document.metadata[field])}`);
-  }
+  for (const field of fields) lines.push(`${field}: ${scalar(document.metadata[field])}`);
   lines.push('---');
   return `${lines.join('\n')}\n${normalizeBody(document.body)}`;
 }
@@ -130,12 +196,8 @@ function section(body, heading) {
   return body.slice(contentStart, next < 0 ? body.length : next).trim();
 }
 
-function rows(content, prefix) {
-  const pattern = new RegExp(`^- (${prefix}[1-9]\\d*):\\s+(.+)$`, 'gm');
-  return Array.from(content.matchAll(pattern), (match) => ({
-    id: match[1],
-    text: match[2].trim(),
-  }));
+function h2Headings(body) {
+  return Array.from(body.matchAll(/^## (.+)$/gm), (match) => match[1]);
 }
 
 function duplicateIds(items) {
@@ -154,15 +216,108 @@ function validTimestamp(value) {
     !Number.isNaN(Date.parse(value));
 }
 
-function validate(document, options = {}) {
-  const { metadata, body } = document;
+function parseLegacyRows(content, prefix) {
+  const pattern = new RegExp(`^- (${prefix}[1-9]\\d*):\\s+(.+)$`, 'gm');
+  return Array.from(content.matchAll(pattern), (match) => ({
+    id: match[1],
+    text: match[2].trim(),
+  }));
+}
+
+function parseReferenceList(raw) {
+  return raw.split(/[,\s;]+/).filter(Boolean);
+}
+
+function parseStructuredRows(content, prefix, kind = 'mapped') {
+  const items = [];
+  const malformed = [];
+  for (const line of content.split('\n')) {
+    if (!line.startsWith(`- ${prefix}`)) continue;
+    let match;
+    if (kind === 'plain') {
+      match = line.match(new RegExp(`^- (${prefix}[1-9]\\d*):\\s+(.+)$`));
+      if (match) items.push({ id: match[1], text: match[2].trim(), refs: [] });
+    } else if (kind === 'probe') {
+      match = line.match(new RegExp(`^- (${prefix}[1-9]\\d*) \\[([^\\]]+)\\]:\\s+(.+)$`));
+      if (match) {
+        const tokens = match[2].split(';').map((token) => token.trim()).filter(Boolean);
+        items.push({
+          id: match[1],
+          kind: tokens.shift() || '',
+          refs: parseReferenceList(tokens.join(';')),
+          text: match[3].trim(),
+        });
+      }
+    } else {
+      match = line.match(new RegExp(`^- (${prefix}[1-9]\\d*) \\[([^\\]]+)\\]:\\s+(.+)$`));
+      if (match) {
+        items.push({
+          id: match[1],
+          refs: parseReferenceList(match[2]),
+          text: match[3].trim(),
+        });
+      }
+    }
+    if (!match) malformed.push(line);
+  }
+  return { items, malformed };
+}
+
+function parseFieldBlocks(content, idPrefix, expectedFields, options = {}) {
+  if (options.allowNone && content.trim() === '- None.') {
+    return { items: [], errors: [] };
+  }
+
+  const pattern = new RegExp(`^### (${idPrefix}[1-9]\\d*)(?::\\s+(.+))?$`, 'gm');
+  const matches = [...content.matchAll(pattern)];
   const errors = [];
-  const unknown = Object.keys(metadata).filter((field) => !METADATA_FIELDS.includes(field));
-  const missing = METADATA_FIELDS.filter((field) => !Object.prototype.hasOwnProperty.call(metadata, field));
+  const items = [];
+  if (!matches.length) {
+    return { items, errors: [`must contain ${idPrefix}<n> H3 block(s) or "- None."`] };
+  }
+  if (content.slice(0, matches[0].index).trim()) errors.push('contains content before its first H3 block');
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const start = match.index + match[0].length;
+    const end = index + 1 < matches.length ? matches[index + 1].index : content.length;
+    const block = content.slice(start, end).trim();
+    const fields = {};
+    for (const line of block.split('\n')) {
+      if (!line.trim()) continue;
+      const fieldMatch = line.match(/^- ([A-Za-z][A-Za-z /]+):\s*(.*)$/);
+      if (!fieldMatch) {
+        errors.push(`${match[1]} has invalid field row: ${line}`);
+        continue;
+      }
+      const field = fieldMatch[1];
+      if (Object.prototype.hasOwnProperty.call(fields, field)) {
+        errors.push(`${match[1]} repeats field ${field}`);
+      }
+      fields[field] = fieldMatch[2].trim();
+    }
+    const unknown = Object.keys(fields).filter((field) => !expectedFields.includes(field));
+    const missing = expectedFields.filter((field) => !Object.prototype.hasOwnProperty.call(fields, field));
+    if (unknown.length) errors.push(`${match[1]} has unknown field(s): ${unknown.join(', ')}`);
+    if (missing.length) errors.push(`${match[1]} is missing field(s): ${missing.join(', ')}`);
+    items.push({ id: match[1], title: (match[2] || '').trim(), fields });
+  }
+  return { items, errors };
+}
+
+function validateMetadataShape(metadata, fields, errors) {
+  const unknown = Object.keys(metadata).filter((field) => !fields.includes(field));
+  const missing = fields.filter((field) => !Object.prototype.hasOwnProperty.call(metadata, field));
   if (unknown.length) errors.push(`unknown metadata field(s): ${unknown.join(', ')}`);
   if (missing.length) errors.push(`missing metadata field(s): ${missing.join(', ')}`);
+}
 
-  if (metadata.steward_contract !== FORMAT) errors.push('steward_contract must be "1"');
+function validateContractCommon(document, errors) {
+  const { metadata, body } = document;
+  validateMetadataShape(metadata, CONTRACT_METADATA_FIELDS, errors);
+  if (![CONTRACT_FORMAT_V1, CONTRACT_FORMAT_V2].includes(metadata.steward_contract)) {
+    errors.push('steward_contract must be "1" or "2"');
+  }
   if (typeof metadata.id !== 'string' || !/^[a-z0-9][a-z0-9._-]*$/.test(metadata.id)) {
     errors.push('id must use lowercase letters, numbers, dots, underscores, or hyphens');
   }
@@ -184,38 +339,6 @@ function validate(document, options = {}) {
   if (h1.length !== 1 || h1[0] !== metadata.title) {
     errors.push('body must contain exactly one H1 matching title');
   }
-  const h2 = Array.from(body.matchAll(/^## (.+)$/gm), (match) => match[1]);
-  if (JSON.stringify(h2) !== JSON.stringify(REQUIRED_H2)) {
-    errors.push(`H2 sections must appear exactly in this order: ${REQUIRED_H2.join(', ')}`);
-  }
-
-  for (const heading of REQUIRED_H2) {
-    if (!section(body, heading)) errors.push(`${heading} section must not be empty`);
-  }
-  const scope = section(body, 'Scope');
-  if (!/^### In scope$/m.test(scope) || !/^### Out of scope$/m.test(scope)) {
-    errors.push('Scope must contain In scope and Out of scope H3 subsections');
-  }
-  const assumptions = section(body, 'Assumptions and risks');
-  if (!/^### Assumptions$/m.test(assumptions) || !/^### Risks$/m.test(assumptions)) {
-    errors.push('Assumptions and risks must contain Assumptions and Risks H3 subsections');
-  }
-
-  const requirements = rows(section(body, 'Requirements'), 'R');
-  const claims = rows(section(body, 'Acceptance claims'), 'AC');
-  const evidence = rows(section(body, 'Evidence plan'), 'AC');
-  if (!requirements.length) errors.push('Requirements must contain at least one - R<n>: row');
-  if (!claims.length) errors.push('Acceptance claims must contain at least one - AC<n>: row');
-  if (!evidence.length) errors.push('Evidence plan must contain at least one - AC<n>: row');
-  for (const [label, items] of [['requirement', requirements], ['acceptance claim', claims], ['evidence-plan', evidence]]) {
-    const duplicates = duplicateIds(items);
-    if (duplicates.length) errors.push(`duplicate ${label} id(s): ${duplicates.join(', ')}`);
-  }
-  const claimIds = claims.map((item) => item.id).sort();
-  const evidenceIds = evidence.map((item) => item.id).sort();
-  if (JSON.stringify(claimIds) !== JSON.stringify(evidenceIds)) {
-    errors.push('Evidence plan must contain exactly one row for every acceptance claim');
-  }
 
   if (metadata.state === 'draft') {
     for (const field of ['approved_at', 'approved_by', 'frozen_body_sha256']) {
@@ -234,22 +357,260 @@ function validate(document, options = {}) {
       errors.push('approved contract body differs from its frozen_body_sha256');
     }
   }
+}
 
+function validateContractV1(document, errors, options) {
+  const { body } = document;
+  if (JSON.stringify(h2Headings(body)) !== JSON.stringify(CONTRACT_H2_V1)) {
+    errors.push(`H2 sections must appear exactly in this order: ${CONTRACT_H2_V1.join(', ')}`);
+  }
+  for (const heading of CONTRACT_H2_V1) {
+    if (!section(body, heading)) errors.push(`${heading} section must not be empty`);
+  }
+  validateSharedSubsections(body, errors);
+
+  const requirements = parseLegacyRows(section(body, 'Requirements'), 'R');
+  const claims = parseLegacyRows(section(body, 'Acceptance claims'), 'AC');
+  const evidence = parseLegacyRows(section(body, 'Evidence plan'), 'AC');
+  if (!requirements.length) errors.push('Requirements must contain at least one - R<n>: row');
+  if (!claims.length) errors.push('Acceptance claims must contain at least one - AC<n>: row');
+  if (!evidence.length) errors.push('Evidence plan must contain at least one - AC<n>: row');
+  for (const [label, items] of [['requirement', requirements], ['acceptance claim', claims], ['evidence-plan', evidence]]) {
+    const duplicates = duplicateIds(items);
+    if (duplicates.length) errors.push(`duplicate ${label} id(s): ${duplicates.join(', ')}`);
+  }
+  const claimIds = claims.map((item) => item.id).sort();
+  const evidenceIds = evidence.map((item) => item.id).sort();
+  if (JSON.stringify(claimIds) !== JSON.stringify(evidenceIds)) {
+    errors.push('Evidence plan must contain exactly one row for every acceptance claim');
+  }
   if (options.forApproval) {
-    if (metadata.state !== 'draft') errors.push('only a draft can be approved');
-    if (/\b(?:TODO|TBD|FIXME|CHANGEME)\b|<[^>\n]+>/i.test(body)) {
-      errors.push('approval requires all placeholders to be resolved');
-    }
+    if (PLACEHOLDER_PATTERN.test(body)) errors.push('approval requires all placeholders to be resolved');
     if (section(body, 'Open questions').trim() !== '- None.') {
-      errors.push('approval requires Open questions to contain exactly "- None."');
+      errors.push('format-v1 approval requires Open questions to contain exactly "- None."; migrate to v2 for explicit non-blocking unknowns');
+    }
+  }
+  return { requirements, claims, evidence, intents: [], probes: [], unknowns: [] };
+}
+
+function validateSharedSubsections(body, errors) {
+  const scope = section(body, 'Scope');
+  if (!/^### In scope$/m.test(scope) || !/^### Out of scope$/m.test(scope)) {
+    errors.push('Scope must contain In scope and Out of scope H3 subsections');
+  }
+  const assumptions = section(body, 'Assumptions and risks');
+  if (!/^### Assumptions$/m.test(assumptions) || !/^### Risks$/m.test(assumptions)) {
+    errors.push('Assumptions and risks must contain Assumptions and Risks H3 subsections');
+  }
+}
+
+function addDuplicateErrors(groups, errors) {
+  for (const [label, items] of groups) {
+    const duplicates = duplicateIds(items);
+    if (duplicates.length) errors.push(`duplicate ${label} id(s): ${duplicates.join(', ')}`);
+  }
+}
+
+function missingReferences(refs, known) {
+  return [...new Set(refs.filter((reference) => !known.has(reference)))].sort();
+}
+
+function validateContractV2(document, errors, options) {
+  const { body } = document;
+  if (JSON.stringify(h2Headings(body)) !== JSON.stringify(CONTRACT_H2_V2)) {
+    errors.push(`H2 sections must appear exactly in this order: ${CONTRACT_H2_V2.join(', ')}`);
+  }
+  for (const heading of CONTRACT_H2_V2) {
+    if (!section(body, heading)) errors.push(`${heading} section must not be empty`);
+  }
+  validateSharedSubsections(body, errors);
+
+  const intentResult = parseStructuredRows(section(body, 'Intent'), 'I', 'plain');
+  const requirementResult = parseStructuredRows(section(body, 'Requirements'), 'R');
+  const claimResult = parseStructuredRows(section(body, 'Acceptance claims'), 'AC');
+  const evidenceResult = parseStructuredRows(section(body, 'Evidence plan'), 'EV');
+  const probeResult = parseStructuredRows(section(body, 'Intent probes'), 'P', 'probe');
+  const intents = intentResult.items;
+  const requirements = requirementResult.items;
+  const claims = claimResult.items;
+  const evidence = evidenceResult.items;
+  const probes = probeResult.items;
+
+  for (const [label, result] of [
+    ['intent', intentResult],
+    ['requirement', requirementResult],
+    ['acceptance claim', claimResult],
+    ['evidence-plan', evidenceResult],
+    ['intent-probe', probeResult],
+  ]) {
+    if (result.malformed.length) errors.push(`malformed ${label} row(s): ${result.malformed.join(' | ')}`);
+  }
+  if (!intents.length) errors.push('Intent must contain at least one - I<n>: row');
+  if (!requirements.length) errors.push('Requirements must contain at least one - R<n> [I<n>]: row');
+  if (!claims.length) errors.push('Acceptance claims must contain at least one traced - AC<n> [...] row');
+  if (!evidence.length) errors.push('Evidence plan must contain at least one - EV<n> [AC<n>]: row');
+  if (!probes.length) errors.push('Intent probes must contain representative - P<n> [...] rows');
+  addDuplicateErrors([
+    ['intent', intents],
+    ['requirement', requirements],
+    ['acceptance claim', claims],
+    ['evidence-plan', evidence],
+    ['intent-probe', probes],
+  ], errors);
+
+  const intentIds = new Set(intents.map((item) => item.id));
+  const requirementIds = new Set(requirements.map((item) => item.id));
+  const claimIds = new Set(claims.map((item) => item.id));
+  const evidenceIds = new Set(evidence.map((item) => item.id));
+
+  for (const requirement of requirements) {
+    const duplicates = duplicateReferences(requirement.refs);
+    if (duplicates.length) errors.push(`${requirement.id} repeats reference(s): ${duplicates.join(', ')}`);
+    if (!requirement.refs.length || requirement.refs.some((ref) => !/^I[1-9]\d*$/.test(ref))) {
+      errors.push(`${requirement.id} must reference at least one intent id`);
+    }
+    const missing = missingReferences(requirement.refs, intentIds);
+    if (missing.length) errors.push(`${requirement.id} references unknown intent id(s): ${missing.join(', ')}`);
+  }
+  for (const intent of intents) {
+    if (!requirements.some((requirement) => requirement.refs.includes(intent.id))) {
+      errors.push(`${intent.id} is not traced to any requirement`);
     }
   }
 
-  return { errors, requirements, claims, evidence };
+  for (const claim of claims) {
+    const duplicates = duplicateReferences(claim.refs);
+    if (duplicates.length) errors.push(`${claim.id} repeats reference(s): ${duplicates.join(', ')}`);
+    const claimIntentRefs = claim.refs.filter((ref) => /^I[1-9]\d*$/.test(ref));
+    const claimRequirementRefs = claim.refs.filter((ref) => /^R[1-9]\d*$/.test(ref));
+    const invalid = claim.refs.filter((ref) => !/^(?:I|R)[1-9]\d*$/.test(ref));
+    if (!claimIntentRefs.length || !claimRequirementRefs.length || invalid.length) {
+      errors.push(`${claim.id} must reference at least one intent id and one requirement id`);
+    }
+    const missingIntents = missingReferences(claimIntentRefs, intentIds);
+    const missingRequirements = missingReferences(claimRequirementRefs, requirementIds);
+    if (missingIntents.length) errors.push(`${claim.id} references unknown intent id(s): ${missingIntents.join(', ')}`);
+    if (missingRequirements.length) {
+      errors.push(`${claim.id} references unknown requirement id(s): ${missingRequirements.join(', ')}`);
+    }
+    const tracedIntents = new Set(
+      requirements
+        .filter((requirement) => claimRequirementRefs.includes(requirement.id))
+        .flatMap((requirement) => requirement.refs),
+    );
+    const disconnected = claimIntentRefs.filter((ref) => !tracedIntents.has(ref));
+    if (disconnected.length) {
+      errors.push(`${claim.id} intent reference(s) are not connected through its requirements: ${disconnected.join(', ')}`);
+    }
+  }
+  for (const requirement of requirements) {
+    if (!claims.some((claim) => claim.refs.includes(requirement.id))) {
+      errors.push(`${requirement.id} lacks an acceptance claim`);
+    }
+  }
+
+  for (const evidenceItem of evidence) {
+    const duplicates = duplicateReferences(evidenceItem.refs);
+    if (duplicates.length) errors.push(`${evidenceItem.id} repeats reference(s): ${duplicates.join(', ')}`);
+    if (!evidenceItem.refs.length || evidenceItem.refs.some((ref) => !/^AC[1-9]\d*$/.test(ref))) {
+      errors.push(`${evidenceItem.id} must reference at least one acceptance claim`);
+    }
+    const missing = missingReferences(evidenceItem.refs, claimIds);
+    if (missing.length) errors.push(`${evidenceItem.id} references unknown acceptance claim(s): ${missing.join(', ')}`);
+  }
+  for (const claim of claims) {
+    if (!evidence.some((item) => item.refs.includes(claim.id))) {
+      errors.push(`${claim.id} lacks an evidence method`);
+    }
+  }
+
+  const allowedProbeKinds = new Set(['normal', 'boundary', 'failure', 'accepted-tradeoff']);
+  for (const probe of probes) {
+    if (!allowedProbeKinds.has(probe.kind)) {
+      errors.push(`${probe.id} kind must be normal, boundary, failure, or accepted-tradeoff`);
+    }
+    const claimRefs = probe.refs.filter((ref) => /^AC[1-9]\d*$/.test(ref));
+    const evidenceRefs = probe.refs.filter((ref) => /^EV[1-9]\d*$/.test(ref));
+    const invalid = probe.refs.filter((ref) => !/^(?:AC|EV)[1-9]\d*$/.test(ref));
+    if (!claimRefs.length || !evidenceRefs.length || invalid.length) {
+      errors.push(`${probe.id} must reference at least one acceptance claim and one evidence method`);
+    }
+    const missingClaims = missingReferences(claimRefs, claimIds);
+    const missingEvidence = missingReferences(evidenceRefs, evidenceIds);
+    if (missingClaims.length) {
+      errors.push(`${probe.id} references unknown acceptance claim(s): ${missingClaims.join(', ')}`);
+    }
+    if (missingEvidence.length) errors.push(`${probe.id} references unknown evidence method(s): ${missingEvidence.join(', ')}`);
+    for (const claimRef of claimRefs) {
+      if (!evidence.some((item) => evidenceRefs.includes(item.id) && item.refs.includes(claimRef))) {
+        errors.push(`${probe.id} has no referenced evidence method tied to ${claimRef}`);
+      }
+    }
+  }
+  const probeKinds = new Set(probes.map((probe) => probe.kind));
+  if (!probeKinds.has('normal')) errors.push('Intent probes require at least one normal scenario');
+  if (!probeKinds.has('boundary') && !probeKinds.has('failure')) {
+    errors.push('Intent probes require at least one boundary or failure scenario');
+  }
+  if (!probeKinds.has('accepted-tradeoff')) {
+    errors.push('Intent probes require at least one accepted-tradeoff scenario');
+  }
+
+  const unknownResult = parseFieldBlocks(
+    section(body, 'Open questions'),
+    'U',
+    ['Status', 'Owner', 'Decision deadline or trigger', 'Safe default', 'Assessment rationale'],
+    { allowNone: true },
+  );
+  errors.push(...unknownResult.errors.map((error) => `Open questions ${error}`));
+  const unknowns = unknownResult.items;
+  const duplicateUnknowns = duplicateIds(unknowns);
+  if (duplicateUnknowns.length) errors.push(`duplicate open-question id(s): ${duplicateUnknowns.join(', ')}`);
+  for (const unknown of unknowns) {
+    if (!unknown.title) errors.push(`${unknown.id} must state the unknown in its H3 heading`);
+    if (!['non-blocking', 'blocking'].includes(unknown.fields.Status)) {
+      errors.push(`${unknown.id} Status must be non-blocking or blocking`);
+    }
+    for (const field of ['Owner', 'Decision deadline or trigger', 'Safe default', 'Assessment rationale']) {
+      if (!unknown.fields[field] || unknown.fields[field] === 'None.') {
+        errors.push(`${unknown.id} ${field} must name a concrete value`);
+      }
+    }
+  }
+
+  if (options.forApproval) {
+    if (PLACEHOLDER_PATTERN.test(body)) errors.push('approval requires all placeholders to be resolved');
+    const blocking = unknowns.filter((unknown) => unknown.fields.Status === 'blocking').map((unknown) => unknown.id);
+    if (blocking.length) {
+      errors.push(`approval is blocked by validation-blocking open question(s): ${blocking.join(', ')}`);
+    }
+  }
+  return { intents, requirements, claims, evidence, probes, unknowns };
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function duplicateReferences(refs) {
+  const seen = new Set();
+  const duplicate = new Set();
+  for (const ref of refs) {
+    if (seen.has(ref)) duplicate.add(ref);
+    seen.add(ref);
+  }
+  return [...duplicate].sort();
+}
+
+function validateContract(document, options = {}) {
+  const errors = [];
+  validateContractCommon(document, errors);
+  let details = { intents: [], requirements: [], claims: [], evidence: [], probes: [], unknowns: [] };
+  if (document.metadata.steward_contract === CONTRACT_FORMAT_V1) {
+    details = validateContractV1(document, errors, options);
+  } else if (document.metadata.steward_contract === CONTRACT_FORMAT_V2) {
+    details = validateContractV2(document, errors, options);
+  }
+  if (options.forApproval && document.metadata.state !== 'draft') {
+    errors.push('only a draft can be approved');
+  }
+  return { errors, ...details };
 }
 
 function parseArgs(tokens, valueFlags, booleanFlags = []) {
@@ -315,7 +676,7 @@ function createCommand(tokens) {
   if (flags['--from']) {
     if (flags['--id'] || flags['--title']) die('create --from cannot be combined with --id or --title', 2);
     const source = readDocument(flags['--from']);
-    const result = validate(source);
+    const result = validateContract(source);
     if (result.errors.length) throw new Error(`source contract is invalid:\n- ${result.errors.join('\n- ')}`);
     if (source.metadata.state !== 'approved') throw new Error('create --from requires an approved source contract');
     document = {
@@ -344,21 +705,128 @@ function createCommand(tokens) {
       },
       body: template.body.replace(/^# Ticket title$/m, `# ${flags['--title']}`),
     };
-    const result = validate(document);
+    const result = validateContract(document);
     if (result.errors.length) throw new Error(`new contract metadata is invalid:\n- ${result.errors.join('\n- ')}`);
   }
 
-  writeNew(output, renderDocument(document));
-  process.stdout.write(`created ${output} (${document.metadata.id}@${document.metadata.revision}, draft)\n`);
+  writeNew(output, renderDocument(document, CONTRACT_METADATA_FIELDS));
+  process.stdout.write(
+    `created ${output} (${document.metadata.id}@${document.metadata.revision}, ` +
+    `format v${document.metadata.steward_contract}, draft)\n`,
+  );
+}
+
+function collapseMarkdown(value) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function migrateV1Body(source, details) {
+  const requirementRefs = details.requirements.map((item) => item.id);
+  const claimToEvidence = new Map(details.evidence.map((item) => [item.id, item.text]));
+  const firstClaim = details.claims[0].id;
+  const firstEvidence = 'EV1';
+  const requirements = details.requirements
+    .map((item) => `- ${item.id} [I1]: ${item.text}`)
+    .join('\n');
+  const claims = details.claims
+    .map((item) =>
+      `- ${item.id} [I1; ${requirementRefs.join('; ')}]: ${item.text} ` +
+      'MIGRATION TODO: confirm the intent and requirement references.',
+    )
+    .join('\n');
+  const evidence = details.claims
+    .map((item, index) => `- EV${index + 1} [${item.id}]: ${claimToEvidence.get(item.id)}`)
+    .join('\n');
+  return `# ${source.metadata.title}
+
+## Intent
+
+- I1: ${collapseMarkdown(section(source.body, 'Intent'))}
+
+## Context
+
+${section(source.body, 'Context')}
+
+## Scope
+
+${section(source.body, 'Scope')}
+
+## Requirements
+
+${requirements}
+
+## Acceptance claims
+
+${claims}
+
+## Evidence plan
+
+${evidence}
+
+## Intent probes
+
+- P1 [normal; ${firstClaim}; ${firstEvidence}]: MIGRATION TODO: add one representative normal user-observable scenario.
+- P2 [boundary; ${firstClaim}; ${firstEvidence}]: MIGRATION TODO: add one representative boundary or failure scenario.
+- P3 [accepted-tradeoff; ${firstClaim}; ${firstEvidence}]: MIGRATION TODO: state one explicitly accepted tradeoff and its observable consequence.
+
+## Constraints
+
+${section(source.body, 'Constraints')}
+
+## Assumptions and risks
+
+${section(source.body, 'Assumptions and risks')}
+
+## Open questions
+
+- None.
+`;
+}
+
+function migrateCommand(tokens) {
+  const { positional, flags } = parseArgs(tokens, ['--output']);
+  if (positional.length !== 1 || !flags['--output']) {
+    die('migrate requires V1_APPROVED_PATH and --output V2_DRAFT_PATH', 2);
+  }
+  const source = readDocument(positional[0]);
+  const result = validateContract(source);
+  if (result.errors.length) throw new Error(`source contract is invalid:\n- ${result.errors.join('\n- ')}`);
+  if (source.metadata.steward_contract !== CONTRACT_FORMAT_V1 || source.metadata.state !== 'approved') {
+    throw new Error('migrate requires an approved format-v1 contract');
+  }
+  const output = flags['--output'];
+  const document = {
+    metadata: {
+      ...source.metadata,
+      steward_contract: CONTRACT_FORMAT_V2,
+      revision: source.metadata.revision + 1,
+      state: 'draft',
+      created_at: new Date().toISOString(),
+      approved_at: null,
+      approved_by: null,
+      frozen_body_sha256: null,
+      supersedes: `${source.metadata.id}@${source.metadata.revision}`,
+    },
+    body: migrateV1Body(source, result),
+  };
+  const migrated = validateContract(document);
+  if (migrated.errors.length) throw new Error(`internal migration error:\n- ${migrated.errors.join('\n- ')}`);
+  writeNew(output, renderDocument(document, CONTRACT_METADATA_FIELDS));
+  process.stdout.write(
+    `migrated ${source.metadata.id}@${source.metadata.revision} to ` +
+    `${output} (${document.metadata.id}@${document.metadata.revision}, format v2 draft); ` +
+    'resolve MIGRATION TODO markers before approval\n',
+  );
 }
 
 function checkCommand(tokens) {
   const { positional, flags } = parseArgs(tokens, [], ['--json']);
   if (positional.length !== 1) die('check requires exactly one PATH', 2);
   const document = readDocument(positional[0]);
-  const result = validate(document);
+  const result = validateContract(document);
   const output = {
     path: positional[0],
+    format: document.metadata.steward_contract || null,
     contract_id: document.metadata.id || null,
     revision: document.metadata.revision || null,
     state: document.metadata.state || null,
@@ -374,7 +842,10 @@ function checkCommand(tokens) {
     const frozen = document.metadata.state === 'approved'
       ? ` frozen=${document.metadata.frozen_body_sha256}`
       : '';
-    process.stdout.write(`OK ${document.metadata.id}@${document.metadata.revision} state=${document.metadata.state}${frozen}\n`);
+    process.stdout.write(
+      `OK ${document.metadata.id}@${document.metadata.revision} ` +
+      `format=v${document.metadata.steward_contract} state=${document.metadata.state}${frozen}\n`,
+    );
   }
   if (result.errors.length) process.exitCode = 1;
 }
@@ -384,20 +855,25 @@ function approveCommand(tokens) {
   if (positional.length !== 1 || !flags['--by']) die('approve requires PATH and --by APPROVER', 2);
   if (!flags['--by'].trim()) die('--by must not be empty', 2);
   const document = readDocument(positional[0]);
-  const result = validate(document, { forApproval: true });
+  const result = validateContract(document, { forApproval: true });
   if (result.errors.length) throw new Error(`contract is not ready for approval:\n- ${result.errors.join('\n- ')}`);
   document.metadata.state = 'approved';
   document.metadata.approved_at = new Date().toISOString();
   document.metadata.approved_by = flags['--by'];
   document.metadata.frozen_body_sha256 = bodyHash(document.body);
-  writeAtomic(positional[0], renderDocument(document));
+  writeAtomic(positional[0], renderDocument(document, CONTRACT_METADATA_FIELDS));
   process.stdout.write(
-    `approved ${document.metadata.id}@${document.metadata.revision} frozen=${document.metadata.frozen_body_sha256}\n`,
+    `approved ${document.metadata.id}@${document.metadata.revision} ` +
+    `format=v${document.metadata.steward_contract} frozen=${document.metadata.frozen_body_sha256}\n`,
   );
 }
 
 function changedSections(oldDocument, newDocument) {
-  return REQUIRED_H2.filter(
+  const headings = [...new Set([
+    ...h2Headings(oldDocument.body),
+    ...h2Headings(newDocument.body),
+  ])];
+  return headings.filter(
     (heading) => section(oldDocument.body, heading) !== section(newDocument.body, heading),
   );
 }
@@ -411,8 +887,8 @@ function compareCommand(tokens) {
   if (positional.length !== 2) die('compare requires OLD_PATH and NEW_PATH', 2);
   const oldDocument = readDocument(positional[0]);
   const newDocument = readDocument(positional[1]);
-  const oldValidation = validate(oldDocument);
-  const newValidation = validate(newDocument);
+  const oldValidation = validateContract(oldDocument);
+  const newValidation = validateContract(newDocument);
   const errors = [
     ...oldValidation.errors.map((error) => `old: ${error}`),
     ...newValidation.errors.map((error) => `new: ${error}`),
@@ -423,6 +899,8 @@ function compareCommand(tokens) {
   const changed = changedSections(oldDocument, newDocument);
   const result = {
     contract_id: oldDocument.metadata.id,
+    from_format: oldDocument.metadata.steward_contract,
+    to_format: newDocument.metadata.steward_contract,
     from_revision: oldDocument.metadata.revision,
     to_revision: newDocument.metadata.revision,
     revision_increased: newDocument.metadata.revision > oldDocument.metadata.revision,
@@ -440,8 +918,8 @@ function compareCommand(tokens) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
     let output =
-      `${result.contract_id}: r${result.from_revision} (${result.from_state}) -> ` +
-      `r${result.to_revision} (${result.to_state})\n` +
+      `${result.contract_id}: v${result.from_format} r${result.from_revision} (${result.from_state}) -> ` +
+      `v${result.to_format} r${result.to_revision} (${result.to_state})\n` +
       `revision increased: ${result.revision_increased ? 'yes' : 'no'}\n` +
       `body changed: ${result.body_changed ? 'yes' : 'no'}\n` +
       `changed sections: ${result.changed_sections.length ? result.changed_sections.join(', ') : 'none'}\n`;
@@ -456,36 +934,74 @@ function compareCommand(tokens) {
   }
 }
 
-function tableCell(value) {
-  return String(value).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+function validImmutableChangeIdentity(value) {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  if (/^git:/i.test(value)) return /^git:[a-f0-9]{40}(?:[a-f0-9]{24})?$/i.test(value);
+  const match = value.match(/^([a-z][a-z0-9_-]*):([A-Za-z0-9][A-Za-z0-9._/+@=-]*)$/);
+  if (!match) return false;
+  if (/^(?:branch|head|latest|pr|tag|working-tree|worktree)$/i.test(match[1])) return false;
+  return !/^(?:head|latest|main|master|trunk|working-tree|worktree|branch)$/i.test(match[2]);
+}
+
+function relativeArtifactPath(fromFile, targetFile) {
+  const relative = path.relative(path.dirname(path.resolve(fromFile)), path.resolve(targetFile));
+  return relative || path.basename(targetFile);
 }
 
 function assessmentCommand(tokens) {
-  const { positional, flags } = parseArgs(tokens, ['--output', '--change-ref']);
-  if (positional.length !== 1 || !flags['--output']) {
-    die('assessment requires CONTRACT_PATH and --output PATH', 2);
+  const { positional, flags } = parseArgs(
+    tokens,
+    ['--output', '--change-id', '--environment', '--assessor', '--change-ref'],
+  );
+  if (flags['--change-ref']) {
+    throw new Error('--change-ref is not an immutable identity; use --change-id TYPE:IMMUTABLE_VALUE');
+  }
+  if (positional.length !== 1 || !flags['--output'] || !flags['--change-id'] ||
+      !flags['--environment'] || !flags['--assessor']) {
+    die(
+      'assessment requires CONTRACT_PATH, --output PATH, --change-id IDENTITY, ' +
+      '--environment CONTEXT, and --assessor IDENTITY',
+      2,
+    );
+  }
+  if (!validImmutableChangeIdentity(flags['--change-id'])) {
+    throw new Error(
+      '--change-id must be TYPE:IMMUTABLE_VALUE; git identities require the exact 40- or 64-character commit SHA',
+    );
   }
   const contract = readDocument(positional[0]);
-  const result = validate(contract);
+  const result = validateContract(contract);
   if (result.errors.length) throw new Error(`contract is invalid:\n- ${result.errors.join('\n- ')}`);
   if (contract.metadata.state !== 'approved') throw new Error('assessment requires an approved contract');
   const output = flags['--output'];
   ensureNewFile(output);
-  const changeRef = flags['--change-ref'] || 'unspecified';
-  const rowsText = result.claims.map((claim) =>
-    `| ${claim.id} | inconclusive | Not assessed. | Evidence has not yet been collected. |`,
-  ).join('\n');
-  const content = `---
-steward_assessment: "1"
-contract_path: ${JSON.stringify(positional[0])}
-contract_id: ${JSON.stringify(contract.metadata.id)}
-contract_revision: ${contract.metadata.revision}
-frozen_body_sha256: ${JSON.stringify(contract.metadata.frozen_body_sha256)}
-change_ref: ${JSON.stringify(changeRef)}
-assessed_at: ${JSON.stringify(new Date().toISOString())}
-state: draft
----
-# Assessment: ${contract.metadata.title}
+  const claimBlocks = result.claims.map((claim) => `### ${claim.id}: ${claim.text}
+- Outcome: inconclusive
+- Evidence: None.
+- Residual uncertainty: Evidence has not yet been collected.
+`).join('\n');
+  const document = {
+    metadata: {
+      steward_assessment: ASSESSMENT_FORMAT_V2,
+      contract_path: relativeArtifactPath(output, positional[0]),
+      contract_id: contract.metadata.id,
+      contract_revision: contract.metadata.revision,
+      contract_body_sha256: contract.metadata.frozen_body_sha256,
+      change_identity: flags['--change-id'],
+      environment: flags['--environment'],
+      assessor: flags['--assessor'],
+      created_at: new Date().toISOString(),
+      completed_at: null,
+      state: 'draft',
+      assessment_body_sha256: null,
+    },
+    body: `# Assessment: ${contract.metadata.title}
+
+## Provenance
+
+- Immutable change: ${flags['--change-id']}
+- Environment/context: ${flags['--environment']}
+- Assessor: ${flags['--assessor']}
 
 ## Overall
 
@@ -493,13 +1009,10 @@ Outcome: inconclusive
 
 ## Claim outcomes
 
-| Claim | Outcome | Evidence | Residual uncertainty |
-| --- | --- | --- | --- |
-${rowsText}
-
+${claimBlocks}
 ## Evidence log
 
-- Record reproducible commands, observations, artifacts, and source locations.
+- None.
 
 ## Contract observations
 
@@ -508,11 +1021,372 @@ ${rowsText}
 ## Residual risks
 
 - Assessment is incomplete.
-`;
-  writeNew(output, content);
+
+## Remediation
+
+Classification: insufficient-or-conflicting-evidence
+Next action: ${REMEDIATION_ACTIONS['insufficient-or-conflicting-evidence']}
+`,
+  };
+  const validation = validateAssessmentV2(document, output);
+  if (validation.errors.length) throw new Error(`internal assessment scaffold error:\n- ${validation.errors.join('\n- ')}`);
+  writeNew(output, renderDocument(document, ASSESSMENT_METADATA_FIELDS_V2));
   process.stdout.write(
-    `created ${output} for ${tableCell(contract.metadata.id)}@${contract.metadata.revision} ` +
-    `with ${result.claims.length} inconclusive claim(s)\n`,
+    `created ${output} for ${contract.metadata.id}@${contract.metadata.revision} ` +
+    `change=${flags['--change-id']} with ${result.claims.length} inconclusive claim(s)\n`,
+  );
+}
+
+function resolveContractPath(assessmentPath, contractPath) {
+  if (path.isAbsolute(contractPath)) return contractPath;
+  return path.resolve(path.dirname(path.resolve(assessmentPath)), contractPath);
+}
+
+function validateAssessmentV1(document) {
+  const errors = [];
+  validateMetadataShape(document.metadata, ASSESSMENT_METADATA_FIELDS_V1, errors);
+  if (document.metadata.steward_assessment !== ASSESSMENT_FORMAT_V1) {
+    errors.push('steward_assessment must be "1"');
+  }
+  if (!validTimestamp(document.metadata.assessed_at)) {
+    errors.push('assessed_at must be an ISO-8601 UTC timestamp');
+  }
+  if (document.metadata.state !== 'draft') errors.push('format-v1 assessment state must be draft');
+  return {
+    errors,
+    warnings: [
+      'legacy assessment v1 is readable but lacks immutable change and completion provenance; regenerate as v2',
+    ],
+  };
+}
+
+function parseEvidenceRefs(value) {
+  if (value === 'None.') return [];
+  if (!/^E[1-9]\d*(?:,\s*E[1-9]\d*)*$/.test(value)) return null;
+  return value.split(',').map((item) => item.trim());
+}
+
+function parseContractMethodRefs(value) {
+  if (!/^EV[1-9]\d*(?:,\s*EV[1-9]\d*)*$/.test(value)) return null;
+  return value.split(',').map((item) => item.trim());
+}
+
+function parseKeyValueSection(content, expectedFields) {
+  const fields = {};
+  const errors = [];
+  for (const line of content.split('\n')) {
+    if (!line.trim()) continue;
+    const match = line.match(/^([A-Za-z][A-Za-z ]+):\s*(.*)$/);
+    if (!match) {
+      errors.push(`invalid row: ${line}`);
+      continue;
+    }
+    if (Object.prototype.hasOwnProperty.call(fields, match[1])) errors.push(`repeated field ${match[1]}`);
+    fields[match[1]] = match[2].trim();
+  }
+  const unknown = Object.keys(fields).filter((field) => !expectedFields.includes(field));
+  const missing = expectedFields.filter((field) => !Object.prototype.hasOwnProperty.call(fields, field));
+  if (unknown.length) errors.push(`unknown field(s): ${unknown.join(', ')}`);
+  if (missing.length) errors.push(`missing field(s): ${missing.join(', ')}`);
+  return { fields, errors };
+}
+
+function expectedOverall(outcomes) {
+  if (outcomes.length && outcomes.every((outcome) => outcome === 'pass')) return 'pass';
+  if (outcomes.includes('fail')) return 'fail';
+  return 'inconclusive';
+}
+
+function validateAssessmentV2(document, assessmentPath, options = {}) {
+  const { metadata, body } = document;
+  const errors = [];
+  const warnings = [];
+  validateMetadataShape(metadata, ASSESSMENT_METADATA_FIELDS_V2, errors);
+  if (metadata.steward_assessment !== ASSESSMENT_FORMAT_V2) {
+    errors.push('steward_assessment must be "2"');
+  }
+  if (typeof metadata.contract_path !== 'string' || !metadata.contract_path.trim()) {
+    errors.push('contract_path must identify the frozen contract artifact');
+  }
+  if (typeof metadata.contract_id !== 'string' || !metadata.contract_id.trim()) {
+    errors.push('contract_id must not be empty');
+  }
+  if (!Number.isSafeInteger(metadata.contract_revision) || metadata.contract_revision < 1) {
+    errors.push('contract_revision must be a positive integer');
+  }
+  if (typeof metadata.contract_body_sha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(metadata.contract_body_sha256)) {
+    errors.push('contract_body_sha256 must be a lowercase SHA-256 digest');
+  }
+  if (!validImmutableChangeIdentity(metadata.change_identity)) {
+    errors.push('change_identity must be TYPE:IMMUTABLE_VALUE; git identities require an exact commit SHA');
+  }
+  for (const field of ['environment', 'assessor']) {
+    if (typeof metadata[field] !== 'string' || !metadata[field].trim() || /[\r\n]/.test(metadata[field])) {
+      errors.push(`${field} must be a non-empty single-line string`);
+    }
+  }
+  if (!validTimestamp(metadata.created_at)) errors.push('created_at must be an ISO-8601 UTC timestamp');
+  if (!['draft', 'completed'].includes(metadata.state)) errors.push('state must be draft or completed');
+  if (metadata.state === 'draft') {
+    if (metadata.completed_at !== null) errors.push('completed_at must be null while assessment state is draft');
+    if (metadata.assessment_body_sha256 !== null) {
+      errors.push('assessment_body_sha256 must be null while assessment state is draft');
+    }
+  }
+  if (metadata.state === 'completed') {
+    if (!validTimestamp(metadata.completed_at)) errors.push('completed_at must be an ISO-8601 UTC timestamp');
+    if (typeof metadata.assessment_body_sha256 !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(metadata.assessment_body_sha256)) {
+      errors.push('assessment_body_sha256 must be a lowercase SHA-256 digest');
+    } else if (metadata.assessment_body_sha256 !== bodyHash(body)) {
+      errors.push('completed assessment body differs from its assessment_body_sha256');
+    }
+  }
+
+  const h1 = Array.from(body.matchAll(/^# (.+)$/gm), (match) => match[1]);
+  if (h1.length !== 1 || !h1[0].startsWith('Assessment: ')) {
+    errors.push('assessment body must contain exactly one "Assessment: ..." H1');
+  }
+  if (JSON.stringify(h2Headings(body)) !== JSON.stringify(ASSESSMENT_H2_V2)) {
+    errors.push(`assessment H2 sections must appear exactly in this order: ${ASSESSMENT_H2_V2.join(', ')}`);
+  }
+  for (const heading of ASSESSMENT_H2_V2) {
+    if (!section(body, heading)) errors.push(`${heading} section must not be empty`);
+  }
+
+  const provenance = section(body, 'Provenance');
+  const expectedProvenance = [
+    `- Immutable change: ${metadata.change_identity}`,
+    `- Environment/context: ${metadata.environment}`,
+    `- Assessor: ${metadata.assessor}`,
+  ].join('\n');
+  if (provenance !== expectedProvenance) {
+    errors.push('Provenance must exactly match change_identity, environment, and assessor metadata');
+  }
+
+  let contract = null;
+  let contractDetails = null;
+  if (typeof metadata.contract_path === 'string' && metadata.contract_path.trim()) {
+    try {
+      contract = readDocument(resolveContractPath(assessmentPath, metadata.contract_path));
+      contractDetails = validateContract(contract);
+      if (contractDetails.errors.length) {
+        errors.push(`referenced contract is invalid: ${contractDetails.errors.join('; ')}`);
+      } else {
+        if (contract.metadata.state !== 'approved') errors.push('referenced contract must be approved');
+        if (contract.metadata.id !== metadata.contract_id) errors.push('contract_id does not match referenced contract');
+        if (contract.metadata.revision !== metadata.contract_revision) {
+          errors.push('contract_revision does not match referenced contract');
+        }
+        if (contract.metadata.frozen_body_sha256 !== metadata.contract_body_sha256) {
+          errors.push('contract_body_sha256 does not match referenced contract');
+        }
+      }
+    } catch (error) {
+      errors.push(`cannot validate referenced contract: ${error.message}`);
+    }
+  }
+
+  const claimResult = parseFieldBlocks(
+    section(body, 'Claim outcomes'),
+    'AC',
+    ['Outcome', 'Evidence', 'Residual uncertainty'],
+  );
+  errors.push(...claimResult.errors.map((error) => `Claim outcomes ${error}`));
+  const duplicateClaims = duplicateIds(claimResult.items);
+  if (duplicateClaims.length) errors.push(`duplicate assessment claim id(s): ${duplicateClaims.join(', ')}`);
+  if (contractDetails && !contractDetails.errors.length) {
+    const expectedClaims = contractDetails.claims.map((item) => item.id).sort();
+    const actualClaims = claimResult.items.map((item) => item.id).sort();
+    if (JSON.stringify(expectedClaims) !== JSON.stringify(actualClaims)) {
+      errors.push('Claim outcomes must contain exactly one H3 block for every frozen acceptance claim');
+    }
+    const claimsById = new Map(contractDetails.claims.map((item) => [item.id, item]));
+    for (const claim of claimResult.items) {
+      if (claimsById.has(claim.id) && claim.title !== claimsById.get(claim.id).text) {
+        errors.push(`${claim.id} heading must exactly match the frozen acceptance claim`);
+      }
+    }
+  }
+
+  const evidenceResult = parseFieldBlocks(
+    section(body, 'Evidence log'),
+    'E',
+    ['Contract method', 'Command or artifact', 'Observation'],
+    { allowNone: true },
+  );
+  errors.push(...evidenceResult.errors.map((error) => `Evidence log ${error}`));
+  const duplicateEvidence = duplicateIds(evidenceResult.items);
+  if (duplicateEvidence.length) errors.push(`duplicate assessment evidence id(s): ${duplicateEvidence.join(', ')}`);
+  const evidenceIds = new Set(evidenceResult.items.map((item) => item.id));
+  const contractEvidenceIds = new Set(
+    contractDetails && !contractDetails.errors.length
+      ? contractDetails.evidence.map((item) => item.id)
+      : [],
+  );
+  for (const evidenceItem of evidenceResult.items) {
+    const refs = parseContractMethodRefs(evidenceItem.fields['Contract method']);
+    if (refs === null) {
+      errors.push(`${evidenceItem.id} Contract method must be a comma-separated list of EV<n> ids`);
+    } else {
+      const missing = missingReferences(refs, contractEvidenceIds);
+      if (missing.length) {
+        errors.push(`${evidenceItem.id} references unknown contract evidence method(s): ${missing.join(', ')}`);
+      }
+      evidenceItem.contractMethodRefs = refs;
+    }
+  }
+
+  const outcomes = [];
+  for (const claim of claimResult.items) {
+    const outcome = claim.fields.Outcome;
+    if (!['pass', 'fail', 'inconclusive'].includes(outcome)) {
+      errors.push(`${claim.id} Outcome must be pass, fail, or inconclusive`);
+    } else {
+      outcomes.push(outcome);
+    }
+    const refs = parseEvidenceRefs(claim.fields.Evidence);
+    if (refs === null) {
+      errors.push(`${claim.id} Evidence must be "None." or a comma-separated list of E<n> ids`);
+    } else {
+      const missing = missingReferences(refs, evidenceIds);
+      if (missing.length) errors.push(`${claim.id} references unknown assessment evidence: ${missing.join(', ')}`);
+      claim.evidenceRefs = refs;
+    }
+    if (!claim.fields['Residual uncertainty']) {
+      errors.push(`${claim.id} Residual uncertainty must not be empty`);
+    }
+  }
+
+  const overallResult = parseKeyValueSection(section(body, 'Overall'), ['Outcome']);
+  errors.push(...overallResult.errors.map((error) => `Overall ${error}`));
+  const computedOverall = expectedOverall(outcomes);
+  if (overallResult.fields.Outcome && overallResult.fields.Outcome !== computedOverall) {
+    errors.push(`Overall Outcome must be ${computedOverall} for the claim outcomes`);
+  }
+
+  const remediationResult = parseKeyValueSection(
+    section(body, 'Remediation'),
+    ['Classification', 'Next action'],
+  );
+  errors.push(...remediationResult.errors.map((error) => `Remediation ${error}`));
+  const classification = remediationResult.fields.Classification;
+  const nextAction = remediationResult.fields['Next action'];
+  if (computedOverall === 'pass') {
+    if (classification !== 'none') errors.push('all-pass assessment Remediation Classification must be none');
+    if (nextAction !== REMEDIATION_ACTIONS.none) {
+      errors.push(`all-pass assessment Next action must be "${REMEDIATION_ACTIONS.none}"`);
+    }
+  } else {
+    const allowed = ['implementation-defect', 'contract-defect', 'insufficient-or-conflicting-evidence'];
+    if (!allowed.includes(classification)) {
+      errors.push(`non-pass assessment Remediation Classification must be one of: ${allowed.join(', ')}`);
+    } else if (nextAction !== REMEDIATION_ACTIONS[classification]) {
+      errors.push(`Remediation Next action must be "${REMEDIATION_ACTIONS[classification]}"`);
+    }
+  }
+
+  if (metadata.state === 'completed' || options.forCompletion) {
+    if (PLACEHOLDER_PATTERN.test(body) || PLACEHOLDER_PATTERN.test(String(metadata.environment)) ||
+        PLACEHOLDER_PATTERN.test(String(metadata.assessor))) {
+      errors.push('completed assessment requires all placeholders to be resolved');
+    }
+    for (const evidenceItem of evidenceResult.items) {
+      for (const field of ['Command or artifact', 'Observation']) {
+        if (!evidenceItem.fields[field] || evidenceItem.fields[field] === 'None.') {
+          errors.push(`${evidenceItem.id} ${field} must contain a reproducible observation`);
+        }
+      }
+    }
+    for (const claim of claimResult.items) {
+      if (['pass', 'fail'].includes(claim.fields.Outcome) &&
+          (!claim.evidenceRefs || !claim.evidenceRefs.length)) {
+        errors.push(`${claim.id} cannot claim ${claim.fields.Outcome} without per-claim evidence`);
+      } else if (['pass', 'fail'].includes(claim.fields.Outcome) &&
+          contractDetails && !contractDetails.errors.length) {
+        const observedMethods = new Set(
+          evidenceResult.items
+            .filter((item) => claim.evidenceRefs.includes(item.id))
+            .flatMap((item) => item.contractMethodRefs || []),
+        );
+        if (!contractDetails.evidence.some(
+          (item) => observedMethods.has(item.id) && item.refs.includes(claim.id),
+        )) {
+          errors.push(
+            `${claim.id} pass/fail evidence must execute a referenced contract evidence method tied to the claim`,
+          );
+        }
+      }
+    }
+  }
+  return { errors, warnings, contract, claims: claimResult.items, evidence: evidenceResult.items };
+}
+
+function validateAssessment(document, assessmentPath, options = {}) {
+  if (document.metadata.steward_assessment === ASSESSMENT_FORMAT_V1) {
+    if (options.forCompletion) {
+      return {
+        errors: ['legacy assessment v1 cannot be completed; regenerate a provenance-bound v2 assessment'],
+        warnings: [],
+      };
+    }
+    return validateAssessmentV1(document);
+  }
+  return validateAssessmentV2(document, assessmentPath, options);
+}
+
+function assessmentCheckCommand(tokens) {
+  const { positional, flags } = parseArgs(tokens, [], ['--json']);
+  if (positional.length !== 1) die('assessment-check requires exactly one PATH', 2);
+  const document = readDocument(positional[0]);
+  const result = validateAssessment(document, positional[0]);
+  const output = {
+    path: positional[0],
+    format: document.metadata.steward_assessment || null,
+    contract_id: document.metadata.contract_id || null,
+    contract_revision: document.metadata.contract_revision || null,
+    change_identity: document.metadata.change_identity || null,
+    state: document.metadata.state || null,
+    valid: result.errors.length === 0,
+    errors: result.errors,
+    warnings: result.warnings,
+  };
+  if (flags['--json']) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+  } else if (result.errors.length) {
+    process.stdout.write(`INVALID ${positional[0]}\n- ${result.errors.join('\n- ')}\n`);
+  } else {
+    process.stdout.write(
+      `OK assessment format=v${document.metadata.steward_assessment} ` +
+      `state=${document.metadata.state}` +
+      `${document.metadata.change_identity ? ` change=${document.metadata.change_identity}` : ''}\n`,
+    );
+    if (result.warnings.length) process.stdout.write(`WARNING ${result.warnings.join('; ')}\n`);
+  }
+  if (result.errors.length) process.exitCode = 1;
+}
+
+function assessmentCompleteCommand(tokens) {
+  const { positional } = parseArgs(tokens, []);
+  if (positional.length !== 1) die('assessment-complete requires exactly one PATH', 2);
+  const document = readDocument(positional[0]);
+  if (document.metadata.state !== 'draft') throw new Error('only a draft assessment can be completed');
+  const result = validateAssessment(document, positional[0], { forCompletion: true });
+  if (result.errors.length) {
+    throw new Error(`assessment is not ready for completion:\n- ${result.errors.join('\n- ')}`);
+  }
+  document.metadata.state = 'completed';
+  document.metadata.completed_at = new Date().toISOString();
+  document.metadata.assessment_body_sha256 = bodyHash(document.body);
+  const completed = validateAssessment(document, positional[0]);
+  if (completed.errors.length) {
+    throw new Error(`internal assessment completion error:\n- ${completed.errors.join('\n- ')}`);
+  }
+  writeAtomic(positional[0], renderDocument(document, ASSESSMENT_METADATA_FIELDS_V2));
+  process.stdout.write(
+    `completed assessment for ${document.metadata.contract_id}@${document.metadata.contract_revision} ` +
+    `change=${document.metadata.change_identity} frozen=${document.metadata.assessment_body_sha256}\n`,
   );
 }
 
@@ -524,10 +1398,13 @@ function main() {
   }
   try {
     if (command === 'create') createCommand(tokens);
+    else if (command === 'migrate') migrateCommand(tokens);
     else if (command === 'check') checkCommand(tokens);
     else if (command === 'approve') approveCommand(tokens);
     else if (command === 'compare') compareCommand(tokens);
     else if (command === 'assessment') assessmentCommand(tokens);
+    else if (command === 'assessment-check') assessmentCheckCommand(tokens);
+    else if (command === 'assessment-complete') assessmentCompleteCommand(tokens);
     else die(`unknown command: ${command}`, 2);
   } catch (error) {
     die(error.message);
