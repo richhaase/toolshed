@@ -92,11 +92,12 @@ used by Memento's `promote` flow; final behavioral readiness remains separate.
 ### [Steward](plugins/steward/) — Intent and Assurance Contracts
 
 Separate software intent and assurance from an interchangeable builder.
-`frame` creates a traced Markdown contract with representative intent probes
-and explicit non-blocking unknowns, `critique` independently challenges the
-proposal, and `assess` binds claim-level evidence to a frozen contract and
-immutable change identity. The dependency-free CLI preserves local immutable
-revisions and routes defects without a remote ticket store or builder adapter.
+`frame` freezes the minimum decision-complete intent delta, `critique`
+conditionally challenges material ambiguity without expanding scope, and
+`assess` binds proportionate post-build evidence to a frozen contract and
+immutable change identity. Any agent, bundled workflow, or human process may
+construct the change. The dependency-free CLI preserves local immutable
+revisions without a remote ticket store or builder adapter.
 
 ### [Legate](plugins/legate/) — Delegated Work Orchestration _(deprecated)_
 

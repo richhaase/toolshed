@@ -1,114 +1,104 @@
 ---
 name: frame
 description: >
-  Turn an ordinary software request, problem statement, or conversation into a
-  self-contained Steward Markdown ticket/contract. Use when the user wants to
-  clarify intent, trace requirements to acceptance evidence, add representative
-  intent probes, record non-blocking unknowns, draft or migrate a contract,
-  compare revisions, or explicitly approve and freeze a ticket for an
-  interchangeable builder. Do not implement the software described by the
-  ticket.
+  Turn an ordinary software request into the smallest Steward Markdown
+  contract that can distinguish success from failure. Use before construction
+  for work of any size, including small fixes, refactors, features, migrations,
+  or broad requests that may need splitting. Add ceremony only for a material
+  product decision, load-bearing boundary, or preserved invariant. Draft and
+  freeze intent; do not plan or implement the change.
 ---
 
 # Frame
 
-Create an implementation-independent contract that a builder can read in its
-codebase without access to this conversation.
+Steward freezes the minimum decision-complete intent delta, delegates
+construction to an arbitrary inner loop, and later assesses the resulting
+immutable change. The contract defines outcomes and load-bearing boundaries;
+the target codebase remains the source of implementation context.
 
 ## Boundaries
 
-- Own the outer intent loop, not construction. Do not implement the requested
-  software or create builder-specific handoff instructions.
-- Treat the contract file as the builder interface. Keep its content and
-  lifecycle independent of storage location.
-- Use only local Markdown paths. Do not introduce an issue tracker,
-  service, database, adapter, or orchestration layer.
-- Never approve on the user's behalf. Only run `approve` after the user
-  explicitly approves the exact revision.
-- Never edit an approved revision. Derive a new draft with `create --from`.
+- Own intent and authorization, not design or construction.
+- Treat the contract plus the target codebase as the builder interface. Do not
+  turn the contract into a self-contained implementation manual.
+- Record only the requested behavior delta and boundaries plausibly endangered
+  by that delta.
+- Do not copy repository conventions, architecture, API inventories,
+  implementation plans, or test plans into the contract.
+- Do not invent monitoring, credentials, diagnostics, migrations,
+  compatibility promises, or product surfaces merely to make assessment easy.
+- Use only local Markdown paths. Do not add a service, database, issue-tracker
+  adapter, or orchestration layer.
+- Never approve on the user's behalf. Never edit an approved revision.
 
 ## Procedure
 
-1. Read `../../resources/references/contract-format.md`, resolving the path
-   relative to this `SKILL.md`, not the user's current directory.
-2. Resolve `../../resources/scripts/steward` the same way to an absolute path,
-   refer to it as `STEWARD_CLI`, and preflight `node`.
-3. Extract intent, context, in-scope and out-of-scope behavior, constraints,
-   requirements, acceptance claims, evidence methods, assumptions, risks, and
-   open questions from the conversation. Separate user/business outcomes from
-   implementation preferences.
-4. Ask only for decisions that materially change the contract. For an unknown
-   that does not block assessment, record its owner, decision deadline or
-   trigger, safe default, and why the default leaves the claims assessable.
-   Mark a genuinely validation-blocking question as `blocking`; do not invent
-   certainty merely to make a draft approvable.
-5. Create the initial file:
+1. Read `../../resources/references/contract-format.md`, resolving it relative
+   to this file. Resolve `../../resources/scripts/steward` the same way as
+   `STEWARD_CLI`, and preflight Node.js.
+2. Inspect the request and only enough target-codebase context to distinguish
+   current behavior, requested behavior, and material ambiguity. Existing
+   repository instructions remain implementation context rather than contract
+   content.
+3. Create a format-v3 draft:
 
    ```bash
    node "$STEWARD_CLI" create path/to/ticket.md \
      --id short-ticket-id --title "Ticket title"
    ```
 
-   For a successor in the same format:
-
-   ```bash
-   node "$STEWARD_CLI" create path/to/ticket.r2.md \
-     --from path/to/ticket.r1.md
-   ```
-
-   To move an approved v1 contract to v2:
-
-   ```bash
-   node "$STEWARD_CLI" migrate path/to/ticket.r1.md \
-     --output path/to/ticket.r2.md
-   ```
-
-   Migration preserves the approved source and intentionally leaves review
-   markers where traceability or scenarios require human judgment.
-6. Replace every placeholder and build an explicit trace chain:
-   - give outcomes stable `I<n>` identifiers;
-   - give requirements stable `R<n>` identifiers and reference their intent;
-   - give claims stable `AC<n>` identifiers and directly reference both intent
-     and requirement ids;
-   - give evidence methods stable `EV<n>` identifiers and reference the claims
-     they can establish.
-   Preserve stable ids across revisions; do not renumber unaffected entries.
-7. Add a small representative probe set with stable `P<n>` ids: at least one
-   normal scenario, one boundary or failure scenario, and one explicitly
-   accepted tradeoff. Each probe references relevant claims and evidence
-   methods. Prefer three to seven discriminating user-observable scenarios over
-   an exhaustive edge-case catalog.
-8. Run `check`. Resolve every structural, traceability, probe, and unknown
-   error before offering the ticket for approval.
-9. Recommend an independent `critique` pass. Incorporate accepted findings in
-   the draft and re-run `check`.
-10. Present the exact path, revision, traceability summary, remaining
-    assumptions/risks, non-blocking unknowns, and any blocking questions. Ask
-    for explicit approval of that revision only when no blocking question
-    remains.
-11. After explicit approval only, freeze it:
+   Use `create --from` for a successor in the same format. Use
+   `create NEW --from APPROVED --format 3` for a blank lean successor that
+   preserves an approved v1/v2 artifact's lineage. Deliberately reframe its
+   meaning; do not mechanically compress the old graph.
+4. State one concise `Outcome`: the requested user or business result.
+5. Write the fewest independently assessable `AC<n>` claims that distinguish
+   success from failure. Preserve stable claim ids across revisions.
+6. Add optional Context, Scope, Constraints, Examples, or Open questions only
+   when the section records information that changes a material outcome:
+   - Scope may name the change, an endangered invariant to preserve, or an
+     important adjacent outcome explicitly excluded.
+   - Constraints are genuine non-negotiable boundaries, not implementation
+     preferences.
+   - Examples disambiguate a claim; they are not a test inventory.
+   - A material open question blocks approval. Ask the user instead of
+     manufacturing a safe-looking default.
+7. Leave unspecified implementation choices to the builder. Evidence methods
+   are selected after construction and do not belong in a v3 contract.
+8. If the request contains independently valuable outcomes or the draft grows
+   beyond roughly eight claims or 1,200 words, first delete implementation
+   detail. If it is still broad, recommend a small outcome-oriented split
+   rather than multiplying traceability. These are guidance signals, not
+   structural validity gates.
+9. Recommend `critique` only when a trigger exists:
+   - reasonable interpretations produce materially different outcomes;
+   - the delta crosses an authorization, security, privacy, data-loss,
+     migration, or compatibility boundary;
+   - an acceptance claim may not distinguish pass from failure; or
+   - the requested outcomes are unusually coupled.
+10. Apply only accepted `contract-defect` findings. Keep builder discretion,
+    follow-up work, and residual uncertainty out of the contract unless the
+    scope owner explicitly expands intent.
+11. Run `check`. Treat `STRUCTURALLY OK` as a syntax, lifecycle, and integrity
+    result—not proof of semantic completeness.
+12. Present the exact path, revision, concise claim summary, optional
+    complexity warnings, and material open questions. Ask for explicit approval
+    of that exact revision.
+13. After explicit approval only, run:
 
     ```bash
     node "$STEWARD_CLI" approve path/to/ticket.md --by "Approver"
     ```
 
-12. Re-run `check` and report the frozen body hash. The builder needs only the
-    approved ticket path and its codebase.
+    Re-run `check` and report the frozen body hash.
 
-## Gotchas
+## Judgment
 
-- Approval freezes the normalized body, not a private conversation or the
-  framer's reasoning. If a needed fact is absent from the file, it is absent
-  from the contract.
-- Evidence must say how an assessor can observe the claim. "Works correctly,"
-  "tests pass," and other circular claims are not evidence plans.
-- Keep claims separable. A claim that bundles unrelated outcomes is difficult
-  to assess and should usually be split.
-- Probes are intent checks, not a duplicate test suite. A boundary/failure
-  probe should illuminate an important decision, and an accepted-tradeoff
-  probe should make a deliberate limitation visible.
-- A safe default is not permission to defer a blocking decision. Its rationale
-  must explain how every affected claim can still receive a meaningful
-  pass/fail/inconclusive outcome.
-- `check` validates structure and lifecycle invariants; it cannot prove that
-  the intent is wise or complete. That is why critique remains independent.
+- “Everything else remains unchanged” is not an invitation to inventory the
+  system. Name only behavior the requested delta plausibly threatens.
+- An external operator or client may be the honest validation boundary. Do not
+  create synthetic infrastructure to replace it.
+- If a claim cannot currently be observed, assessment may later be
+  `inconclusive`; evidence inconvenience does not authorize new product scope.
+- A more detailed contract is not necessarily safer. Prefer deletion, local
+  clarification, or splitting over expansion.

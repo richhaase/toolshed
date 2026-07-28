@@ -1,5 +1,5 @@
 ---
-steward_contract: "2"
+steward_contract: "3"
 id: "ticket-id"
 title: "Ticket title"
 revision: 1
@@ -12,56 +12,10 @@ supersedes: null
 ---
 # Ticket title
 
-## Intent
+## Outcome
 
-- I1: TODO: State the user-observable or business outcome.
+TODO: State the requested user or business result.
 
-## Context
+## Acceptance
 
-TODO: Include the facts a builder needs without this conversation.
-
-## Scope
-
-### In scope
-
-- TODO
-
-### Out of scope
-
-- TODO
-
-## Requirements
-
-- R1 [I1]: TODO: State required behavior, not an implementation preference.
-
-## Acceptance claims
-
-- AC1 [I1; R1]: TODO: State an independently assessable claim.
-
-## Evidence plan
-
-- EV1 [AC1]: TODO: Name a reproducible observation, command, or artifact.
-
-## Intent probes
-
-- P1 [normal; AC1; EV1]: TODO: Given a representative normal situation, state the user-observable result.
-- P2 [boundary; AC1; EV1]: TODO: Given a representative boundary or failure situation, state the user-observable result.
-- P3 [accepted-tradeoff; AC1; EV1]: TODO: State an explicitly accepted tradeoff and its user-observable consequence.
-
-## Constraints
-
-- None.
-
-## Assumptions and risks
-
-### Assumptions
-
-- None.
-
-### Risks
-
-- None.
-
-## Open questions
-
-- None.
+- AC1: TODO: State an observable result that distinguishes success from failure.

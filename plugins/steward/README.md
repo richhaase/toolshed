@@ -1,38 +1,45 @@
-# Steward — Intent and assurance contracts
+# Steward — the outer intent and assurance loop
 
-Steward is the outer intent-and-assurance loop around an interchangeable
-software builder. A portable Markdown contract is the complete builder
-interface:
+Steward freezes the minimum decision-complete intent delta, delegates
+construction to an arbitrary inner loop, and assesses the resulting immutable
+change.
 
-1. `frame` turns the user's intended outcome into a traced, reviewable draft.
-2. `critique` independently challenges intent coverage, probes, evidence, and
-   unknowns.
-3. A human explicitly approves and freezes one immutable contract revision.
-4. Any builder reads that approved artifact in its codebase and builds.
-5. `assess` independently judges an immutable change claim by claim, records
-   reproducible evidence and provenance, and routes remediation.
+It deliberately does not own planning, architecture, implementation, testing
+strategy, or remediation. A builder may use any agent, bundled workflow, or
+human process. The approved contract defines outcomes and load-bearing
+boundaries; the target codebase remains the source of implementation context.
+
+The lifecycle is:
+
+1. `frame` drafts the smallest contract that distinguishes success from
+   failure.
+2. `critique` conditionally challenges material ambiguity or an endangered
+   boundary without expanding scope.
+3. A human explicitly approves and freezes one immutable revision.
+4. Any inner workflow constructs the change.
+5. `assess` judges the immutable result claim by claim using proportionate
+   evidence selected after construction.
 
 Steward stores no centralized state and has no Jira or builder adapter.
-Contracts and assessments are ordinary local Markdown files that may live
-wherever a local path can address them.
+Contracts and assessments are ordinary local Markdown files.
 
-## What format v2 adds
+## Format v3
 
-- Stable, reviewable trace chains from `I<n>` intent through `R<n>`
-  requirements and `AC<n>` claims to `EV<n>` evidence methods.
-- A small representative set of normal, boundary/failure, and explicitly
-  accepted-tradeoff intent probes (`P<n>`).
-- Non-blocking unknowns (`U<n>`) with an owner, decision trigger, safe default,
-  and assessment rationale. Only validation-blocking questions prevent
-  approval.
-- Assessment reports bound to a frozen contract, immutable change identity,
-  environment/context, commands or artifacts, observations, and assessor.
-- Required remediation routing for implementation defects, contract defects,
-  and insufficient or conflicting evidence.
+V3 makes the outer loop cheap enough for ordinary work:
 
-The CLI continues to validate and preserve frozen format-v1 contracts. Use
-`migrate` to create a review-required v2 successor without changing the v1
-artifact; it never guesses missing traceability silently.
+- `Outcome` and `Acceptance` are the only required body sections.
+- Only `AC<n>` identifiers are mandatory.
+- Context, scope, constraints, examples, and open questions are optional.
+- There is no mandatory intent/requirement/evidence/probe graph.
+- Evidence is chosen after construction rather than predicted during framing.
+- Critique is risk-triggered, bounded to three contract defects, and converges
+  on later delta-only passes.
+- Structural checks report their limited guarantee honestly and expose
+  nonblocking size/growth signals.
+
+Formats v1 and v2 remain valid under their original rules. Format-v2 contracts
+continue using EV-linked v2 assessments; deliberately reframe and approve a
+lean v3 successor before adopting post-build v3 evidence.
 
 ## Runtime
 
@@ -59,13 +66,15 @@ node resources/scripts/steward assessment-check assessment.md
 node resources/scripts/steward assessment-complete assessment.md
 ```
 
-See `resources/references/contract-format.md` for the exact portable formats,
-traceability rules, migration story, provenance requirements, and remediation
-actions. `examples/delivery-status.contract.md` is a complete, structurally
-valid v2 draft with a non-blocking unknown.
+See `resources/references/contract-format.md` for the exact portable formats
+and compatibility rules. `examples/delivery-status.contract.md` is a complete
+v3 example.
 
-Run the CLI tests with:
+Run deterministic lifecycle tests with:
 
 ```bash
 node --test tests/steward-cli.test.js
 ```
+
+Behavioral framing, critique, convergence, and assessment cases live in
+`evals/evals.json`.

@@ -1,19 +1,19 @@
 {
   "name": "steward",
-  "version": "0.2.0",
-  "description": "Separate intent and assurance from software construction with traced, approved Markdown contracts. Frame maps intent through claims and evidence, critique independently challenges the proposal, and assess binds claim outcomes to an immutable change with remediation routing.",
+  "version": "0.3.0",
+  "description": "A thin outer loop for any software workflow. Freeze the minimum decision-complete intent delta, conditionally critique material ambiguity without expanding scope, and assess an immutable change using proportionate post-build evidence.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["contracts", "tickets", "requirements", "traceability", "assurance", "assessment", "software-delivery"],
+  "keywords": ["contracts", "tickets", "intent", "scope", "assurance", "assessment", "software-delivery"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Steward",
-    "shortDescription": "Portable intent and assurance contracts",
-    "longDescription": "Create traceable Markdown contracts with representative intent probes and explicit unknowns, independently critique them, freeze an explicitly approved revision, and assess immutable software changes claim by claim with reproducible evidence and remediation routing. Steward keeps intent and assurance separate from the interchangeable builder and requires no remote service or builder adapter.",
+    "shortDescription": "A thin intent and assurance outer loop",
+    "longDescription": "Freeze the minimum decision-complete intent delta for any software task, invoke bounded critique only for material ambiguity or changed safety boundaries, delegate construction to an arbitrary inner workflow, and assess the immutable result claim by claim using proportionate evidence selected after construction. Steward requires no remote service or builder adapter.",
     "developerName": "Rich Haase",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],

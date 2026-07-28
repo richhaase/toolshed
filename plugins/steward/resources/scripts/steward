@@ -7,8 +7,10 @@ const path = require('path');
 
 const CONTRACT_FORMAT_V1 = '1';
 const CONTRACT_FORMAT_V2 = '2';
+const CONTRACT_FORMAT_V3 = '3';
 const ASSESSMENT_FORMAT_V1 = '1';
 const ASSESSMENT_FORMAT_V2 = '2';
+const ASSESSMENT_FORMAT_V3 = '3';
 
 const CONTRACT_METADATA_FIELDS = [
   'steward_contract',
@@ -43,6 +45,15 @@ const CONTRACT_H2_V2 = [
   'Intent probes',
   'Constraints',
   'Assumptions and risks',
+  'Open questions',
+];
+const CONTRACT_H2_V3 = [
+  'Outcome',
+  'Context',
+  'Scope',
+  'Acceptance',
+  'Constraints',
+  'Examples',
   'Open questions',
 ];
 const ASSESSMENT_METADATA_FIELDS_V1 = [
@@ -93,19 +104,20 @@ function usage() {
   process.stdout.write(`Steward portable Markdown contract lifecycle
 
 Usage:
-  steward create PATH --id ID --title TITLE
-  steward create PATH --from APPROVED_PATH
+  steward create PATH --id ID --title TITLE [--format 2|3]
+  steward create PATH --from APPROVED_PATH [--format 3]
   steward migrate V1_APPROVED_PATH --output V2_DRAFT_PATH
   steward check PATH [--json]
   steward approve PATH --by APPROVER
   steward compare OLD_PATH NEW_PATH [--json]
   steward assessment CONTRACT_PATH --output PATH --change-id IDENTITY \\
-    --environment CONTEXT --assessor IDENTITY
+    --environment CONTEXT --assessor IDENTITY [--format 2|3]
   steward assessment-check PATH [--json]
   steward assessment-complete PATH
 
-New contracts use format v2. Format-v1 contracts remain valid and frozen;
-migrate creates a review-required v2 successor without changing its source.
+New contracts use the lean format v3. Use create --format 2 only for legacy
+compatibility. Format-v1 and format-v2 contracts remain valid and frozen;
+migrate retains its legacy v1-to-v2 behavior without changing its source.
 approve and assessment-complete are the only in-place mutations.
 `);
 }
@@ -315,8 +327,8 @@ function validateMetadataShape(metadata, fields, errors) {
 function validateContractCommon(document, errors) {
   const { metadata, body } = document;
   validateMetadataShape(metadata, CONTRACT_METADATA_FIELDS, errors);
-  if (![CONTRACT_FORMAT_V1, CONTRACT_FORMAT_V2].includes(metadata.steward_contract)) {
-    errors.push('steward_contract must be "1" or "2"');
+  if (![CONTRACT_FORMAT_V1, CONTRACT_FORMAT_V2, CONTRACT_FORMAT_V3].includes(metadata.steward_contract)) {
+    errors.push('steward_contract must be "1", "2", or "3"');
   }
   if (typeof metadata.id !== 'string' || !/^[a-z0-9][a-z0-9._-]*$/.test(metadata.id)) {
     errors.push('id must use lowercase letters, numbers, dots, underscores, or hyphens');
@@ -588,6 +600,62 @@ function validateContractV2(document, errors, options) {
   return { intents, requirements, claims, evidence, probes, unknowns };
 }
 
+function validateContractV3(document, errors, options) {
+  const { body } = document;
+  const headings = h2Headings(body);
+  const duplicateHeadings = duplicateIds(headings.map((id) => ({ id })));
+  if (duplicateHeadings.length) {
+    errors.push(`duplicate H2 section(s): ${duplicateHeadings.join(', ')}`);
+  }
+  const unknownHeadings = headings.filter((heading) => !CONTRACT_H2_V3.includes(heading));
+  if (unknownHeadings.length) {
+    errors.push(`unknown format-v3 H2 section(s): ${[...new Set(unknownHeadings)].join(', ')}`);
+  }
+  const expectedOrder = CONTRACT_H2_V3.filter((heading) => headings.includes(heading));
+  if (JSON.stringify(headings) !== JSON.stringify(expectedOrder)) {
+    errors.push(`format-v3 H2 sections must follow this order when present: ${CONTRACT_H2_V3.join(', ')}`);
+  }
+  for (const heading of ['Outcome', 'Acceptance']) {
+    if (!headings.includes(heading)) errors.push(`format-v3 contract requires ## ${heading}`);
+  }
+  for (const heading of [...new Set(headings)]) {
+    if (!section(body, heading)) errors.push(`${heading} section must not be empty`);
+  }
+
+  const claimResult = parseStructuredRows(section(body, 'Acceptance'), 'AC', 'plain');
+  const claims = claimResult.items;
+  const acceptanceLines = section(body, 'Acceptance')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const malformedClaims = acceptanceLines.filter(
+    (line) => !/^- AC[1-9]\d*:\s+.+$/.test(line),
+  );
+  if (malformedClaims.length) {
+    errors.push(`Acceptance may contain only single-line - AC<n>: rows: ${malformedClaims.join(' | ')}`);
+  }
+  if (!claims.length) errors.push('Acceptance must contain at least one - AC<n>: row');
+  const duplicateClaims = duplicateIds(claims);
+  if (duplicateClaims.length) errors.push(`duplicate acceptance claim id(s): ${duplicateClaims.join(', ')}`);
+
+  if (options.forApproval) {
+    if (PLACEHOLDER_PATTERN.test(body)) errors.push('approval requires all placeholders to be resolved');
+    const openQuestions = section(body, 'Open questions');
+    if (openQuestions && openQuestions.trim() !== '- None.') {
+      errors.push('format-v3 approval requires Open questions to be absent or contain exactly "- None."');
+    }
+  }
+
+  return {
+    intents: [],
+    requirements: [],
+    claims,
+    evidence: [],
+    probes: [],
+    unknowns: [],
+  };
+}
+
 function duplicateReferences(refs) {
   const seen = new Set();
   const duplicate = new Set();
@@ -606,6 +674,8 @@ function validateContract(document, options = {}) {
     details = validateContractV1(document, errors, options);
   } else if (document.metadata.steward_contract === CONTRACT_FORMAT_V2) {
     details = validateContractV2(document, errors, options);
+  } else if (document.metadata.steward_contract === CONTRACT_FORMAT_V3) {
+    details = validateContractV3(document, errors, options);
   }
   if (options.forApproval && document.metadata.state !== 'draft') {
     errors.push('only a draft can be approved');
@@ -665,8 +735,20 @@ function writeAtomic(file, content) {
   }
 }
 
+function contractTemplate(format, title) {
+  const templateName = format === CONTRACT_FORMAT_V2
+    ? 'contract-template-v2.md'
+    : 'contract-template.md';
+  const templatePath = path.resolve(__dirname, '..', 'assets', templateName);
+  const template = readDocument(templatePath);
+  return {
+    metadata: template.metadata,
+    body: template.body.replace(/^# Ticket title$/m, `# ${title}`),
+  };
+}
+
 function createCommand(tokens) {
-  const { positional, flags } = parseArgs(tokens, ['--id', '--title', '--from']);
+  const { positional, flags } = parseArgs(tokens, ['--id', '--title', '--from', '--format']);
   if (positional.length !== 1) die('create requires exactly one output PATH', 2);
   const output = positional[0];
   ensureNewFile(output);
@@ -674,14 +756,24 @@ function createCommand(tokens) {
   let document;
 
   if (flags['--from']) {
-    if (flags['--id'] || flags['--title']) die('create --from cannot be combined with --id or --title', 2);
+    if (flags['--id'] || flags['--title']) {
+      die('create --from cannot be combined with --id or --title', 2);
+    }
     const source = readDocument(flags['--from']);
     const result = validateContract(source);
     if (result.errors.length) throw new Error(`source contract is invalid:\n- ${result.errors.join('\n- ')}`);
     if (source.metadata.state !== 'approved') throw new Error('create --from requires an approved source contract');
+    const requestedFormat = flags['--format'] || source.metadata.steward_contract;
+    if (flags['--format'] && flags['--format'] !== CONTRACT_FORMAT_V3) {
+      die('create --from accepts only --format 3 for a deliberate lean successor', 2);
+    }
+    const body = requestedFormat === source.metadata.steward_contract
+      ? source.body
+      : contractTemplate(CONTRACT_FORMAT_V3, source.metadata.title).body;
     document = {
       metadata: {
         ...source.metadata,
+        steward_contract: requestedFormat,
         revision: source.metadata.revision + 1,
         state: 'draft',
         created_at: now,
@@ -690,12 +782,15 @@ function createCommand(tokens) {
         frozen_body_sha256: null,
         supersedes: `${source.metadata.id}@${source.metadata.revision}`,
       },
-      body: source.body,
+      body,
     };
   } else {
     if (!flags['--id'] || !flags['--title']) die('create requires --id and --title, or --from', 2);
-    const templatePath = path.resolve(__dirname, '..', 'assets', 'contract-template.md');
-    const template = readDocument(templatePath);
+    const format = flags['--format'] || CONTRACT_FORMAT_V3;
+    if (![CONTRACT_FORMAT_V2, CONTRACT_FORMAT_V3].includes(format)) {
+      die('--format must be 2 or 3', 2);
+    }
+    const template = contractTemplate(format, flags['--title']);
     document = {
       metadata: {
         ...template.metadata,
@@ -703,12 +798,12 @@ function createCommand(tokens) {
         title: flags['--title'],
         created_at: now,
       },
-      body: template.body.replace(/^# Ticket title$/m, `# ${flags['--title']}`),
+      body: template.body,
     };
-    const result = validateContract(document);
-    if (result.errors.length) throw new Error(`new contract metadata is invalid:\n- ${result.errors.join('\n- ')}`);
   }
 
+  const result = validateContract(document);
+  if (result.errors.length) throw new Error(`new contract metadata is invalid:\n- ${result.errors.join('\n- ')}`);
   writeNew(output, renderDocument(document, CONTRACT_METADATA_FIELDS));
   process.stdout.write(
     `created ${output} (${document.metadata.id}@${document.metadata.revision}, ` +
@@ -819,11 +914,44 @@ function migrateCommand(tokens) {
   );
 }
 
+function contractMetrics(document, details) {
+  const bodyWords = document.body
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[-*_[\]()`]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+  return {
+    body_words: bodyWords,
+    acceptance_claims: details.claims.length,
+  };
+}
+
+function contractWarnings(document, details) {
+  if (document.metadata.steward_contract !== CONTRACT_FORMAT_V3) return [];
+  const metrics = contractMetrics(document, details);
+  const warnings = [];
+  if (metrics.acceptance_claims > 8) {
+    warnings.push(
+      `format-v3 contract has ${metrics.acceptance_claims} acceptance claims; remove implementation detail or consider splitting independently assessable outcomes`,
+    );
+  }
+  if (metrics.body_words > 1200) {
+    warnings.push(
+      `format-v3 contract has ${metrics.body_words} body words; remove implementation detail or consider splitting independently assessable outcomes`,
+    );
+  }
+  return warnings;
+}
+
 function checkCommand(tokens) {
   const { positional, flags } = parseArgs(tokens, [], ['--json']);
   if (positional.length !== 1) die('check requires exactly one PATH', 2);
   const document = readDocument(positional[0]);
   const result = validateContract(document);
+  const metrics = contractMetrics(document, result);
+  const warnings = contractWarnings(document, result);
   const output = {
     path: positional[0],
     format: document.metadata.steward_contract || null,
@@ -831,8 +959,11 @@ function checkCommand(tokens) {
     revision: document.metadata.revision || null,
     state: document.metadata.state || null,
     frozen_body_sha256: document.metadata.frozen_body_sha256 || null,
+    structurally_valid: result.errors.length === 0,
     valid: result.errors.length === 0,
+    metrics,
     errors: result.errors,
+    warnings,
   };
   if (flags['--json']) {
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
@@ -843,9 +974,11 @@ function checkCommand(tokens) {
       ? ` frozen=${document.metadata.frozen_body_sha256}`
       : '';
     process.stdout.write(
-      `OK ${document.metadata.id}@${document.metadata.revision} ` +
-      `format=v${document.metadata.steward_contract} state=${document.metadata.state}${frozen}\n`,
+      `STRUCTURALLY OK ${document.metadata.id}@${document.metadata.revision} ` +
+      `format=v${document.metadata.steward_contract} state=${document.metadata.state} ` +
+      `claims=${metrics.acceptance_claims} words=${metrics.body_words}${frozen}\n`,
     );
+    if (warnings.length) process.stdout.write(`WARNING ${warnings.join('; ')}\n`);
   }
   if (result.errors.length) process.exitCode = 1;
 }
@@ -897,6 +1030,8 @@ function compareCommand(tokens) {
   if (errors.length) throw new Error(`cannot compare invalid revisions:\n- ${errors.join('\n- ')}`);
 
   const changed = changedSections(oldDocument, newDocument);
+  const oldMetrics = contractMetrics(oldDocument, oldValidation);
+  const newMetrics = contractMetrics(newDocument, newValidation);
   const result = {
     contract_id: oldDocument.metadata.id,
     from_format: oldDocument.metadata.steward_contract,
@@ -907,6 +1042,12 @@ function compareCommand(tokens) {
     from_state: oldDocument.metadata.state,
     to_state: newDocument.metadata.state,
     body_changed: bodyHash(oldDocument.body) !== bodyHash(newDocument.body),
+    from_metrics: oldMetrics,
+    to_metrics: newMetrics,
+    metric_delta: {
+      body_words: newMetrics.body_words - oldMetrics.body_words,
+      acceptance_claims: newMetrics.acceptance_claims - oldMetrics.acceptance_claims,
+    },
     changed_sections: changed,
     changes: changed.map((heading) => ({
       section: heading,
@@ -922,6 +1063,10 @@ function compareCommand(tokens) {
       `v${result.to_format} r${result.to_revision} (${result.to_state})\n` +
       `revision increased: ${result.revision_increased ? 'yes' : 'no'}\n` +
       `body changed: ${result.body_changed ? 'yes' : 'no'}\n` +
+      `body words: ${oldMetrics.body_words} -> ${newMetrics.body_words} ` +
+      `(${result.metric_delta.body_words >= 0 ? '+' : ''}${result.metric_delta.body_words})\n` +
+      `acceptance claims: ${oldMetrics.acceptance_claims} -> ${newMetrics.acceptance_claims} ` +
+      `(${result.metric_delta.acceptance_claims >= 0 ? '+' : ''}${result.metric_delta.acceptance_claims})\n` +
       `changed sections: ${result.changed_sections.length ? result.changed_sections.join(', ') : 'none'}\n`;
     for (const change of result.changes) {
       output +=
@@ -951,7 +1096,7 @@ function relativeArtifactPath(fromFile, targetFile) {
 function assessmentCommand(tokens) {
   const { positional, flags } = parseArgs(
     tokens,
-    ['--output', '--change-id', '--environment', '--assessor', '--change-ref'],
+    ['--output', '--change-id', '--environment', '--assessor', '--change-ref', '--format'],
   );
   if (flags['--change-ref']) {
     throw new Error('--change-ref is not an immutable identity; use --change-id TYPE:IMMUTABLE_VALUE');
@@ -973,6 +1118,24 @@ function assessmentCommand(tokens) {
   const result = validateContract(contract);
   if (result.errors.length) throw new Error(`contract is invalid:\n- ${result.errors.join('\n- ')}`);
   if (contract.metadata.state !== 'approved') throw new Error('assessment requires an approved contract');
+  const assessmentFormat = flags['--format'] ||
+    (contract.metadata.steward_contract === CONTRACT_FORMAT_V2
+      ? ASSESSMENT_FORMAT_V2
+      : ASSESSMENT_FORMAT_V3);
+  if (![ASSESSMENT_FORMAT_V2, ASSESSMENT_FORMAT_V3].includes(assessmentFormat)) {
+    die('--format must be 2 or 3', 2);
+  }
+  if (assessmentFormat === ASSESSMENT_FORMAT_V2 &&
+      contract.metadata.steward_contract !== CONTRACT_FORMAT_V2) {
+    throw new Error('assessment format v2 requires a format-v2 contract with EV evidence methods');
+  }
+  if (assessmentFormat === ASSESSMENT_FORMAT_V3 &&
+      contract.metadata.steward_contract === CONTRACT_FORMAT_V2) {
+    throw new Error(
+      'format-v2 contracts require assessment v2 so their frozen EV methods remain enforced; ' +
+      'create and approve a deliberate format-v3 successor before using assessment v3',
+    );
+  }
   const output = flags['--output'];
   ensureNewFile(output);
   const claimBlocks = result.claims.map((claim) => `### ${claim.id}: ${claim.text}
@@ -982,7 +1145,7 @@ function assessmentCommand(tokens) {
 `).join('\n');
   const document = {
     metadata: {
-      steward_assessment: ASSESSMENT_FORMAT_V2,
+      steward_assessment: assessmentFormat,
       contract_path: relativeArtifactPath(output, positional[0]),
       contract_id: contract.metadata.id,
       contract_revision: contract.metadata.revision,
@@ -1028,7 +1191,9 @@ Classification: insufficient-or-conflicting-evidence
 Next action: ${REMEDIATION_ACTIONS['insufficient-or-conflicting-evidence']}
 `,
   };
-  const validation = validateAssessmentV2(document, output);
+  const validation = assessmentFormat === ASSESSMENT_FORMAT_V2
+    ? validateAssessmentV2(document, output)
+    : validateAssessmentV3(document, output);
   if (validation.errors.length) throw new Error(`internal assessment scaffold error:\n- ${validation.errors.join('\n- ')}`);
   writeNew(output, renderDocument(document, ASSESSMENT_METADATA_FIELDS_V2));
   process.stdout.write(
@@ -1097,13 +1262,14 @@ function expectedOverall(outcomes) {
   return 'inconclusive';
 }
 
-function validateAssessmentV2(document, assessmentPath, options = {}) {
+function validateAssessmentCurrent(document, assessmentPath, format, options = {}) {
   const { metadata, body } = document;
+  const requireContractMethod = format === ASSESSMENT_FORMAT_V2;
   const errors = [];
   const warnings = [];
   validateMetadataShape(metadata, ASSESSMENT_METADATA_FIELDS_V2, errors);
-  if (metadata.steward_assessment !== ASSESSMENT_FORMAT_V2) {
-    errors.push('steward_assessment must be "2"');
+  if (metadata.steward_assessment !== format) {
+    errors.push(`steward_assessment must be "${format}"`);
   }
   if (typeof metadata.contract_path !== 'string' || !metadata.contract_path.trim()) {
     errors.push('contract_path must identify the frozen contract artifact');
@@ -1213,7 +1379,9 @@ function validateAssessmentV2(document, assessmentPath, options = {}) {
   const evidenceResult = parseFieldBlocks(
     section(body, 'Evidence log'),
     'E',
-    ['Contract method', 'Command or artifact', 'Observation'],
+    requireContractMethod
+      ? ['Contract method', 'Command or artifact', 'Observation']
+      : ['Command or artifact', 'Observation'],
     { allowNone: true },
   );
   errors.push(...evidenceResult.errors.map((error) => `Evidence log ${error}`));
@@ -1226,15 +1394,17 @@ function validateAssessmentV2(document, assessmentPath, options = {}) {
       : [],
   );
   for (const evidenceItem of evidenceResult.items) {
-    const refs = parseContractMethodRefs(evidenceItem.fields['Contract method']);
-    if (refs === null) {
-      errors.push(`${evidenceItem.id} Contract method must be a comma-separated list of EV<n> ids`);
-    } else {
-      const missing = missingReferences(refs, contractEvidenceIds);
-      if (missing.length) {
-        errors.push(`${evidenceItem.id} references unknown contract evidence method(s): ${missing.join(', ')}`);
+    if (requireContractMethod) {
+      const refs = parseContractMethodRefs(evidenceItem.fields['Contract method']);
+      if (refs === null) {
+        errors.push(`${evidenceItem.id} Contract method must be a comma-separated list of EV<n> ids`);
+      } else {
+        const missing = missingReferences(refs, contractEvidenceIds);
+        if (missing.length) {
+          errors.push(`${evidenceItem.id} references unknown contract evidence method(s): ${missing.join(', ')}`);
+        }
+        evidenceItem.contractMethodRefs = refs;
       }
-      evidenceItem.contractMethodRefs = refs;
     }
   }
 
@@ -1282,8 +1452,10 @@ function validateAssessmentV2(document, assessmentPath, options = {}) {
     const allowed = ['implementation-defect', 'contract-defect', 'insufficient-or-conflicting-evidence'];
     if (!allowed.includes(classification)) {
       errors.push(`non-pass assessment Remediation Classification must be one of: ${allowed.join(', ')}`);
-    } else if (nextAction !== REMEDIATION_ACTIONS[classification]) {
+    } else if (requireContractMethod && nextAction !== REMEDIATION_ACTIONS[classification]) {
       errors.push(`Remediation Next action must be "${REMEDIATION_ACTIONS[classification]}"`);
+    } else if (!requireContractMethod && (!nextAction || nextAction === 'None.')) {
+      errors.push('non-pass assessment Remediation Next action must state a concrete next step');
     }
   }
 
@@ -1303,7 +1475,7 @@ function validateAssessmentV2(document, assessmentPath, options = {}) {
       if (['pass', 'fail'].includes(claim.fields.Outcome) &&
           (!claim.evidenceRefs || !claim.evidenceRefs.length)) {
         errors.push(`${claim.id} cannot claim ${claim.fields.Outcome} without per-claim evidence`);
-      } else if (['pass', 'fail'].includes(claim.fields.Outcome) &&
+      } else if (requireContractMethod && ['pass', 'fail'].includes(claim.fields.Outcome) &&
           contractDetails && !contractDetails.errors.length) {
         const observedMethods = new Set(
           evidenceResult.items
@@ -1323,6 +1495,14 @@ function validateAssessmentV2(document, assessmentPath, options = {}) {
   return { errors, warnings, contract, claims: claimResult.items, evidence: evidenceResult.items };
 }
 
+function validateAssessmentV2(document, assessmentPath, options = {}) {
+  return validateAssessmentCurrent(document, assessmentPath, ASSESSMENT_FORMAT_V2, options);
+}
+
+function validateAssessmentV3(document, assessmentPath, options = {}) {
+  return validateAssessmentCurrent(document, assessmentPath, ASSESSMENT_FORMAT_V3, options);
+}
+
 function validateAssessment(document, assessmentPath, options = {}) {
   if (document.metadata.steward_assessment === ASSESSMENT_FORMAT_V1) {
     if (options.forCompletion) {
@@ -1333,7 +1513,16 @@ function validateAssessment(document, assessmentPath, options = {}) {
     }
     return validateAssessmentV1(document);
   }
-  return validateAssessmentV2(document, assessmentPath, options);
+  if (document.metadata.steward_assessment === ASSESSMENT_FORMAT_V2) {
+    return validateAssessmentV2(document, assessmentPath, options);
+  }
+  if (document.metadata.steward_assessment === ASSESSMENT_FORMAT_V3) {
+    return validateAssessmentV3(document, assessmentPath, options);
+  }
+  return {
+    errors: ['steward_assessment must be "1", "2", or "3"'],
+    warnings: [],
+  };
 }
 
 function assessmentCheckCommand(tokens) {
@@ -1358,7 +1547,7 @@ function assessmentCheckCommand(tokens) {
     process.stdout.write(`INVALID ${positional[0]}\n- ${result.errors.join('\n- ')}\n`);
   } else {
     process.stdout.write(
-      `OK assessment format=v${document.metadata.steward_assessment} ` +
+      `STRUCTURALLY OK assessment format=v${document.metadata.steward_assessment} ` +
       `state=${document.metadata.state}` +
       `${document.metadata.change_identity ? ` change=${document.metadata.change_identity}` : ''}\n`,
     );

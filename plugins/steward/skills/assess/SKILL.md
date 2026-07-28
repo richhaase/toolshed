@@ -1,106 +1,83 @@
 ---
 name: assess
 description: >
-  Independently judge an immutable software change against an approved and
-  frozen Steward Markdown contract. Use when the user asks whether a commit,
-  release artifact, or other fixed revision satisfies its ticket, wants
-  claim-level pass/fail/inconclusive outcomes, or needs a provenance-bound
-  assurance report with remediation classification. Do not assess a mutable
-  branch/worktree snapshot, use the builder's private reasoning, or fix the
-  implementation.
+  Independently assess an immutable software change against an approved
+  Steward contract using the strongest proportionate evidence available after
+  construction. Use after any inner builder or workflow finishes, including
+  when evidence differs from what was anticipated. Produce claim-level
+  pass/fail/inconclusive outcomes bound to exact provenance. Do not add
+  criteria, reinterpret the contract, fix the build, or invent validation
+  infrastructure.
 ---
 
 # Assess
 
-Judge observable results against the exact approved contract revision.
+Assess the frozen intent delta after construction. Steward validates what was
+built without owning the inner workflow that built it.
 
 ## Boundaries
 
-- Require an approved ticket whose frozen body hash verifies. Stop if `check`
-  reports a lifecycle or integrity error.
-- Use the ticket, code change, repository state, test output, and other
-  reproducible artifacts. Do not request or accept the builder's chain of
-  thought, hidden scratchpad, or private reasoning as evidence.
-- Do not modify the implementation or ticket. Assessment is independent from
-  building.
-- Evaluate only the frozen claims. Record improvements outside the contract as
-  observations, not as extra pass criteria.
-- Bind the report to an exact commit SHA or equivalent immutable revision,
-  environment/context, and assessor identity. A branch name, `HEAD`, PR number
-  without a fixed head SHA, or "working tree" is not a change identity.
+- Require an approved contract and an immutable change identity.
+- Assess only the frozen `AC<n>` claims. Do not introduce acceptance criteria
+  retrospectively.
+- Select proportionate evidence after construction. For format v3, no
+  predeclared evidence method is required.
+- Do not modify the implementation, contract, tests, environment, or
+  assessment target.
+- Never create monitoring, credentials, diagnostic identities, probes, or
+  product behavior merely to avoid an inconclusive result.
+- Treat approved contracts and completed assessments as immutable.
 
 ## Procedure
 
-1. Read `../../resources/references/contract-format.md`, resolving the path
-   relative to this `SKILL.md`, not the user's current directory. Resolve
-   `../../resources/scripts/steward` the same way to an absolute path and refer
-   to it as `STEWARD_CLI`.
-2. Verify the ticket:
-
-   ```bash
-   node "$STEWARD_CLI" check path/to/ticket.md
-   ```
-
-3. Resolve the immutable change identity before collecting evidence. For Git,
-   record the exact commit SHA actually inspected, not a mutable label.
-4. Create a report scaffold without overwriting an existing report:
+1. Read `../../resources/references/contract-format.md` and resolve
+   `../../resources/scripts/steward` relative to this file.
+2. Run `check` on the contract. Confirm `state: approved` and record its exact
+   revision and frozen body hash.
+3. Resolve the completed change to an immutable identity such as an exact
+   40-character Git commit SHA. Record the environment/context and assessor.
+4. Establish the exact diff and relevant runtime surface without changing
+   them.
+5. Create the assessment:
 
    ```bash
    node "$STEWARD_CLI" assessment path/to/ticket.md \
      --output path/to/assessment.md \
-     --change-id "git:<exact-commit-sha>" \
-     --environment "runtime, OS, checkout and fixture context" \
+     --change-id git:0123456789abcdef0123456789abcdef01234567 \
+     --environment "runtime, OS, fixtures, deployment context" \
      --assessor "Assessor identity"
    ```
 
-5. Inspect the named immutable change and repository instructions. Establish
-   the exact
-   diff and relevant runtime surface.
-6. For each `AC<n>` claim, follow its `EV<n>` methods and relevant `P<n>`
-   scenarios. Add stable assessment evidence blocks (`E<n>`) that name the
-   contract `EV<n>` method, command or artifact, and observed result. Run
-   proportionate, non-destructive checks when authorized.
-7. Assign exactly one outcome:
-   - `pass` — sufficient evidence shows the claim is satisfied.
-   - `fail` — sufficient evidence shows the claim is not satisfied.
-   - `inconclusive` — evidence is missing, conflicting, inaccessible, or cannot
-     distinguish pass from fail.
-8. Reference one or more `E<n>` entries from every pass/fail claim. Record
-   residual uncertainty even for a passing claim; do not use an empty green
-   checkmark as evidence.
-9. Summarize overall status:
-   - `pass` only if every claim passes;
-   - `fail` if any claim fails;
-   - `inconclusive` otherwise.
-10. If status is not pass, choose the primary remediation classification and
-    use the format's required next action:
-    - `implementation-defect`: correct the build under the same frozen
-      contract, assign a new immutable change identity, and reassess;
-    - `contract-defect`: keep the approved artifact unchanged and route to a
-      revised draft, critique, explicit approval, build, and assessment;
-    - `insufficient-or-conflicting-evidence`: collect or reconcile evidence and
-      reassess the same contract/change unless the implementation changes.
-11. List contract-level observations separately from implementation findings.
-    A defect in a frozen claim is not permission to reinterpret or edit it.
-12. Validate and freeze the completed report:
+6. For each frozen claim, choose the strongest proportionate evidence now
+   available. Useful evidence may include:
+   - targeted tests or an existing suite;
+   - static inspection of the exact diff;
+   - browser, API, or command observation;
+   - deployment artifacts or logs; or
+   - a separately recorded operator/client validation.
+7. Record each command or artifact and its observed result as `E<n>`. Link it
+   from the relevant claim outcome. Format-v3 evidence maps directly to claims
+   and has no `EV<n>` backlink.
+8. Assign each claim:
+   - `pass` when observed evidence establishes it;
+   - `fail` when observed evidence contradicts it; or
+   - `inconclusive` when evidence is unavailable, inaccessible, conflicting,
+     environment-dependent, or still awaits an external operator.
+9. Derive Overall from the claim outcomes and record residual uncertainty.
+10. Classify non-pass remediation as `implementation-defect`,
+    `contract-defect`, or `insufficient-or-conflicting-evidence`. Use `none`
+    only when all claims pass. Record a concrete next action without changing
+    the frozen artifact.
+11. Run `assessment-check`, resolve structural or provenance errors, then run
+    `assessment-complete`. Re-run the check and report the immutable assessment
+    hash.
 
-    ```bash
-    node "$STEWARD_CLI" assessment-check path/to/assessment.md
-    node "$STEWARD_CLI" assessment-complete path/to/assessment.md
-    node "$STEWARD_CLI" assessment-check path/to/assessment.md
-    ```
+## Judgment
 
-    Report the contract hash, change identity, assessment hash, outcome, and
-    remediation classification.
-
-## Gotchas
-
-- Absence of a failing test is not evidence of success.
-- A builder's explanation is a lead to verify, never proof.
-- Tests can support a claim without covering it completely. State the uncovered
-  behavior in residual uncertainty.
-- Evidence collected from a different commit or environment does not establish
-  the assessed change. Record the mismatch and use `inconclusive`.
-- A contract defect requires a successor revision even when the implementation
-  appears reasonable. The approved contract remains the audit record.
-- An unrequested beneficial change does not compensate for a failed claim.
+- “Tests pass” is not evidence without the exact command or artifact and the
+  observation relevant to a claim.
+- Repository-wide suites are not automatically stronger than focused evidence.
+- Unrequested improvements and unrelated defects may be recorded as
+  observations, but they do not change claim outcomes.
+- If the contract itself is defective, keep it frozen and route through a new
+  explicitly approved revision.

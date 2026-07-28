@@ -1,96 +1,98 @@
 ---
 name: critique
 description: >
-  Independently review a proposed Steward ticket/contract for ambiguity,
-  broken intent-to-evidence traceability, weak scenario probes, hidden
-  assumptions, scope leaks, untestable acceptance claims, and unsafe
-  non-blocking defaults. Use when the user asks to challenge, review, red-team,
-  or quality-check a software ticket before approval. Produce findings only;
-  do not rewrite, approve, freeze, or implement the ticket.
+  Independently test whether a Steward draft is decision-complete without
+  expanding its requested scope. Use when material ambiguity, coupled outcomes,
+  assessability risk, or a changed authorization, security, privacy, data-loss,
+  migration, or compatibility boundary warrants challenge. Produce a bounded,
+  convergent findings report; do not rewrite, approve, implement, or conduct a
+  general design review.
 ---
 
 # Critique
 
-Challenge the proposed contract as an independent assurance role.
+Challenge scope fidelity, not hypothetical completeness. The contract records
+the minimum decision-complete intent delta; the codebase remains implementation
+context.
 
 ## Boundaries
 
-- Review the contract artifact itself. Do not rely on the framer's private
-  reasoning, builder reasoning, or unstated conversational context.
-- Do not edit the ticket, approve it, or implement it.
-- Do not optimize for the likely builder. The contract must remain sufficient
-  for any capable builder working in the target codebase.
-- Treat an approved contract as frozen. If it has a defect, recommend a new
-  revision rather than changing it.
+- Review the requested delta, not the whole surrounding system.
+- Admit a finding only when a reasonable implementation could satisfy the
+  current text yet violate its outcome, an acceptance claim, or a load-bearing
+  boundary endangered by this change.
+- Implementation preferences, speculative hardening, general best practices,
+  unrelated existing defects, and evidence convenience are not blockers.
+- Do not introduce a subsystem, credential, monitor, product surface,
+  architecture, or follow-up feature absent from the authorized outcome.
+- Treat unchanged behavior as codebase context unless the requested delta
+  plausibly threatens a named invariant.
+- Output only the critique report. Do not create, copy, normalize, rewrite,
+  approve, freeze, or implement a contract artifact. When the contract is
+  supplied inline, review it inline rather than materializing a file.
+
+## Finding classes
+
+- `contract-defect`: the contract needs a minimal revision.
+- `builder-discretion`: the arbitrary inner loop may decide it.
+- `follow-up`: valuable work outside this contract.
+- `residual-uncertainty`: honestly retained without blocking construction.
+- `out-of-scope`: not part of the authorized outcome.
+
+Only `contract-defect` can produce `revise-minimally`.
 
 ## Procedure
 
-1. Read `../../resources/references/contract-format.md`, resolving the path
-   relative to this `SKILL.md`, not the user's current directory. Resolve
-   `../../resources/scripts/steward` the same way to an absolute path and refer
-   to it as `STEWARD_CLI`.
-2. Run:
+1. Read `../../resources/references/contract-format.md` and resolve
+   `../../resources/scripts/steward` relative to this file.
+2. When the user supplies a contract path, run
+   `node "$STEWARD_CLI" check path/to/ticket.md` and report structural or
+   frozen-integrity errors before semantic findings. When the contract is
+   supplied inline, inspect its structure without creating a temporary
+   contract.
+3. Read the contract, the originating request when available, prior critique
+   findings when this is a later pass, and only enough target-codebase evidence
+   to verify a claimed boundary. Do not demand that the contract repeat facts
+   discoverable in the codebase.
+4. A contract defect must establish at least one admissibility condition:
+   - two reasonable compliant implementations produce materially different
+     in-scope outcomes;
+   - a plausible compliant implementation crosses a relevant authorization,
+     privacy, security, data-loss, or compatibility boundary;
+   - an acceptance claim cannot meaningfully receive pass/fail after
+     construction; or
+   - outcome, scope, constraints, and claims contradict one another.
+5. Tie every defect to the exact outcome, claim, or endangered boundary it
+   protects. Describe the plausible compliant-but-wrong interpretation and the
+   smallest resolution.
+6. Classify other concerns rather than turning them into requirements. Do not
+   report an exhaustive inventory of non-blocking observations.
+7. Prefer deletion, local clarification, or splitting over additional
+   specification. Report at most the three highest-impact contract defects. If
+   more are necessary, recommend `split`.
+8. One full critique is the default. A later pass reviews changed text,
+   unresolved findings, and materially new evidence only. Do not introduce a
+   new concern class against unchanged text without materially new evidence.
+9. Stop when remaining concerns are builder choices, follow-ups, residual
+   uncertainty, or out of scope.
 
-   ```bash
-   node "$STEWARD_CLI" check path/to/ticket.md
-   ```
+## Report
 
-   Report structural or frozen-integrity failures first.
-3. Read only the ticket and any evidence sources explicitly named in it.
-4. Test each part for:
-   - ambiguous terms, actors, boundaries, quantities, and failure behavior;
-   - assumptions disguised as facts or requirements;
-   - an intent without requirements, a requirement without claims, a claim
-     without direct intent/requirement links, or a claim without usable
-     evidence;
-   - acceptance claims that are compound, subjective, circular, or untestable;
-   - evidence plans that do not identify an observable artifact or procedure;
-   - probe sets that omit normal, important boundary/failure, or accepted
-     tradeoff behavior; probes that are implementation-centric, exhaustive
-     theater, or disconnected from their claim/evidence references;
-   - missing migration, compatibility, security, privacy, observability, and
-     rollback behavior when it materially affects intent;
-   - a purportedly non-blocking unknown whose owner, decision trigger, safe
-     default, or assessment rationale is missing or implausible;
-   - conflicts among intent, scope, constraints, and claims;
-   - implementation prescriptions that are not genuine constraints.
-5. Render a concise report:
+```markdown
+# Contract critique
 
-   ```markdown
-   # Contract critique
+Contract: <id>@<revision>
+Recommendation: ready | revise-minimally | split
 
-   Contract: <id>@<revision>
-   Recommendation: ready-for-approval | revise
+## Contract defects
+| Location | Plausible compliant-but-wrong result | Protected outcome or boundary | Minimal resolution |
 
-   ## Findings
-   | Severity | Location | Finding | Why it matters | Suggested resolution |
+## Non-blocking disposition
+| Concern | Classification | Rationale |
 
-   ## Unresolved assumptions
-   - ...
+## Residual uncertainty
+- ...
+```
 
-   ## Evidence gaps
-   - ...
-
-   ## Probe and unknown review
-   - ...
-
-   ## Residual uncertainty
-   - ...
-   ```
-
-6. Use severities `blocker`, `major`, and `minor`. Prefer a few precise
-   findings over generic advice. If no material issue is found, say so and
-   still list residual uncertainty.
-
-## Gotchas
-
-- A structurally valid ticket can still be a poor contract.
-- Do not turn preferences into blockers. Tie each finding to an observable
-  ambiguity, risk, contradiction, or assessment failure.
-- Do not demand an exhaustive scenario inventory. Ask whether the few selected
-  probes expose the decisions most likely to reveal misunderstood intent.
-- A non-blocking unknown is acceptable when its safe default is explicit and
-  the frozen claims remain assessable. Classify it as blocking only when the
-  evidence cannot distinguish satisfaction from failure.
-- Do not silently resolve findings. The scope owner decides which changes enter
-  the next draft.
+Use `ready` when no contract defect remains. Minor wording preferences and
+residual uncertainty do not force revision.

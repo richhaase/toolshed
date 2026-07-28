@@ -124,11 +124,11 @@ the explicit validation and privacy commands required by the workflow above.
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.
 - **steward** — Portable intent-and-assurance contracts for software work.
-  Three separated roles: `frame` drafts and freezes explicitly approved
-  Markdown tickets, `critique` independently challenges proposed tickets, and
-  `assess` judges completed changes claim by claim against the frozen revision.
-  A dependency-free local CLI owns the deterministic lifecycle; builders need
-  only the ticket in their codebase.
+  A thin outer loop around arbitrary construction workflows: `frame` freezes
+  the minimum decision-complete intent delta, `critique` conditionally
+  challenges material ambiguity without expanding scope, and `assess` judges
+  immutable changes claim by claim using proportionate post-build evidence.
+  A dependency-free local CLI owns the deterministic lifecycle.
 
 ## Portability rules
 

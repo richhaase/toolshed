@@ -88,13 +88,39 @@ function makeV2Ready(file) {
 
 function createReadyV2(directory, name = 'greeting.r1.md') {
   const ticket = path.join(directory, name);
-  run(['create', ticket, '--id', 'greeting', '--title', 'Add greeting option']);
+  run(['create', ticket, '--id', 'greeting', '--title', 'Add greeting option', '--format', '2']);
   makeV2Ready(ticket);
   return ticket;
 }
 
 function approveV2(directory, name = 'greeting.r1.md') {
   const ticket = createReadyV2(directory, name);
+  run(['approve', ticket, '--by', 'Scope Owner']);
+  return ticket;
+}
+
+function makeV3Ready(file) {
+  replaceInFile(file, [
+    [
+      'TODO: State the requested user or business result.',
+      'Users can obtain a deterministic greeting.',
+    ],
+    [
+      '- AC1: TODO: State an observable result that distinguishes success from failure.',
+      '- AC1: Running with --greet Ada prints Hello, Ada.',
+    ],
+  ]);
+}
+
+function createReadyV3(directory, name = 'greeting-v3.r1.md') {
+  const ticket = path.join(directory, name);
+  run(['create', ticket, '--id', 'greeting-v3', '--title', 'Add lean greeting option']);
+  makeV3Ready(ticket);
+  return ticket;
+}
+
+function approveV3(directory, name = 'greeting-v3.r1.md') {
+  const ticket = createReadyV3(directory, name);
   run(['approve', ticket, '--by', 'Scope Owner']);
   return ticket;
 }
@@ -176,6 +202,23 @@ function scaffoldAssessment(contract, assessment) {
     'Node 24 on synthetic fixtures in a clean checkout',
     '--assessor',
     'Independent Assessor',
+    '--format',
+    '2',
+  ]);
+}
+
+function scaffoldAssessmentV3(contract, assessment) {
+  run([
+    'assessment',
+    contract,
+    '--output',
+    assessment,
+    '--change-id',
+    gitIdentity,
+    '--environment',
+    'Node 24 on synthetic fixtures in a clean checkout',
+    '--assessor',
+    'Independent Assessor',
   ]);
 }
 
@@ -227,6 +270,227 @@ function makeAssessmentFail(file, classification, action) {
   ]);
 }
 
+function makeAssessmentV3Pass(file) {
+  replaceInFile(file, [
+    ['Outcome: inconclusive', 'Outcome: pass'],
+    ['- Outcome: inconclusive', '- Outcome: pass'],
+    ['- Evidence: None.', '- Evidence: E1'],
+    [
+      '- Residual uncertainty: Evidence has not yet been collected.',
+      '- Residual uncertainty: Name encoding outside the contract remains unassessed.',
+    ],
+    [
+      '## Evidence log\n\n- None.',
+      `## Evidence log
+
+### E1
+- Command or artifact: \`node --test greeting.test.js\` at ${gitIdentity}
+- Observation: The Ada scenario printed Hello, Ada and exited 0.`,
+    ],
+    ['- Assessment is incomplete.', '- Name encoding outside the contract remains unassessed.'],
+    ['Classification: insufficient-or-conflicting-evidence', 'Classification: none'],
+    [`Next action: ${remediationActions.evidence}`, `Next action: ${remediationActions.none}`],
+  ]);
+}
+
+test('format v3 defaults to a lean contract and preserves frozen integrity', (t) => {
+  const directory = workspace(t);
+  const ticket = path.join(directory, 'lean.r1.md');
+  run(['create', ticket, '--id', 'lean', '--title', 'Lean contract']);
+
+  const draft = fs.readFileSync(ticket, 'utf8');
+  assert.match(draft, /^steward_contract: "3"$/m);
+  assert.match(draft, /^## Outcome$/m);
+  assert.match(draft, /^## Acceptance$/m);
+  assert.doesNotMatch(draft, /^## (?:Requirements|Evidence plan|Intent probes)$/m);
+
+  const check = JSON.parse(run(['check', ticket, '--json']).stdout);
+  assert.equal(check.structurally_valid, true);
+  assert.equal(check.valid, true);
+  assert.equal(check.metrics.acceptance_claims, 1);
+  assert.match(run(['approve', ticket, '--by', 'Owner'], 1).stderr, /placeholders/);
+
+  makeV3Ready(ticket);
+  assert.match(run(['check', ticket]).stdout, /^STRUCTURALLY OK /);
+  run(['approve', ticket, '--by', 'Scope Owner']);
+  replaceInFile(ticket, [['Users can obtain', 'Users might obtain']]);
+  const tampered = JSON.parse(run(['check', ticket, '--json'], 1).stdout);
+  assert.ok(tampered.errors.includes('approved contract body differs from its frozen_body_sha256'));
+});
+
+test('format v3 accepts only ordered optional sections and plain unique claims', async (t) => {
+  await t.test('optional context and scope remain structurally valid', () => {
+    const directory = workspace(t);
+    const ticket = createReadyV3(directory);
+    replaceInFile(ticket, [[
+      '## Acceptance',
+      `## Context
+
+The current command prints plain text.
+
+## Scope
+
+### Change
+
+- Add a greeting flag.
+
+### Preserve
+
+- Existing output without the flag.
+
+### Not in scope
+
+- Localization.
+
+## Acceptance`,
+    ]]);
+    run(['check', ticket]);
+  });
+
+  await t.test('duplicate, unknown, and reordered H2 sections fail', () => {
+    const directory = workspace(t);
+    const duplicate = createReadyV3(directory, 'duplicate.md');
+    replaceInFile(duplicate, [['## Acceptance', '## Outcome\n\nRepeated.\n\n## Acceptance']]);
+    assert.match(run(['check', duplicate], 1).stdout, /duplicate H2 section/);
+
+    const unknown = createReadyV3(directory, 'unknown.md');
+    replaceInFile(unknown, [['## Acceptance', '## Architecture\n\nNone.\n\n## Acceptance']]);
+    assert.match(run(['check', unknown], 1).stdout, /unknown format-v3 H2 section/);
+
+    const reordered = createReadyV3(directory, 'reordered.md');
+    replaceInFile(reordered, [[
+      '## Outcome\n\nUsers can obtain a deterministic greeting.\n\n## Acceptance',
+      '## Acceptance',
+    ], [
+      '- AC1: Running with --greet Ada prints Hello, Ada.',
+      '- AC1: Running with --greet Ada prints Hello, Ada.\n\n## Outcome\n\nUsers can obtain a deterministic greeting.',
+    ]]);
+    assert.match(run(['check', reordered], 1).stdout, /must follow this order/);
+  });
+
+  await t.test('duplicate claims and unresolved questions fail', () => {
+    const directory = workspace(t);
+    const duplicate = createReadyV3(directory, 'duplicate-claim.md');
+    replaceInFile(duplicate, [[
+      '- AC1: Running with --greet Ada prints Hello, Ada.',
+      '- AC1: Running with --greet Ada prints Hello, Ada.\n- AC1: Running with --greet Lin prints Hello, Lin.',
+    ]]);
+    assert.match(run(['check', duplicate], 1).stdout, /duplicate acceptance claim/);
+
+    const untracked = createReadyV3(directory, 'untracked-acceptance.md');
+    replaceInFile(untracked, [[
+      '- AC1: Running with --greet Ada prints Hello, Ada.',
+      '- AC1: Running with --greet Ada prints Hello, Ada.\n- Existing behavior must remain unchanged.',
+    ]]);
+    assert.match(run(['check', untracked], 1).stdout, /may contain only single-line/);
+
+    const question = createReadyV3(directory, 'question.md');
+    replaceInFile(question, [[
+      '- AC1: Running with --greet Ada prints Hello, Ada.',
+      '- AC1: Running with --greet Ada prints Hello, Ada.\n\n## Open questions\n\n- Which greeting language?',
+    ]]);
+    assert.match(run(['approve', question, '--by', 'Owner'], 1).stderr, /Open questions/);
+  });
+});
+
+test('format v3 assessment selects post-build evidence without EV methods', (t) => {
+  const directory = workspace(t);
+  const contract = approveV3(directory);
+  const assessment = path.join(directory, 'assessment-v3.md');
+  scaffoldAssessmentV3(contract, assessment);
+
+  const scaffold = fs.readFileSync(assessment, 'utf8');
+  assert.match(scaffold, /^steward_assessment: "3"$/m);
+  assert.doesNotMatch(scaffold, /Contract method:/);
+  makeAssessmentV3Pass(assessment);
+  run(['assessment-complete', assessment]);
+
+  const completed = JSON.parse(run(['assessment-check', assessment, '--json']).stdout);
+  assert.equal(completed.valid, true);
+  assert.equal(completed.format, '3');
+  assert.equal(completed.state, 'completed');
+  const incompatible = path.join(directory, 'assessment-v2.md');
+  assert.match(
+    run([
+      'assessment',
+      contract,
+      '--output',
+      incompatible,
+      '--change-id',
+      gitIdentity,
+      '--environment',
+      'Synthetic',
+      '--assessor',
+      'Assessor',
+      '--format',
+      '2',
+    ], 1).stderr,
+    /format v2 requires a format-v2 contract/,
+  );
+});
+
+test('format-v2 contracts preserve EV assessment semantics by default', (t) => {
+  const directory = workspace(t);
+  const contract = approveV2(directory);
+  const assessment = path.join(directory, 'assessment-v2-default.md');
+  scaffoldAssessmentV3(contract, assessment);
+  assert.match(fs.readFileSync(assessment, 'utf8'), /^steward_assessment: "2"$/m);
+
+  const incompatible = path.join(directory, 'assessment-v3.md');
+  assert.match(
+    run([
+      'assessment',
+      contract,
+      '--output',
+      incompatible,
+      '--change-id',
+      gitIdentity,
+      '--environment',
+      'Synthetic',
+      '--assessor',
+      'Assessor',
+      '--format',
+      '3',
+    ], 1).stderr,
+    /format-v2 contracts require assessment v2/,
+  );
+});
+
+test('approved legacy contract can start a blank format-v3 successor with lineage', (t) => {
+  const directory = workspace(t);
+  const contract = approveV2(directory);
+  const successor = path.join(directory, 'greeting.r2.md');
+  run(['create', successor, '--from', contract, '--format', '3']);
+  const draft = fs.readFileSync(successor, 'utf8');
+  assert.match(draft, /^steward_contract: "3"$/m);
+  assert.match(draft, /^revision: 2$/m);
+  assert.match(draft, /^supersedes: "greeting@1"$/m);
+  assert.match(draft, /^## Outcome$/m);
+  assert.doesNotMatch(draft, /^## Requirements$/m);
+  makeV3Ready(successor);
+  run(['approve', successor, '--by', 'Scope Owner']);
+
+  const assessment = path.join(directory, 'assessment-v3.md');
+  scaffoldAssessmentV3(successor, assessment);
+  makeAssessmentV3Pass(assessment);
+  run(['assessment-complete', assessment]);
+  assert.equal(JSON.parse(run(['assessment-check', assessment, '--json']).stdout).valid, true);
+});
+
+test('compare reports format-v3 contract growth without blocking approval', (t) => {
+  const directory = workspace(t);
+  const first = approveV3(directory, 'growth.r1.md');
+  const second = path.join(directory, 'growth.r2.md');
+  run(['create', second, '--from', first]);
+  replaceInFile(second, [[
+    '- AC1: Running with --greet Ada prints Hello, Ada.',
+    '- AC1: Running with --greet Ada prints Hello, Ada.\n- AC2: Running with --greet Lin prints Hello, Lin.',
+  ]]);
+  const compared = JSON.parse(run(['compare', first, second, '--json']).stdout);
+  assert.equal(compared.metric_delta.acceptance_claims, 1);
+  assert.ok(compared.metric_delta.body_words > 0);
+});
+
 test('format v2 creates a traced draft, approves it, and detects frozen-body tampering', (t) => {
   const directory = workspace(t);
   const ticket = createReadyV2(directory);
@@ -249,10 +513,10 @@ test('format v2 creates a traced draft, approves it, and detects frozen-body tam
   assert.ok(invalid.errors.includes('approved contract body differs from its frozen_body_sha256'));
 });
 
-test('shipped format-v2 example remains structurally valid', () => {
+test('shipped format-v3 example remains structurally valid', () => {
   const result = JSON.parse(run(['check', exampleContract, '--json']).stdout);
   assert.equal(result.valid, true);
-  assert.equal(result.format, '2');
+  assert.equal(result.format, '3');
   assert.equal(result.state, 'draft');
 });
 

@@ -1,0 +1,107 @@
+{
+  "skill_name": "steward",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use Steward Frame for this request: On the empty Sources page, change the title from “No sources found” to “No sources yet.” Nothing else changes. Draft only; do not approve or implement.",
+      "expected_output": "A tiny format-v3 contract with the requested outcome and one or two acceptance claims, without critique ceremony or an implementation plan.",
+      "files": [],
+      "expectations": [
+        "The body contains Outcome and Acceptance and is no more than 150 words.",
+        "The contract contains one or two AC identifiers and no I, R, EV, or P identifiers.",
+        "The contract does not invent analytics, localization, accessibility, migration, monitoring, or redesign work.",
+        "The contract contains no evidence plan, probe inventory, risk inventory, or open question."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use Steward Frame for this request: Consolidate the two duplicate role-expression parsers into one shared implementation. This is an internal refactor: supported inputs, parsed results, and error behavior must remain unchanged. Draft only; do not approve or implement.",
+      "expected_output": "A concise preservation contract that records the behavior boundary without choosing modules, APIs, dependencies, rollout mechanics, or test files.",
+      "files": [],
+      "expectations": [
+        "The contract contains one to three acceptance claims and is no more than 250 words.",
+        "At least one claim preserves observable parsing results and error behavior.",
+        "The contract does not prescribe a module, function signature, dependency direction, rollout plan, or test filename.",
+        "The response does not require an independent critique for this routine refactor."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use Steward Critique on this draft. Outcome: Division administrators can export employees from the division they administer. Scope: preserve the invariant that division administrators cannot access employees outside their administered divisions. Acceptance: AC1 says a division administrator can download the employee CSV for an administered division. Produce findings only.",
+      "expected_output": "A revise-minimally recommendation with one contract defect: the named authorization invariant needs an observable negative acceptance claim.",
+      "files": [],
+      "expectations": [
+        "The recommendation is revise-minimally.",
+        "The report contains one contract defect and no more than two findings total.",
+        "The defect explicitly protects the administered-division authorization boundary.",
+        "The minimal resolution is a negative claim that denies an out-of-scope division without exposing its employee data.",
+        "The critique does not demand rate limiting, audit storage, encryption changes, JWT changes, monitoring, rollback, browser matrices, or CSV formatting details."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Use Steward Frame for this request: Show Slack integration status in admin. Use configuration and ordinary route-health information only when it already exists. Label configured state as “Configured,” not “Connected.” Do not add synthetic monitoring, a server-held diagnostic identity, credentials, or a live Slack probe. Real authenticated usability is validated separately by an operator using Slack. Draft only.",
+      "expected_output": "A small contract describing honest status labels, available health evidence, and the external validation boundary without inventing observability infrastructure.",
+      "files": [],
+      "expectations": [
+        "The contract has two to four acceptance claims and is no more than 400 words.",
+        "It distinguishes configured state from authenticated usability.",
+        "A lack of existing route-health evidence is not labeled unreachable or broken.",
+        "It adds no monitoring, credentials, diagnostic identity, live API call, or background job.",
+        "Separate operator validation remains an external boundary rather than an automated contract requirement."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Use Steward Frame for this synthetic regression: reshape integration administration around endpoint-owned surfaces. The overview owns shared status and safe next actions. Records detail preserves deployed operator controls and authorization/publication safety. Search detail exposes only real endpoint controls. Video gets no detail page until it owns meaningful controls. Connections, Access Policy, Chat Gateway, and audit/token/security remain shared. Direct links, reload, history, fallback, permissions, and no protected-content flash must remain safe. Status labels must distinguish configured from authenticated usability. Decide the consumer-backed target and migration behavior for display name, owner contacts, and freshness settings. Do not add synthetic monitoring, canaries, diagnostic identities, credentials, live protocol probes, or a monitoring subsystem; real authenticated validation is performed separately by an operator/client. Draft only.",
+      "expected_output": "A bounded format-v3 umbrella contract or a split recommendation that preserves the product decisions without becoming an endpoint, permission, component, or test matrix.",
+      "files": [],
+      "expectations": [
+        "The result has no more than eight acceptance claims and no more than 1100 body words, or recommends a small outcome-oriented split.",
+        "It covers shared overview, Records detail preservation, real Search controls, no premature Video detail, shared administration, navigation and authorization safety, honest status labels, and consumer-backed settings migration.",
+        "It adds no canary, diagnostic principal, credential, authenticated server probe, live protocol call, or monitoring subsystem.",
+        "It does not enumerate every endpoint, permission, component, response code, test case, or currently deployed control.",
+        "If critique is recommended, it is targeted to a demonstrable ambiguity or changed safety boundary."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Use Steward Frame for this request: Replace the admin application with the new design system, migrate every page, redesign navigation, improve performance, preserve all permissions, add analytics, and clean up the routing architecture. Draft only.",
+      "expected_output": "A split recommendation with a small number of outcome-oriented slices rather than a giant monolithic contract.",
+      "files": [],
+      "expectations": [
+        "The recommendation is split rather than approval-ready.",
+        "The response proposes no more than five outcome-oriented slices and no more than three material owner questions.",
+        "It does not fabricate a performance threshold, analytics taxonomy, rollout mechanism, component API, or permission model.",
+        "It does not generate more than seven provisional acceptance claims.",
+        "It explains which unresolved product decisions prevent meaningful assessment."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Use Steward Critique for a delta-only second pass. The prior finding was that “filters are restored” did not say whether sort order was included. The revised contract says: Outcome: Returning from employee detail restores the employee-list view. AC1: Browser Back restores the search text, selected status filters, sort field, and sort direction that were active when detail was opened. AC2: Loading an employee-detail URL directly continues to work. No repository or product evidence has changed since the first pass.",
+      "expected_output": "A ready recommendation that recognizes the prior ambiguity is resolved and does not restart a general completeness review.",
+      "files": [],
+      "expectations": [
+        "The recommendation is ready with zero blocker or major findings.",
+        "The report recognizes that the prior ambiguity is resolved.",
+        "It does not newly demand scroll restoration, pagination, mobile behavior, analytics, accessibility, performance budgets, browser matrices, telemetry, or rollback.",
+        "Any residual uncertainty is explicitly non-blocking.",
+        "The critique outputs findings only and does not create, copy, or rewrite a contract artifact."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Use Steward Assess. The approved contract has AC1: Browser Back restores search text, selected status filters, sort field, and sort direction; and AC2: loading an employee-detail URL directly continues to work. The immutable post-build evidence pack contains a Playwright trace establishing AC1 and an existing route integration test establishing AC2. No evidence methods were declared before construction. Produce the claim-level assessment only; do not modify the implementation.",
+      "expected_output": "A passing assessment for exactly AC1 and AC2 using the strongest post-build evidence without requiring predeclared EV methods or inventing new criteria.",
+      "files": [],
+      "expectations": [
+        "The assessment reports exactly AC1 and AC2 and records the supplied trace and test against the relevant claims.",
+        "Both claims pass when the supplied artifacts substantiate them.",
+        "The absence of predeclared EV identifiers does not cause failure or downgrade.",
+        "The assessment introduces no cross-browser, analytics, accessibility, or performance criteria.",
+        "Unavailable or inadequate evidence would produce inconclusive rather than a guessed result."
+      ]
+    }
+  ]
+}

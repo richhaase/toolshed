@@ -1,13 +1,13 @@
 {
   "name": "steward",
-  "version": "0.2.0",
-  "description": "Separate intent and assurance from software construction with traced, approved Markdown contracts. Frame maps intent through claims and evidence, critique independently challenges the proposal, and assess binds claim outcomes to an immutable change with remediation routing.",
+  "version": "0.3.0",
+  "description": "A thin outer loop for any software workflow. Freeze the minimum decision-complete intent delta, conditionally critique material ambiguity without expanding scope, and assess an immutable change using proportionate post-build evidence.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["contracts", "tickets", "requirements", "traceability", "assurance", "assessment", "software-delivery"],
+  "keywords": ["contracts", "tickets", "intent", "scope", "assurance", "assessment", "software-delivery"],
   "skills": "./skills/"
 }
