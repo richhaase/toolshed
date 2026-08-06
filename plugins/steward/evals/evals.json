@@ -102,6 +102,45 @@
         "The assessment introduces no cross-browser, analytics, accessibility, or performance criteria.",
         "Unavailable or inadequate evidence would produce inconclusive rather than a guessed result."
       ]
+    },
+    {
+      "id": 9,
+      "prompt": "Use Steward Assess. An approved synthetic contract has AC1: the settings page explains the new archive behavior; and AC2: every production workspace has the archive feature enabled. The immutable change and a focused test establish AC1. Establishing AC2 requires privileged production configuration access that neither the assessor nor implementer has. The implementer documented that an authorized operator must perform the check. Produce the claim-level assessment only.",
+      "expected_output": "AC1 passes on the supplied implementation evidence. AC2 is inconclusive with a separate external-operator validation note and a concise validation task for the scope owner/user, not an implementation failure.",
+      "files": [],
+      "expectations": [
+        "The assessment classifies AC1 as PR/implementation-verifiable and AC2 as external/operator-only.",
+        "AC1 passes and AC2 is labeled inconclusive — external operator validation required.",
+        "The implementer is not assigned the production check and missing privileged access is not classified as an implementation defect.",
+        "The assessment surfaces one concise operator-validation question or task to the scope owner/user without guessing an individual owner.",
+        "Overall is inconclusive and remediation is insufficient-or-conflicting-evidence because no claim fails."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Use Steward Assess. A frozen synthetic claim says: AC1: each failed delivery increments an operational counter grouped only by channel. The immutable change emits the repository's established bounded structured event for log-derived counters. Repository documentation says this is the conventional metrics path and that no direct metrics client or listener exists. Evidence establishes the emitted event but does not observe the downstream counter. The contract does not prescribe a metrics transport. The builder explains that adding a direct client would create new infrastructure. Produce the claim-level assessment only.",
+      "expected_output": "A mixed/ambiguous, inconclusive assessment that treats the repository's engineering constraints as evidence, does not retroactively require a direct metrics client, and asks the scope owner whether the established log-derived path satisfies the frozen counter outcome or requires separate observation.",
+      "files": [],
+      "expectations": [
+        "The claim is classified as mixed/ambiguous because implementation evidence exists but the observable counter has not been established.",
+        "The assessment does not mandate a direct metrics client, listener, transport, or other mechanism absent from the frozen claim.",
+        "The builder's engineering rationale is considered but does not by itself pass or waive AC1.",
+        "The assessor raises one concise outcome-versus-mechanism question to the scope owner/user and leaves AC1 inconclusive pending resolution or observation.",
+        "The result is insufficient-or-conflicting-evidence rather than an implementation defect unless evidence actually contradicts the frozen counter outcome."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Use Steward Assess. An approved synthetic contract has AC1: an unauthorized workspace member cannot export another workspace's records. The immutable diff leaves the export authorization check absent, and a targeted test at the exact change identity observes that the unauthorized request returns the records. The implementer says adding the check is difficult and should be deferred. Produce the claim-level assessment only.",
+      "expected_output": "A failed AC1 and overall failure classified as an implementation defect, because exact evidence contradicts an explicit in-scope frozen outcome despite the implementer's engineering concern.",
+      "files": [],
+      "expectations": [
+        "AC1 is classified as PR/implementation-verifiable and fails on the supplied contradictory evidence.",
+        "The implementer's difficulty or deferral rationale does not waive the explicit frozen authorization outcome.",
+        "Overall is fail and remediation is implementation-defect with a concrete in-scope next action.",
+        "The assessment does not downgrade the contradiction to inconclusive or route it as an external operator check.",
+        "No additional acceptance criteria or implementation mechanisms are invented."
+      ]
     }
   ]
 }
