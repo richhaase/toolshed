@@ -143,10 +143,14 @@ Do this before reading synthesis inputs or writing any output.
    ```bash
    COMPILE_SNAPSHOT="$(../_shared/scripts/compile-output-guard begin --root "$MEMENTO_ROOT")" || exit $?
    ```
-   In a Git-backed Memento, `begin` refuses to run when `AGENTS.md`, `wiki/`, or
-   `sources/eval/runs/` is already dirty, or when the index already contains
-   staged work. This clean-output invariant prevents a compile from committing
-   or erasing pre-existing edits. It also rejects symlinked generated surfaces.
+   In a Git-backed Memento, `begin` refuses to run when `AGENTS.md` or `wiki/`
+   is already dirty, or when the index already contains
+   staged work. Unstaged and untracked paths outside those generated surfaces
+   do not block compile; in particular, unrelated `outputs/` work is ignored.
+   Existing append-only `sources/eval/runs/` telemetry is allowed, included in
+   the snapshot, and committed with the new run telemetry. This invariant
+   prevents a compile from committing or erasing ambiguous generated edits. It
+   also rejects symlinked generated surfaces.
    In every Memento, including non-Git roots, it snapshots `AGENTS.md` and
    `wiki/` outside the root so a failed run can restore their exact pre-run state.
 3. On any failure after this point, restore before reporting the error:
@@ -315,7 +319,7 @@ staging, the commit subject/body shape, and failure handling. Headline rules:
 
 - Skip silently when not in a git repo; report `commit: skipped (not a git repo)`.
 - **Only commit if Step 7.5 passed, was advisory, or reported `ungated`** — on a gate fail the compile was rolled back, so there is nothing to commit.
-- Stage `wiki/`, `AGENTS.md`, **and `sources/eval/runs/`** (the eval verdict telemetry for this run — the only `sources/` path compile stages).
+- Stage `wiki/`, `AGENTS.md`, **and `sources/eval/runs/`** (append-only eval verdict telemetry, including any pre-existing uncommitted run records — the only `sources/` path compile stages).
 - Verify the staged path list contains only `AGENTS.md`, `wiki/...`, and
   `sources/eval/runs/...` before committing. The Step -1 clean-index invariant
   makes any other staged path a compile bug; stop and leave the snapshot intact

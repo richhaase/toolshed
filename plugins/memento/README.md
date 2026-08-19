@@ -96,7 +96,8 @@ Bundled scripts:
   marker, relative, tilde, fallback, allow-missing, and failure behavior.
 - `skills/_shared/scripts/memento-run <command>` runs a command from the resolved Memento root.
 - `skills/_shared/scripts/compile-output-guard` rejects dirty generated
-  surfaces, snapshots compile output, and restores it on failure;
+  wiki/hot-set surfaces, allows unrelated worktree changes, preserves existing
+  append-only eval telemetry, snapshots compile output, and restores it on failure;
   `--self-test` exercises non-Git restoration and the Git dirty-output gate.
 - `skills/_shared/scripts/eval-score` (node) — the deterministic golden-query scorer behind the eval gate. `compile` runs it before committing; `health-check eval` runs it read-only on demand. Emits the verdict contract; `--self-test` proves it fails a poisoned hot set.
 

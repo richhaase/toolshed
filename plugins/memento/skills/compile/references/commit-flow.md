@@ -19,15 +19,18 @@ git -C "$MEMENTO_ROOT" rev-parse --is-inside-work-tree 2>/dev/null
 ## Commit flow (when in a git repo)
 
 The Step -1 output guard has already required a clean Git index and clean
-`AGENTS.md`, `wiki/`, and `sources/eval/runs/` paths. Do not skip that preflight;
-it is what makes the scoped directory pathspecs below safe.
+`AGENTS.md` and `wiki/` paths. Unrelated unstaged or untracked paths are allowed.
+Existing append-only `sources/eval/runs/` telemetry is snapshot-preserved and
+intentionally adopted into the compile commit. Do not skip that preflight; it is
+what makes the scoped directory pathspecs below safe.
 
 1. Stage compile output:
    ```bash
    git -C "$MEMENTO_ROOT" add wiki/ AGENTS.md sources/eval/runs/
    ```
    `sources/eval/runs/` is the only `sources/` path compile stages; it records
-   the Step 7.5 verdict. Compile requires canonical `AGENTS.md`; migrate old
+   Step 7.5 verdicts and may contain append-only telemetry left by an earlier
+   interrupted run. Compile requires canonical `AGENTS.md`; migrate old
    `CLAUDE.md`-only Mementos with `memento-config` before running it.
 2. Verify the staged scope before committing:
    ```bash

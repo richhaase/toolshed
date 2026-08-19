@@ -8,9 +8,11 @@ Usage: compile-output-guard begin --root <memento-root>
        compile-output-guard cleanup --snapshot <snapshot-dir>
        compile-output-guard --self-test
 
-Protect AGENTS.md and wiki/ during a compile. `begin` refuses dirty generated
-outputs or a pre-populated Git index, snapshots the current outputs, and prints
-the snapshot directory. `restore` replaces generated outputs from that snapshot.
+Protect AGENTS.md, wiki/, and eval-run telemetry during a compile. `begin`
+refuses dirty generated outputs or a pre-populated Git index, snapshots the
+current outputs, and prints the snapshot directory. Unrelated dirty paths and
+existing append-only eval telemetry are allowed. `restore` replaces generated
+outputs from that snapshot.
 `cleanup` removes a successful run's snapshot.
 EOF
 }
@@ -36,9 +38,9 @@ begin_guard() {
   if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     git -C "$root" diff --cached --quiet \
       || die "Git index already has staged changes; commit or unstage them before compiling"
-    dirty="$(git -C "$root" status --porcelain -- AGENTS.md wiki/ sources/eval/runs/)"
+    dirty="$(git -C "$root" status --porcelain -- AGENTS.md wiki/)"
     [[ -z "$dirty" ]] \
-      || die "generated outputs or eval-run telemetry are dirty; preserve or commit them before compiling:\n$dirty"
+      || die "generated outputs are dirty; preserve or commit them before compiling:\n$dirty"
   fi
 
   snapshot="$(mktemp -d "${TMPDIR:-/tmp}/memento-compile.XXXXXX")"
@@ -51,6 +53,11 @@ begin_guard() {
   if [[ -d "$root/wiki" ]]; then
     : > "$snapshot/had-wiki"
     cp -pR "$root/wiki" "$snapshot/wiki"
+  fi
+  if [[ -d "$root/sources/eval/runs" ]]; then
+    mkdir -p "$snapshot/sources/eval"
+    : > "$snapshot/sources/eval/had-eval-runs"
+    cp -pR "$root/sources/eval/runs" "$snapshot/sources/eval/runs"
   fi
   printf '%s\n' "$snapshot"
 }
@@ -85,6 +92,12 @@ restore_guard() {
   root="$(canonical_dir "$root")" || die "snapshot root no longer exists: $root"
   restore_one "$root" "$snapshot" AGENTS.md had-agents
   restore_one "$root" "$snapshot" wiki had-wiki
+  if [[ -e "$snapshot/sources/eval/had-eval-runs" ]]; then
+    mkdir -p "$root/sources/eval"
+    restore_one "$root/sources/eval" "$snapshot/sources/eval" runs had-eval-runs
+  else
+    rm -rf -- "$root/sources/eval/runs"
+  fi
 }
 
 cleanup_guard() {
@@ -144,6 +157,14 @@ self_test() {
     [[ $rc -eq 73 ]] || { printf 'self-test: dirty-output exit was %s, expected 73\n' "$rc" >&2; return 1; }
 
     git -C "$root" checkout -q -- AGENTS.md
+    mkdir -p "$root/sources/eval/runs"
+    printf 'existing telemetry\n' > "$root/sources/eval/runs/today.jsonl"
+    snapshot="$("$script" begin --root "$root")"
+    printf 'new telemetry\n' >> "$root/sources/eval/runs/today.jsonl"
+    "$script" restore --snapshot "$snapshot"
+    grep -qx 'existing telemetry' "$root/sources/eval/runs/today.jsonl"
+    "$script" cleanup --snapshot "$snapshot"
+
     printf 'unrelated\n' > "$root/unrelated.md"
     git -C "$root" add unrelated.md
     set +e
