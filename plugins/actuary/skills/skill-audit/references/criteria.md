@@ -207,8 +207,18 @@ produce a single craft "score" — list the findings.
 - **Positive instructions over prohibitions.** OpenAI Custom GPT guide:
   prefer "Do X" over long lists of "Don't do Y." Flag bodies where prohibition
   lines outweigh procedure lines.
-- **No ALL-CAPS shouting.** skill-creator: "ALL-CAPS `MUST`/`ALWAYS` is a
-  yellow flag — reframe and explain why."
+- **No ALL-CAPS shouting.** skill-creator: "If you find yourself writing
+  ALWAYS or NEVER in all caps, or using super rigid structures, that's a
+  yellow flag — if possible, reframe and explain the reasoning." A yellow
+  flag is a signal to check, not an automatic defect. Fire this key when
+  caps are the body's habitual register, or when they stand in for a reason
+  the body never gives ("heavy-handed musty MUSTs"). Do not fire on scoped
+  emphasis whose reason is stated: Anthropic best-practices caps a strict
+  output-format template ("For strict requirements… ALWAYS use this exact
+  template structure") and escalates to "stronger language such as 'MUST
+  filter' instead of 'always filter'" for a rule an agent was observed to
+  drop, and skill-creator applies caps that same targeted way in its own
+  body. Fragile-op prescriptions belong to "Match specificity to fragility".
 - **Forward-slash paths only.** Best-practices: "Always use forward slashes."
   Flag Windows-style `\` separators in body or scripts.
 - **No time-sensitive content.** Best-practices warns against "If you're
@@ -518,7 +528,7 @@ Adding a new detection means adding a new key here.
 | `declarations-over-procedures` | Body prescribes specific outputs without describing the approach |
 | `over-prescriptive` | Rigid prescriptions for flexible work |
 | `instructions-prohibition-heavy` | Body's "don't / never" lines outweigh "do / use" lines |
-| `instruction-shouting` | Body uses ALL-CAPS `MUST`/`ALWAYS` instead of explained reasoning |
+| `instruction-shouting` | ALL-CAPS `ALWAYS`/`NEVER`/`MUST` is the body's habitual register or stands in for reasoning the body never gives; scoped emphasis with a stated reason is exempt |
 | `windows-style-paths` | Body or scripts use `\` path separators |
 | `time-sensitive-info` | Body contains date-bound content that will rot |
 | `inconsistent-terminology` | Body alternates between equivalent terms (e.g., "API endpoint" / "URL") |
