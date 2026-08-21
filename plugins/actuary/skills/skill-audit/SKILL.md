@@ -8,7 +8,8 @@ description: >
   ranked L3 craft recommendations, and quick wins. With `--tier local,
   toolshed, or marketplace`, also emits a privacy-gated static Gate-1 verdict.
   Read-only: never modifies or executes target content. Not for behavioral
-  evaluation or a final promotion verdict.
+  evaluation, not a final promotion verdict, and not for auditing a Memento
+  knowledge base or its wiki (that is `memento:health-check`).
 argument-hint: "[<skill-path>|<plugin-path>|<repo>] [--quick-wins-only] [--tier <local|toolshed|marketplace>]"
 user-invocable: true
 allowed-tools: Read Glob Grep Bash
@@ -241,7 +242,9 @@ passed, render only the inventory + quick-wins sections; skip the
 per-skill L1/L2/L3 sections. If `--tier` was passed, also render the
 **Static Gate-1 readiness** section from the template (it stays
 machine-parseable: one `static-verdict: ready|not-ready` line and one legacy
-`verdict:` alias per skill, plus the blocking rule keys).
+`verdict:` alias per skill, plus the blocking rule keys). Render **Open
+questions and residual risk** only when a concern the catalog does not cover
+came up; omit that section when there is nothing to raise.
 
 ## What this skill does *not* do
 

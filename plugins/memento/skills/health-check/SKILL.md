@@ -1,6 +1,6 @@
 ---
 name: health-check
-description: Audit a Memento for cache drift, stale projections, broken evidence paths, privacy-boundary risks, compile metadata drift, open queue visibility, or golden-query eval readiness. Use when the user asks for a health check, doctor, audit, staleness check, provenance check, privacy lint, L1/L2/L3 integrity check, or whether a Memento is current. Read-only by default; never reads private/.
+description: Audit a Memento for cache drift, stale projections, broken evidence paths, privacy-boundary risks, compile metadata drift, open queue visibility, or golden-query eval readiness. Use when the user asks for a health check, doctor, audit, staleness check, provenance check, privacy lint, L1/L2/L3 integrity check, or whether a Memento is current. Read-only by default; never reads private/. Not for auditing an Agent Skill, plugin, or marketplace against the skills spec — that is `actuary:skill-audit`.
 compatibility: Requires Bash; eval and connection-graph diagnostics additionally require Node.js. Git is used when present for repository diagnostics.
 argument-hint: "[doctor|privacy|eval|fixtures|full]"
 user-invocable: true

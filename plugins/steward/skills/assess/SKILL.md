@@ -5,10 +5,12 @@ description: >
   Steward contract using the strongest proportionate evidence available after
   construction. Distinguish PR/implementation-verifiable claims from external
   operator validation and mechanism ambiguity. Use after any inner builder or
-  workflow finishes, including when evidence differs from what was anticipated.
-  Produce claim-level pass/fail/inconclusive outcomes bound to exact
-  provenance. Do not add criteria, reinterpret the contract, fix the build, or
-  invent validation infrastructure.
+  workflow finishes, including when evidence differs from what was anticipated,
+  or when the user says "assess this against the contract", "did this do what
+  the ticket asked", "check this branch against its spec", or "verify the work
+  before I sign off". Produce claim-level pass/fail/inconclusive outcomes
+  bound to exact provenance. Do not add criteria, reinterpret the contract,
+  fix the build, or invent validation infrastructure.
 ---
 
 # Assess

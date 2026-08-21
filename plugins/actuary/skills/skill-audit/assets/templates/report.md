@@ -90,6 +90,18 @@ Cross-cutting recommendations sorted by ratio of impact to effort.
 3. **Tune `<skill>` description to add trigger phrases.** Single-string
    change; biggest activation lever.
 
+## Open questions and residual risk
+
+Auditor commentary the rule catalog does not cover. Never rule-keyed — a
+concern that maps to a catalog key belongs in L1/L2/L3 or the Gate-1 block
+instead, not here. Omit the section entirely when there is nothing to raise.
+
+- **Open question:** `<skill>` hands Step 4 to an external CLI whose exit codes
+  are not documented here — is a non-zero exit a hard stop or advisory?
+- **Residual risk:** `<skill>` ships fixtures under `assets/` that read as
+  synthetic but were not traceable to a generator; confirm with the owner
+  before a public push.
+
 ## What this audit did not check
 
 - Trigger rate (would require running the skill against a query set).

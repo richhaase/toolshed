@@ -4,9 +4,12 @@ description: >
   Turn an ordinary software request into the smallest Steward Markdown
   contract that can distinguish success from failure. Use before construction
   for work of any size, including small fixes, refactors, features, migrations,
-  or broad requests that may need splitting. Add ceremony only for a material
-  product decision, load-bearing boundary, or preserved invariant. Draft and
-  freeze intent; do not plan or implement the change.
+  or broad requests that may need splitting. Use when the user says "frame this
+  as a contract", "write up what we are actually building", "what does done
+  look like here", "freeze the scope before I start", or "turn this request
+  into something I can approve". Add ceremony only for a material product
+  decision, load-bearing boundary, or preserved invariant. Draft and freeze
+  intent; do not plan or implement the change.
 ---
 
 # Frame

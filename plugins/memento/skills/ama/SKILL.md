@@ -1,6 +1,6 @@
 ---
 name: ama
-description: Read the wiki and interview the user to fill gaps, resolve contradictions, and capture context the LLM is curious about. Use when the user says "ama", "ask me anything", "what do you want to know", "interview me", "fill in gaps", "tell me what's missing", or otherwise wants the agent to actively pull knowledge into the Memento. Captures answers as a session source so /compile can fold them into the wiki.
+description: Read the wiki and interview the user to fill gaps, resolve contradictions, and capture context the LLM is curious about. Use when the user says "ama", "ask me anything", "what do you want to know", "interview me", "fill in gaps", "tell me what's missing", or otherwise wants the agent to actively pull knowledge into the Memento. Captures answers as a session source so /compile can fold them into the wiki. Not `save`, which extracts what already happened in a session, and not `compile`, which synthesizes existing sources into the wiki.
 argument-hint: "[<topic>]"
 user-invocable: true
 allowed-tools: Read Write Edit Glob Grep Bash AskUserQuestion

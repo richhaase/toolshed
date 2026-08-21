@@ -4,9 +4,12 @@ description: >
   Independently test whether a Steward draft is decision-complete without
   expanding its requested scope. Use when material ambiguity, coupled outcomes,
   assessability risk, or a changed authorization, security, privacy, data-loss,
-  migration, or compatibility boundary warrants challenge. Produce a bounded,
-  convergent findings report; do not rewrite, approve, implement, or conduct a
-  general design review.
+  migration, or compatibility boundary warrants challenge, or when the user
+  says "critique this contract", "poke holes in this before I build it", "is
+  this spec clear enough to hand off", "what is ambiguous about this scope", or
+  "give me a second opinion on this draft". Produce a bounded, convergent
+  findings report; do not rewrite, approve, implement, or conduct a general
+  design review.
 ---
 
 # Critique

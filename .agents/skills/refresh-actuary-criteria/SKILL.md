@@ -50,6 +50,13 @@ extract the pinned refs + per-file blob SHAs from both Sources tables
 arXiv versions from the `Pinned to arXiv` blocks. These are the anchor
 points.
 
+Bind the `agentskills/agentskills` pinned commit to `PINNED_REF` before
+running anything below — Step 3 diffs `$HEAD` against it:
+
+```bash
+PINNED_REF="<pinned agentskills/agentskills commit SHA from criteria.md>"
+```
+
 ### Step 2: Fetch upstream state
 
 Resolve `gh` first — the Bash tool runs in a non-interactive shell that
@@ -135,9 +142,9 @@ content and the pinned content (swap in `repos/anthropics/skills` when
 the moved blob is skill-creator's):
 
 ```bash
-$GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD"        --jq .content | base64 -d > /tmp/upstream-new.mdx
-$GH api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF"  --jq .content | base64 -d > /tmp/upstream-pinned.mdx
-diff -u /tmp/upstream-pinned.mdx /tmp/upstream-new.mdx
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD"        --jq .content | base64 -d > /tmp/upstream-new.$$.mdx
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF"  --jq .content | base64 -d > /tmp/upstream-pinned.$$.mdx
+diff -u /tmp/upstream-pinned.$$.mdx /tmp/upstream-new.$$.mdx
 ```
 
 Read the diff with intent. We are not mirroring upstream — we are

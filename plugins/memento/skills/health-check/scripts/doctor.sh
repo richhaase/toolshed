@@ -1,6 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage: doctor.sh [--help]
+
+Run the read-only deterministic Memento diagnostics and print a Markdown
+report. Takes no options beyond --help.
+
+The Memento root is resolved by ../../_shared/scripts/memento-root: the
+MEMENTO_ROOT environment variable, the nearest .memento-root marker, or the
+current directory when it already looks like a Memento.
+
+Environment:
+  MEMENTO_DOCTOR_SCANNER  Pin the scanner engine: rg or grep. Default auto,
+                          which prefers rg and falls back to grep.
+
+Exit status:
+  0  diagnostics ran; findings are reported in the output, not the status
+  2  no usable scanner on PATH — refusing to certify
+EOF
+}
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_SCRIPT="$SCRIPT_DIR/../../_shared/scripts/memento-root"
 MEMENTO_ROOT="$("$ROOT_SCRIPT")"

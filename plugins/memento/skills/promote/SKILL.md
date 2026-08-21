@@ -7,7 +7,9 @@ description: >
   skill/tool to toolshed or another marketplace. Resolve the target repo first,
   defaulting to the active Memento/RSI target when available. Composes Actuary's
   static Gate-1, surfaces unproven behavioral/dedup evidence, and is the sole
-  writer of the promotion ledger and `promotion_stage` frontmatter.
+  writer of the promotion ledger and `promotion_stage` frontmatter. Not the
+  read-only skill audit or privacy lint itself — it composes that audit and
+  owns the gated stage change.
 argument-hint: "skill-or-tool [--marketplace repo-path-or-name] [--to marketplace-ready|marketplace] [--dry-run]"
 user-invocable: true
 allowed-tools: Read Glob Grep Bash Edit Write Skill AskUserQuestion
@@ -122,10 +124,12 @@ Invoke `actuary:skill-audit` against the entity's **source files** (the local
 skill directory or marketplace skill directory, not just the wiki page). Use
 native skill composition where the harness exposes it; otherwise follow the
 Actuary skill workflow directly in the current session. Because promotion always
-targets a marketplace repo, run Actuary with the marketplace tier:
+targets a marketplace repo, run Actuary with the marketplace tier — a skill
+invocation, not a shell command:
 
-```bash
-actuary:skill-audit <source-skill-or-plugin> --tier marketplace
+```text
+Skill: actuary:skill-audit
+Arguments: <source-skill-or-plugin> --tier marketplace
 ```
 
 Read back `static-verdict: ready|not-ready`, the privacy findings (by

@@ -1,6 +1,6 @@
 {
   "name": "memento",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with a hardened deterministic eval gate (source evidence proves provenance; compiled answer surfaces must contain required atoms; ungated runs are explicit), health checks, passive session capture (save, with structured trajectory telemetry), active LLM-driven interview (ama), lightweight follow-up queue review (followups), and gated promotion of local skills/tools to a marketplace git repo, defaulting to the active Memento/RSI target (promote — sole writer of the promotion ledger, composes actuary --tier as static Gate-1 through harness-native skill invocation or direct workflow fallback). Knowledge base only — commitments belong in the user's issue tracker.",
   "author": {
     "name": "Rich Haase",
