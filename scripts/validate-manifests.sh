@@ -197,14 +197,14 @@ while IFS= read -r file; do
   fi
 done < <(find plugins .agents/skills .claude/skills -type f -name SKILL.md 2>/dev/null | sort)
 
-# The repo-local refresh skill is deliberately exposed to both harnesses from
-# two files. Drift would make one harness update Actuary differently.
-refresh_agents=.agents/skills/refresh-actuary-criteria/SKILL.md
-refresh_claude=.claude/skills/refresh-actuary-criteria/SKILL.md
-if [[ ! -f "$refresh_agents" || ! -f "$refresh_claude" ]]; then
-  error "refresh-actuary-criteria — both local harness skill copies are required"
-elif ! cmp -s "$refresh_agents" "$refresh_claude"; then
-  error "refresh-actuary-criteria — .agents and .claude copies differ"
+refresh_agents_dir=.agents/skills/refresh-actuary-criteria
+refresh_claude_link=.claude/skills/refresh-actuary-criteria
+if [[ ! -f "$refresh_agents_dir/SKILL.md" || -L "$refresh_agents_dir" ]]; then
+  error "refresh-actuary-criteria — canonical .agents skill is required as a regular file"
+elif [[ ! -L "$refresh_claude_link" ]]; then
+  error "refresh-actuary-criteria — .claude entry must be a symlink to the canonical .agents skill"
+elif [[ "$(readlink -f "$refresh_claude_link")" != "$(readlink -f "$refresh_agents_dir")" ]]; then
+  error "refresh-actuary-criteria — .claude symlink does not resolve to the .agents skill"
 fi
 
 # Harness-neutral eval data is release evidence. Keep its small schemas valid so
