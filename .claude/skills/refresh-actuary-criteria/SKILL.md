@@ -6,8 +6,8 @@ description: >
   "update audit rules", "is criteria.md stale", "check actuary drift", or
   is preparing a release of the actuary plugin and wants to verify the
   rubric is current. Toolshed-local — not exported to the marketplace.
-  Reads upstream, diffs against the SHAs pinned in criteria.md, and
-  proposes specific edits for human review. Never auto-applies bulk
+  Reads upstream, diffs against the git SHAs and arXiv version pins in
+  criteria.md, and proposes specific edits for human review. Never auto-applies bulk
   changes; every rule add/remove is surfaced for approval.
 allowed-tools: Read Edit WebFetch Bash
 ---
@@ -20,14 +20,18 @@ by fetching the pinned sources at HEAD and proposing edits.
 
 ## Sources to check
 
-The criteria.md Sources block names three source tiers:
+The criteria.md Sources block names four source tiers:
 
 1. **agentskills/agentskills repo** — primary spec + best-practices.
    Pinned by SHA in criteria.md's Sources table.
 2. **anthropics/skills skill-creator** — co-primary for L3 craft rules.
    GitHub-hosted, pinned by blob SHA in criteria.md's second Sources
    table.
-3. **Anthropic platform docs page** — co-primary for L3 craft rules.
+3. **arXiv papers** — empirical grounding for the L3 "Skill mechanisms"
+   subsection and the L2 size-threshold note. Pinned by arXiv version
+   in `Pinned to arXiv \`NNNN.NNNNNvK\`` blocks. Versions are
+   immutable; drift means a newer version was published (Step 2.5).
+4. **Anthropic platform docs page** — co-primary for L3 craft rules.
    A web page with no SHA to pin; drift is only detectable by
    re-reading it, so Step 4 runs on every full refresh regardless of
    what the SHA comparison finds.
@@ -42,8 +46,9 @@ only if you suspect rule drift.
 
 Read `plugins/actuary/skills/skill-audit/references/criteria.md` and
 extract the pinned refs + per-file blob SHAs from both Sources tables
-(`agentskills/agentskills` and `anthropics/skills`). These are the
-anchor points.
+(`agentskills/agentskills` and `anthropics/skills`) plus the pinned
+arXiv versions from the `Pinned to arXiv` blocks. These are the anchor
+points.
 
 ### Step 2: Fetch upstream state
 
@@ -95,6 +100,32 @@ criteria.md's second Sources table:
 ```bash
 $GH api "repos/anthropics/skills/contents/skills/skill-creator/SKILL.md" --jq .sha
 ```
+
+### Step 2.5: Check the arXiv paper pins
+
+For each paper pinned in criteria.md's `Pinned to arXiv` blocks, fetch
+the abstract page and read the submission history:
+
+```
+WebFetch https://arxiv.org/abs/<paper-id>
+```
+
+Compare the latest version in the submission history against the pinned
+`vK`. arXiv versions are immutable, so a matching latest version means
+that source is fully current — no content re-read needed. When a newer
+version exists:
+
+1. Fetch the revision's full text
+   (`https://arxiv.org/html/<paper-id>v<latest>`).
+2. Re-validate every criteria.md statement citing that paper. The cite
+   trail is the parenthetical arXiv IDs (e.g. `(2608.14036)`) in the
+   L3 "Skill mechanisms" subsection, the L2 size-threshold note, and
+   the Sources block. Check each quoted statistic and finding against
+   the revision.
+3. Propose edits per Step 5, including the version-pin bump. A revised
+   or withdrawn finding is a rule-semantics change, not a cosmetic
+   bump — surface it explicitly, including any catalog key whose
+   evidence base weakened.
 
 ### Step 3: Identify what changed
 
@@ -169,6 +200,11 @@ do not commit; the user controls git.
 - **No auto-apply on bulk diffs.** Even if upstream rewrites every file,
   the human signs off each rule change. Mass criteria edits without
   judgment is exactly the failure mode the skill exists to prevent.
+- **A quiet arXiv check is authoritative; a quiet web check is not.**
+  arXiv versions are immutable, so "latest version equals pinned
+  version" fully clears that source in Step 2.5. The Anthropic platform
+  docs page has no such property and must be re-read on every full
+  refresh.
 - **A quiet SHA table doesn't cover the web page.** Step 2's SHA
   comparison short-circuits only the GitHub-pinned sources. The
   Anthropic platform docs page has no SHA, so skipping Step 4 because

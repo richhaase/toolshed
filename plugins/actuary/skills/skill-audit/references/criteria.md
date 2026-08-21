@@ -5,11 +5,11 @@ the published guidance, not the agent's general intuition.
 
 ## Sources
 
-Pinned to `agentskills/agentskills@5d4c1fd` (2026-05-20):
+Pinned to `agentskills/agentskills@69ef37e` (2026-08-09):
 
-| Path | Blob SHA at 5d4c1fd |
+| Path | Blob SHA at 69ef37e |
 |---|---|
-| `docs/specification.mdx` | `20cf9f6` |
+| `docs/specification.mdx` | `d9a2db0` |
 | `docs/skill-creation/best-practices.mdx` | `cfe9188` |
 | `docs/skill-creation/optimizing-descriptions.mdx` | `8bb2a2f` |
 | `docs/skill-creation/evaluating-skills.mdx` | `7c90d54` |
