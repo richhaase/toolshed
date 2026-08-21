@@ -36,6 +36,24 @@ Pinned to arXiv `2608.14036v1` (submitted 2026-08-14):
   of success and failure mechanisms. Grounds the "Skill mechanisms" L3
   subsection.
 
+Pinned to arXiv `2602.12670v4` (2026-06-14):
+
+- "SkillsBench: Benchmarking How Well Agent Skills Work Across Diverse
+  Tasks" — <https://arxiv.org/abs/2602.12670>. 87 tasks across 8 domains,
+  18 model-harness configurations, paired with/without-skill trials
+  against deterministic verifiers. Grounds the compactness, fallback,
+  density, and provenance evidence in the "Skill mechanisms" L3
+  subsection.
+
+Pinned to arXiv `2607.07504v1` (2026-07-08):
+
+- "Do LLM-Generated Skills Make Better AI Data Scientists? A Component
+  Ablation Across Data-Science Workflows" —
+  <https://arxiv.org/abs/2607.07504>. 7,560-run component ablation of
+  single-shot LLM-generated skills, including a token-matched placebo
+  arm; a null result that grounds the uncurated-provenance and
+  reference-gating evidence in "Skill mechanisms".
+
 Additional sources:
 
 - <https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices>
@@ -119,6 +137,9 @@ thresholds. Don't fail the skill — flag.
   `client-implementation/adding-skills-support.mdx` (instruction tier).
 - **Description length** flag at >900 chars (approaching the 1,024
   ceiling, no headroom for tuning).
+- The size targets are load-bearing, not style: compact and
+  standard-length skills gained +19.0/+21.5 pp where comprehensive
+  documentation gained +0.7 pp (SkillsBench, arXiv:2602.12670).
 
 ### Progressive disclosure
 - Count inline fenced code blocks ≥ 30 lines. Each is a candidate for
@@ -196,14 +217,24 @@ produce a single craft "score" — list the findings.
 - **MCP tools fully qualified.** Best-practices: refer to MCP tools as
   `ServerName:tool_name`, never the bare tool name.
 
-### Skill mechanisms (from Demystifying Agent Skills, arXiv:2608.14036)
+### Skill mechanisms (empirical: arXiv 2608.14036, 2602.12670, 2607.07504)
 
-Empirical grounding for what separates helpful skills from unhelpful ones.
-In controlled trials, skills helped chiefly by *stabilizing execution*,
-not by supplying missing facts: procedural anchoring explained 65.7% of
-successful skill use; explicit knowledge injection only 4.5%. The dominant
-skill-specific failure was guidance misapplied or followed in the wrong
-context (10.0% of skill-arm cases vs 0.4% for workflow memory).
+Empirical grounding for what separates helpful skills from unhelpful
+ones, drawn from three controlled studies: Demystifying Agent Skills
+(2608.14036), SkillsBench (2602.12670), and a component ablation of
+LLM-generated skills (2607.07504). Skills helped chiefly by *stabilizing
+execution*, not by supplying missing facts: procedural anchoring
+explained 65.7% of successful skill use; explicit knowledge injection
+only 4.5% (2608.14036). Curated skills lifted average pass rates
+33.9% → 50.5%, yet 13 of 87 tasks got *worse* with a skill (2602.12670).
+The dominant skill-specific failure was guidance misapplied or followed
+in the wrong context: 10.0% of skill-arm cases vs 0.4% for workflow
+memory (2608.14036). The highest-impact curated skills carried
+executable scripts with calibrated defaults, canonical data sources and
+parsing quirks, verifier-facing file-format constraints, algorithmic
+invariants, and task-specific frontmatter descriptions (2602.12670) —
+properties the scripts, gotchas, templates, and description rules
+already audit for.
 
 - **Procedural skeleton over knowledge dump.** A body that is mostly
   declarative domain facts with no ordered procedure — what to do first,
@@ -211,7 +242,8 @@ context (10.0% of skill-arm cases vs 0.4% for workflow memory).
   skills work. Flag knowledge dumps that never anchor execution.
 - **Distilled procedure, not raw trajectory.** A distilled SKILL.md beat
   workflow memory built from the same source trajectories by +6.06
-  points; verbose traces drove timeout exhaustion (10.6% vs 1.7%). Flag
+  points; verbose traces drove timeout exhaustion (10.6% vs 1.7%)
+  (2608.14036). Flag
   bodies that read as session transcripts — exploration narrative, failed
   attempts, or debugging walks preserved instead of compressed into the
   decisive procedure.
@@ -228,7 +260,8 @@ context (10.0% of skill-arm cases vs 0.4% for workflow memory).
 - **Verification anchors.** The largest measured wins were execution-layer
   stabilizations driven by explicit setup and verification checks:
   environment/infrastructure failures 5.3% → 0.2%, output-format
-  mismatches 7.4% → 3.2%, service-lifecycle failures 2.7% → 0.8%. When
+  mismatches 7.4% → 3.2%, service-lifecycle failures 2.7% → 0.8%
+  (2608.14036). When
   the skill's task produces a checkable artifact and the body never says
   what to verify, flag it. Complements `validation-loop-missing`, which
   targets destructive/batch operations specifically.
@@ -236,10 +269,40 @@ context (10.0% of skill-arm cases vs 0.4% for workflow memory).
   are the dominant retrieval stressor: actual-use precision collapsed
   from 29.6% (5-skill pool) to 3.3% (100-skill pool), with similar
   distractors degrading selection far more than random or dissimilar
-  ones. When auditing a plugin or marketplace, compare descriptions
-  across the pool; flag pairs that claim overlapping intents without
-  anti-triggers distinguishing them. Report the finding under each skill
-  involved, naming the counterpart.
+  ones (2608.14036). Density compounds this: tasks paired with one skill
+  gained +18.0 pp and 2–3 skills +19.0 pp, but ≥4 co-applicable skills
+  only +10.1 pp (2602.12670). When auditing a plugin or marketplace,
+  compare descriptions across the pool; flag pairs that claim overlapping
+  intents without anti-triggers distinguishing them. Report the finding
+  under each skill involved, naming the counterpart.
+- **Compact beats comprehensive.** Compact and standard-length skills
+  gained +19.0 and +21.5 pp where detailed documentation gained +14.5 pp
+  and comprehensive documentation only +0.7 pp; optimize for
+  verifier-facing detail the agent cannot infer, not for completeness
+  (2602.12670). Always-prepended reference notes were the most harmful
+  component in the ablation study — over-general heuristics collided with
+  task-level instructions in 8 of 14 data-preparation flips — so
+  reference material belongs behind progressive disclosure in
+  `references/`, loaded when relevant, not inlined (2607.07504). This is
+  evidence for the L2 size thresholds, `body-explains-known-concepts`,
+  `over-prescriptive`, and `large-section`; it needs no separate key.
+- **Single pipeline, no fallback.** The recurring root cause of the 13
+  SkillsBench tasks that got worse with a skill was "a single 'correct'
+  pipeline without applicability boundaries or lightweight fallbacks":
+  the skill prescribed an unnecessarily heavyweight pipeline, displaced a
+  stronger default strategy, or pointed the agent at a solver it could
+  not debug (2602.12670). Flag bodies that mandate one pipeline with no
+  lightweight alternative or escape hatch for simple cases.
+- **Uncurated generation provenance.** Self-generated skill packs *hurt*
+  on every dedicated harness tested (−8.1 to −11.5 pp) while curated
+  skills helped (+18.2 to +24.8 pp) (2602.12670), and single-shot
+  LLM-generated skills were statistically indistinguishable from a
+  token-matched irrelevant placebo (1.2 pp spread, all p ≥ 0.396) at
+  4.5× the input tokens (2607.07504). When provenance is known or
+  evident — a promotion ledger, `promotion_stage` frontmatter, generation
+  metadata, or the user says so — flag skills generated in one shot
+  without curation or behavioral-validation evidence. Judgment-based:
+  never infer LLM generation from writing style alone.
 
 ### References / progressive disclosure (from best-practices)
 - **Reference depth ≤ 1.** Best-practices: "Keep references one level deep
@@ -433,6 +496,8 @@ Adding a new detection means adding a new key here.
 | `brittle-context-assumptions` | Environment specifics stated as unconditional fact with no check-or-adapt step |
 | `verification-anchors-missing` | Task produces checkable artifacts but the body names no verification checks |
 | `description-confusable-in-pool` | Descriptions in the audited pool claim overlapping intents without distinguishing anti-triggers (plugin/repo mode only) |
+| `single-pipeline-no-fallback` | Body mandates one heavyweight pipeline with no applicability boundary or lightweight fallback |
+| `uncurated-generation-provenance` | Known or evident single-shot LLM generation without curation or behavioral-validation evidence (never inferred from style alone) |
 | `gotchas-missing` | Body contains specific environment-bound traps that aren't consolidated into a `## Gotchas` section (judgment-based, not length-gated) |
 | `gotchas-generic` | Gotchas section contains generic advice rather than specific facts |
 | `template-not-extracted` | Output-format template is inline when it could move to `assets/` |
