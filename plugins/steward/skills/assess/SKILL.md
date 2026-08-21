@@ -37,17 +37,25 @@ built without owning the inner workflow that built it.
   frozen claim.
 - Treat approved contracts and completed assessments as immutable.
 
+## Preconditions
+
+Resolve these relative to this `SKILL.md` before running any step; nothing below
+works if one of them is wrong.
+
+- Read `../../resources/references/contract-format.md`.
+- Bind `../../resources/scripts/steward` as `STEWARD_CLI`.
+- Confirm Node.js is on `PATH` (`command -v node`); every CLI call runs as
+  `node "$STEWARD_CLI" ...`. Stop and report if it is missing.
+
 ## Procedure
 
-1. Read `../../resources/references/contract-format.md` and resolve
-   `../../resources/scripts/steward` relative to this file.
-2. Run `check` on the contract. Confirm `state: approved` and record its exact
+1. Run `check` on the contract. Confirm `state: approved` and record its exact
    revision and frozen body hash.
-3. Resolve the completed change to an immutable identity such as an exact
+2. Resolve the completed change to an immutable identity such as an exact
    40-character Git commit SHA. Record the environment/context and assessor.
-4. Establish the exact diff, relevant runtime surface, repository instructions,
+3. Establish the exact diff, relevant runtime surface, repository instructions,
    conventions, and documented engineering constraints without changing them.
-5. Create the assessment:
+4. Create the assessment:
 
    ```bash
    node "$STEWARD_CLI" assessment path/to/ticket.md \
@@ -57,7 +65,7 @@ built without owning the inner workflow that built it.
      --assessor "Assessor identity"
    ```
 
-6. Classify each frozen claim's evidence responsibility and record it briefly
+5. Classify each frozen claim's evidence responsibility and record it briefly
    in its residual uncertainty or in Contract observations:
    - `PR/implementation-verifiable` — the immutable change, repository
      evidence, or an accessible runtime can establish the result;
@@ -66,42 +74,42 @@ built without owning the inner workflow that built it.
      or another human-only check outside the implementation surface; or
    - `mixed/ambiguous` — part is PR/implementation-verifiable, but an external
      observation or unresolved outcome-versus-mechanism interpretation remains.
-7. For each frozen claim, choose the strongest proportionate evidence now
+6. For each frozen claim, choose the strongest proportionate evidence now
    available. Useful evidence may include:
    - targeted tests or an existing suite;
    - static inspection of the exact diff;
    - browser, API, or command observation;
    - deployment artifacts or logs; or
    - a separately recorded operator/client validation.
-8. When external/operator-only evidence or mechanism ambiguity blocks a
+7. When external/operator-only evidence or mechanism ambiguity blocks a
    conclusion, surface one concise question or validation task to the current
    scope owner/user when interaction is available. Ask only for the decision
    or observation the assessor cannot obtain. Do not assign it back to the
    implementer or guess an individual owner. If it remains unanswered, retain
    it as the concrete next action.
-9. Record each command or artifact and its observed result as `E<n>`. Link it
+8. Record each command or artifact and its observed result as `E<n>`. Link it
    from the relevant claim outcome. Format-v3 evidence maps directly to claims
    and has no `EV<n>` backlink.
-10. Assign each claim:
+9. Assign each claim:
    - `pass` when observed evidence establishes it;
    - `fail` when observed evidence contradicts it or demonstrates an omitted
      frozen behavior within the authorized implementation surface; or
    - `inconclusive` when evidence is unavailable, inaccessible, conflicting,
      environment-dependent, still awaits an external operator, or cannot
      resolve a material outcome-versus-mechanism ambiguity.
-11. Separate implementation findings from external validation notes, using
+10. Separate implementation findings from external validation notes, using
     Contract observations or Residual risks rather than adding assessment H2
     sections. Label an unavailable human-only result “inconclusive — external
     operator validation required”; do not present it as an implementation
     failure. Overall is `fail` when any claim fails, `pass` only when every
     claim passes, and `inconclusive` otherwise.
-12. Classify non-pass remediation as `implementation-defect`,
+11. Classify non-pass remediation as `implementation-defect`,
     `contract-defect`, or `insufficient-or-conflicting-evidence`. Use `none`
     only when all claims pass. External validation and unresolved mechanism
     ambiguity normally use `insufficient-or-conflicting-evidence`; a proven
     in-scope omission uses `implementation-defect`. Record a concrete next
     action without changing the frozen artifact.
-13. Run `assessment-check`, resolve structural or provenance errors, then run
+12. Run `assessment-check`, resolve structural or provenance errors, then run
     `assessment-complete`. Re-run the check and report the immutable assessment
     hash.
 

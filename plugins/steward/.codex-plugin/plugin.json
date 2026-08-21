@@ -1,6 +1,6 @@
 {
   "name": "steward",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A thin outer loop for any software workflow. Freeze the minimum decision-complete intent delta, conditionally critique material ambiguity without expanding scope, and assess an immutable change using proportionate post-build evidence.",
   "author": {
     "name": "Rich Haase",

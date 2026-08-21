@@ -34,16 +34,23 @@ the target codebase remains the source of implementation context.
   adapter, or orchestration layer.
 - Never approve on the user's behalf. Never edit an approved revision.
 
+## Preconditions
+
+Resolve these relative to this `SKILL.md` before running any step; nothing below
+works if one of them is wrong.
+
+- Read `../../resources/references/contract-format.md`.
+- Bind `../../resources/scripts/steward` as `STEWARD_CLI`.
+- Confirm Node.js is on `PATH` (`command -v node`); every CLI call runs as
+  `node "$STEWARD_CLI" ...`. Stop and report if it is missing.
+
 ## Procedure
 
-1. Read `../../resources/references/contract-format.md`, resolving it relative
-   to this file. Resolve `../../resources/scripts/steward` the same way as
-   `STEWARD_CLI`, and preflight Node.js.
-2. Inspect the request and only enough target-codebase context to distinguish
+1. Inspect the request and only enough target-codebase context to distinguish
    current behavior, requested behavior, and material ambiguity. Existing
    repository instructions remain implementation context rather than contract
    content.
-3. Create a format-v3 draft:
+2. Create a format-v3 draft:
 
    ```bash
    node "$STEWARD_CLI" create path/to/ticket.md \
@@ -54,10 +61,10 @@ the target codebase remains the source of implementation context.
    `create NEW --from APPROVED --format 3` for a blank lean successor that
    preserves an approved v1/v2 artifact's lineage. Deliberately reframe its
    meaning; do not mechanically compress the old graph.
-4. State one concise `Outcome`: the requested user or business result.
-5. Write the fewest independently assessable `AC<n>` claims that distinguish
+3. State one concise `Outcome`: the requested user or business result.
+4. Write the fewest independently assessable `AC<n>` claims that distinguish
    success from failure. Preserve stable claim ids across revisions.
-6. Add optional Context, Scope, Constraints, Examples, or Open questions only
+5. Add optional Context, Scope, Constraints, Examples, or Open questions only
    when the section records information that changes a material outcome:
    - Scope may name the change, an endangered invariant to preserve, or an
      important adjacent outcome explicitly excluded.
@@ -66,28 +73,28 @@ the target codebase remains the source of implementation context.
    - Examples disambiguate a claim; they are not a test inventory.
    - A material open question blocks approval. Ask the user instead of
      manufacturing a safe-looking default.
-7. Leave unspecified implementation choices to the builder. Evidence methods
+6. Leave unspecified implementation choices to the builder. Evidence methods
    are selected after construction and do not belong in a v3 contract.
-8. If the request contains independently valuable outcomes or the draft grows
+7. If the request contains independently valuable outcomes or the draft grows
    beyond roughly eight claims or 1,200 words, first delete implementation
    detail. If it is still broad, recommend a small outcome-oriented split
    rather than multiplying traceability. These are guidance signals, not
    structural validity gates.
-9. Recommend `critique` only when a trigger exists:
+8. Recommend `critique` only when a trigger exists:
    - reasonable interpretations produce materially different outcomes;
    - the delta crosses an authorization, security, privacy, data-loss,
      migration, or compatibility boundary;
    - an acceptance claim may not distinguish pass from failure; or
    - the requested outcomes are unusually coupled.
-10. Apply only accepted `contract-defect` findings. Keep builder discretion,
-    follow-up work, and residual uncertainty out of the contract unless the
-    scope owner explicitly expands intent.
-11. Run `check`. Treat `STRUCTURALLY OK` as a syntax, lifecycle, and integrity
+9. Apply only accepted `contract-defect` findings. Keep builder discretion,
+   follow-up work, and residual uncertainty out of the contract unless the
+   scope owner explicitly expands intent.
+10. Run `check`. Treat `STRUCTURALLY OK` as a syntax, lifecycle, and integrity
     result—not proof of semantic completeness.
-12. Present the exact path, revision, concise claim summary, optional
+11. Present the exact path, revision, concise claim summary, optional
     complexity warnings, and material open questions. Ask for explicit approval
     of that exact revision.
-13. After explicit approval only, run:
+12. After explicit approval only, run:
 
     ```bash
     node "$STEWARD_CLI" approve path/to/ticket.md --by "Approver"

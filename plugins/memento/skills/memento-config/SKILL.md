@@ -63,6 +63,24 @@ with absolute paths or `git -C "$MEMENTO_ROOT" ...`. Script paths are shown rela
 to this `SKILL.md`; if your shell is in another directory, invoke the same
 scripts by absolute path.
 
+## Conditional references
+
+Read each reference immediately before its named step; they contain required
+contracts, not optional background:
+
+- Before the first write in any phase: `references/commit-safety.md` (index
+  preflight, `MEMENTO_TOUCHED` list, exact-path staging, staged-diff
+  verification).
+- Before Phase 1's directory creation: `references/scaffold-layout.md`
+  (canonical tree and what each directory holds).
+- Before Phase 1's starter context files: `references/agents-md-template.md`
+  (canonical `AGENTS.md` scaffold and the thin `CLAUDE.md` pointer).
+- Before Phase 2's question flow: `references/interview-flow.md` (Q1-Q5 and the
+  per-purpose entity type suggestions).
+- Before Phase 2's customizations and any Update-branch registry edit:
+  `references/entity-registry.md` (registry shape, per-type key properties,
+  `wiki/INDEX.md` seed).
+
 ## Phase 0: Detect mode
 
 Before scaffolding, check whether `MEMENTO_ROOT` already looks like a
@@ -102,29 +120,8 @@ never overwrite existing content.
 
 ### Directory structure
 
-```
-sources/                # L3 — raw inputs, cold storage
-├── sessions/           # /save captures from conversations
-├── syncs/              # Automated pulls from external services
-│   └── <provider>/     # One dir per source (concept2/, github/, etc.)
-├── notes/              # Durable knowledge — folds into wiki on /compile
-├── followups/          # Small queue of "re-read within a week, act on it"
-│                       # captures with expires_at frontmatter
-├── trajectories/       # Session telemetry from /save and /ama. NOT compiled.
-└── eval/               # Golden-query eval — NOT compiled (gate data + telemetry)
-    ├── fixtures/       # regression.json + capability.json (drafted via /health-check eval)
-    └── runs/           # <date>.jsonl — gate verdicts written by eval-score
-wiki/                   # L2 — compiled knowledge, loaded on demand
-outputs/                # Products of the system
-├── surfaces/           # HTML dashboards, served over HTTP
-└── reports/            # Generated briefings, analyses
-private/                # Sensitive notes — never compiled into wiki
-```
-
-The Memento intentionally does not create `sources/tasks/`. Real
-commitments belong in the user's issue tracker, not in markdown.
-
-Create all directories:
+Read `references/scaffold-layout.md` for the canonical tree and what each
+directory holds, then create all directories:
 
 ```bash
 mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/sources/eval/fixtures "$MEMENTO_ROOT"/sources/eval/runs "$MEMENTO_ROOT"/sources/trajectories "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/surfaces "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
@@ -206,65 +203,15 @@ Confirm what was created. Then transition to Phase 2.
 
 ## Phase 2: Interview
 
-Ask the user questions to customize the Memento. Be conversational — adapt based on
-answers. Don't ask all questions at once; ask one or two, then follow up based on
-responses.
+Ask the user questions to customize the Memento. Be conversational — ask one or
+two, then follow up based on the answers, rather than asking everything at once.
+**Skip questions the user has already answered.** If entity types, purpose, or
+other details are already clear from context (e.g. stated in `AGENTS.md` or the
+conversation), don't re-ask — confirm and move on.
 
-**Skip questions the user has already answered.** If entity types, purpose, or other
-details are already clear from context (e.g., stated in `AGENTS.md` or conversation),
-don't re-ask — just confirm and move on.
-
-### Question flow
-
-**Q1: Purpose**
-"What's this memory base for?"
-
-Examples to offer: personal notes, team lead context, project tracking, engineering
-journal, customer management, learning/research.
-
-**Q2: Entity types** (this is the critical question — dig in here)
-
-"What kinds of things do you want to track?"
-
-Adapt suggestions based on Q1:
-- Team lead → people, projects, teams, decisions
-- Project tracking → features, milestones, bugs, components
-- Engineering journal → topics, technologies, patterns, til (today-i-learned)
-- Customer management → customers, contacts, deals, interactions
-- Personal assistant → people, projects, interests, goals, ideas
-- General → topics, projects, references
-
-For each entity type the user names, follow up to understand:
-- **What fields matter?** A "person" might need role and relationship; a "project"
-  might need status and owner; a "goal" might need target date and progress.
-- **What sections should wiki pages have?** People might need "Current Focus" and
-  "Key Contributions"; projects might need "Key Decisions" and "Timeline".
-- **Does this type have a privacy dimension?** People notes might have private
-  observations that shouldn't compile into wiki.
-
-Don't make this tedious — suggest sensible defaults and let the user adjust. Offer
-a proposed entity type definition and ask "does this look right, or would you change
-anything?"
-
-**Q3: Data sources**
-"Do you have data sources you'd like to pull from, or is this manual-input only?"
-
-Examples: GitHub (issues, PRs), Concept2 (rowing), Google Calendar, RSS feeds.
-If manual-only, skip to Q4. If integrations, note them in `AGENTS.md` but don't
-configure them now — just document the intent. These will be set up as sync
-providers under `sources/syncs/<provider>/`.
-
-**Q4: Privacy**
-"Anything that should stay private — not compiled into wiki pages?"
-
-The `private/` directory already exists. This question determines what guidance goes
-in `AGENTS.md` about what belongs there. Also connects to entity types — if the user
-tracks people, ask if private observations about people should route to `private/`.
-
-**Q5: Nicknames** (skip if not relevant)
-"Do you use shorthand or nicknames that the AI should understand?"
-
-If yes, build a nickname decoder table in `AGENTS.md`.
+Read `references/interview-flow.md` and work through its Q1-Q5 flow: purpose,
+entity types (the critical question — dig in there), data sources, privacy, and
+nicknames. Carry those answers into the customizations below.
 
 ### Apply customizations
 
@@ -275,48 +222,11 @@ other memento skills read `AGENTS.md` to know how to operate.
 
 #### Entity Types registry
 
-Add an `## Entity Types` section to `AGENTS.md`. This is a machine-readable registry
-that `compile`, `save`, `ama`, and `followups` reference. Each entity type defines:
-
-```markdown
-## Entity Types
-
-### people
-- **wiki_path:** `wiki/people/`
-- **filename:** `firstname-lastname.md`
-- **frontmatter:** title, type, role, team, sources, related
-- **sections:** Overview, Current Focus, Recent Activity, Key Contributions
-- **private_notes:** yes — route to `private/firstname-lastname.md`
-
-### projects
-- **wiki_path:** `wiki/projects/`
-- **filename:** `project-slug.md`
-- **frontmatter:** title, type, status, sources, related
-- **sections:** Overview, Current Status, Key Decisions, Open Questions, Timeline
-
-### customers
-- **wiki_path:** `wiki/customers/`
-- **filename:** `customer-slug.md`
-- **frontmatter:** title, type, status, sources, related
-- **sections:** Overview, Integration Status, Recent Activity, Key Contacts
-
-### topics
-- **wiki_path:** `wiki/topics/`
-- **filename:** `topic-slug.md`
-- **frontmatter:** title, type, sources, related
-- **sections:** Overview, Current State, History
-```
-
-The specific entity types, fields, and sections come from the interview. The above is
-an example — adapt to what the user actually needs.
-
-Key properties per entity type:
-- **wiki_path** — subdirectory under `wiki/` for this type's pages
-- **filename** — naming pattern for wiki pages of this type
-- **frontmatter** — YAML frontmatter fields for wiki pages (always includes title, type, sources, related; do not include `last_compiled`, because freshness belongs in `wiki/INDEX.md`)
-- **sections** — markdown sections each wiki page of this type should have
-- **private_notes** (optional) — if `yes`, this entity type has private observations that route to `private/` instead of wiki. Include the filename pattern.
-- **historical_sections** (optional) — comma-separated section headings whose `[[wikilinks]]` are treated as historical and excluded from the connection graph's current-state in-degree (`_shared/scripts/build-graph`). Defaults to History, Corrections, Recent Activity, Activity Log, Changelog, Archive, Superseded when omitted; declare this only to add type-specific historical sections (e.g. `Postmortems`).
+Add an `## Entity Types` section to `AGENTS.md`. This is a machine-readable
+registry that `compile`, `save`, `ama`, and `followups` reference. Read
+`references/entity-registry.md` for the registry shape and the meaning of each
+per-type property, then write the types, fields, and sections the interview
+actually produced. The reference block is an example, not a default set.
 
 #### Other `AGENTS.md` additions
 
@@ -338,29 +248,10 @@ for t in <type1> <type2> <type3>; do mkdir -p "$MEMENTO_ROOT/wiki/$t"; done
 
 #### Seed INDEX.md
 
-Write `wiki/INDEX.md` with a section for each entity type. The INDEX tracks
-freshness and pinned status — this is the data structure the L2 → L1 compiler
-reads to decide what goes in the `AGENTS.md` hot set.
-
-```markdown
----
-title: Wiki Index
-last_compiled: <today>
-pages: 0
-pinned: []
----
-
-# Wiki Index
-
-## <Entity Type>
-| Page | Summary | Last Updated | Pinned |
-|------|---------|-------------|--------|
-
-<!-- Repeat for each entity type -->
-
----
-_Run `/compile` to build wiki from sources._
-```
+Write `wiki/INDEX.md` from the seed in `references/entity-registry.md`, with a
+section for each configured entity type. The INDEX tracks freshness and pinned
+status — this is the data structure the L2 → L1 compiler reads to decide what
+goes in the `AGENTS.md` hot set.
 
 The `pinned` field in frontmatter is a list of page slugs that should always
 appear in the `AGENTS.md` hot set regardless of recency. Users can manually add
@@ -406,10 +297,10 @@ the full new-Memento interview. Instead, ask one top-level question:
 Offer these options via `AskUserQuestion` when the harness exposes it; otherwise
 ask one concise plain chat question:
 
-- **Add an entity type** — collect type name, `wiki_path`, `filename`
-  pattern, `frontmatter` fields, `sections`, optional
-  `private_notes`. Append the new entity to the `## Entity Types`
-  registry in `AGENTS.md`. Create the matching `wiki/<type>/`
+- **Add an entity type** — read `references/entity-registry.md`, then
+  collect type name, `wiki_path`, `filename` pattern, `frontmatter`
+  fields, `sections`, optional `private_notes`. Append the new entity
+  to the `## Entity Types` registry in `AGENTS.md`. Create the matching `wiki/<type>/`
   directory. Add a section header for the type to `wiki/INDEX.md`
   if not already present. Suggest `/compile full` so existing
   sources get reorganized.

@@ -44,20 +44,28 @@ context.
 
 Only `contract-defect` can produce `revise-minimally`.
 
+## Preconditions
+
+Resolve these relative to this `SKILL.md` before running any step; nothing below
+works if one of them is wrong.
+
+- Read `../../resources/references/contract-format.md`.
+- Bind `../../resources/scripts/steward` as `STEWARD_CLI`.
+- Confirm Node.js is on `PATH` (`command -v node`); every CLI call runs as
+  `node "$STEWARD_CLI" ...`. Stop and report if it is missing.
+
 ## Procedure
 
-1. Read `../../resources/references/contract-format.md` and resolve
-   `../../resources/scripts/steward` relative to this file.
-2. When the user supplies a contract path, run
+1. When the user supplies a contract path, run
    `node "$STEWARD_CLI" check path/to/ticket.md` and report structural or
    frozen-integrity errors before semantic findings. When the contract is
    supplied inline, inspect its structure without creating a temporary
    contract.
-3. Read the contract, the originating request when available, prior critique
+2. Read the contract, the originating request when available, prior critique
    findings when this is a later pass, and only enough target-codebase evidence
    to verify a claimed boundary. Do not demand that the contract repeat facts
    discoverable in the codebase.
-4. A contract defect must establish at least one admissibility condition:
+3. A contract defect must establish at least one admissibility condition:
    - two reasonable compliant implementations produce materially different
      in-scope outcomes;
    - a plausible compliant implementation crosses a relevant authorization,
@@ -65,18 +73,18 @@ Only `contract-defect` can produce `revise-minimally`.
    - an acceptance claim cannot meaningfully receive pass/fail after
      construction; or
    - outcome, scope, constraints, and claims contradict one another.
-5. Tie every defect to the exact outcome, claim, or endangered boundary it
+4. Tie every defect to the exact outcome, claim, or endangered boundary it
    protects. Describe the plausible compliant-but-wrong interpretation and the
    smallest resolution.
-6. Classify other concerns rather than turning them into requirements. Do not
+5. Classify other concerns rather than turning them into requirements. Do not
    report an exhaustive inventory of non-blocking observations.
-7. Prefer deletion, local clarification, or splitting over additional
+6. Prefer deletion, local clarification, or splitting over additional
    specification. Report at most the three highest-impact contract defects. If
    more are necessary, recommend `split`.
-8. One full critique is the default. A later pass reviews changed text,
+7. One full critique is the default. A later pass reviews changed text,
    unresolved findings, and materially new evidence only. Do not introduce a
    new concern class against unchanged text without materially new evidence.
-9. Stop when remaining concerns are builder choices, follow-ups, residual
+8. Stop when remaining concerns are builder choices, follow-ups, residual
    uncertainty, or out of scope.
 
 ## Report
