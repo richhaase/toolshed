@@ -182,6 +182,12 @@ Step 2) and produce **ranked findings** per the L3 criteria. Each finding:
 Aim for 0–6 findings per skill. If a skill is in great shape, the section
 can be brief — do not invent findings to pad.
 
+When the target is a plugin or repo, also compare `description` fields
+across the audited pool per the skill-mechanisms criteria and emit
+`description-confusable-in-pool` for pairs that claim overlapping intents
+without distinguishing anti-triggers. Report the finding under each skill
+involved, naming the counterpart.
+
 ### Step 6: Quick-wins synthesis
 
 Across the audit, surface cross-cutting recommendations sorted by impact
@@ -248,7 +254,7 @@ machine-parseable: one `static-verdict: ready|not-ready` line and one legacy
 ## References
 
 - `references/criteria.md` — pinned L1/L2/L3 criteria and rule-key
-  catalog from agentskills.io.
+  catalog from agentskills.io and pinned research sources.
 - `assets/templates/report.md` — canonical report shape.
 - `scripts/contract-test` — CI/maintainer check that template and scanner keys
   exist in the criteria catalog; ordinary audits do not invoke it.

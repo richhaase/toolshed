@@ -27,6 +27,15 @@ pinned path as of 2026-07-14):
 |---|---|
 | `skills/skill-creator/SKILL.md` | `65b3a40` |
 
+Pinned to arXiv `2608.14036v1` (submitted 2026-08-14):
+
+- "Demystifying Agent Skills: Why They Work—Until They Don't" —
+  <https://arxiv.org/abs/2608.14036>. Controlled study of when and why
+  agent skills help: 8,135 trial records across Terminal-Bench 2.0,
+  Terminal-Bench Pro, and SkillsBench, with a trajectory-coded taxonomy
+  of success and failure mechanisms. Grounds the "Skill mechanisms" L3
+  subsection.
+
 Additional sources:
 
 - <https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices>
@@ -41,8 +50,8 @@ Additional sources:
 - L1 — Portable spec compliance: hard frontmatter and body checks.
 - Harness profiles: compatibility checks that are not open-spec defects.
 - L2 — Structural metrics: size, progressive disclosure, and scripts.
-- L3 — Craft recommendations: description quality, body craft, references,
-  gotchas, templates, validation, and scripts.
+- L3 — Craft recommendations: description quality, body craft, skill
+  mechanisms, references, gotchas, templates, validation, and scripts.
 - Severity assignment: how to rank findings.
 - Rule catalog: stable keys every finding must cite.
 - Deliberate non-goals: what this audit does not do.
@@ -186,6 +195,51 @@ produce a single craft "score" — list the findings.
   not both interchangeably. Low-severity.
 - **MCP tools fully qualified.** Best-practices: refer to MCP tools as
   `ServerName:tool_name`, never the bare tool name.
+
+### Skill mechanisms (from Demystifying Agent Skills, arXiv:2608.14036)
+
+Empirical grounding for what separates helpful skills from unhelpful ones.
+In controlled trials, skills helped chiefly by *stabilizing execution*,
+not by supplying missing facts: procedural anchoring explained 65.7% of
+successful skill use; explicit knowledge injection only 4.5%. The dominant
+skill-specific failure was guidance misapplied or followed in the wrong
+context (10.0% of skill-arm cases vs 0.4% for workflow memory).
+
+- **Procedural skeleton over knowledge dump.** A body that is mostly
+  declarative domain facts with no ordered procedure — what to do first,
+  which tools to use, what to verify — misses the mechanism that makes
+  skills work. Flag knowledge dumps that never anchor execution.
+- **Distilled procedure, not raw trajectory.** A distilled SKILL.md beat
+  workflow memory built from the same source trajectories by +6.06
+  points; verbose traces drove timeout exhaustion (10.6% vs 1.7%). Flag
+  bodies that read as session transcripts — exploration narrative, failed
+  attempts, or debugging walks preserved instead of compressed into the
+  decisive procedure.
+- **Applicability boundary.** Compact procedures demand applicability
+  judgment; skills fail under brittle assumptions, incompatible contexts,
+  or insufficient adaptation. Flag bodies that never say when the skill
+  does *not* apply or which steps must adapt to the task at hand.
+  Complements `description-anti-triggers-missing`: that rule covers the
+  retrieval-time description, this one the execution-time body.
+- **Brittle context assumptions.** Environment specifics — paths, tool
+  versions, service layout, resource names — stated as unconditional fact
+  with no check-or-adapt instruction break silently in a different
+  context. Prefer "verify X, then …" over asserting X.
+- **Verification anchors.** The largest measured wins were execution-layer
+  stabilizations driven by explicit setup and verification checks:
+  environment/infrastructure failures 5.3% → 0.2%, output-format
+  mismatches 7.4% → 3.2%, service-lifecycle failures 2.7% → 0.8%. When
+  the skill's task produces a checkable artifact and the body never says
+  what to verify, flag it. Complements `validation-loop-missing`, which
+  targets destructive/batch operations specifically.
+- **Pool confusability (plugin/repo mode only).** Similar-sounding skills
+  are the dominant retrieval stressor: actual-use precision collapsed
+  from 29.6% (5-skill pool) to 3.3% (100-skill pool), with similar
+  distractors degrading selection far more than random or dissimilar
+  ones. When auditing a plugin or marketplace, compare descriptions
+  across the pool; flag pairs that claim overlapping intents without
+  anti-triggers distinguishing them. Report the finding under each skill
+  involved, naming the counterpart.
 
 ### References / progressive disclosure (from best-practices)
 - **Reference depth ≤ 1.** Best-practices: "Keep references one level deep
@@ -373,6 +427,12 @@ Adding a new detection means adding a new key here.
 | `mcp-tool-unqualified` | MCP tool referenced without `ServerName:tool_name` qualification |
 | `nested-references` | File reference is more than 1 level deep from SKILL.md |
 | `large-reference-no-toc` | Reference file > 100 lines without a table of contents |
+| `knowledge-dump-no-procedure` | Body is mostly declarative facts with no ordered procedure to anchor execution |
+| `undistilled-trajectory-content` | Body reads as a raw session transcript (exploration, failed attempts, debugging) rather than a distilled procedure |
+| `applicability-boundary-missing` | Body never says when the skill does not apply or which steps must adapt to context |
+| `brittle-context-assumptions` | Environment specifics stated as unconditional fact with no check-or-adapt step |
+| `verification-anchors-missing` | Task produces checkable artifacts but the body names no verification checks |
+| `description-confusable-in-pool` | Descriptions in the audited pool claim overlapping intents without distinguishing anti-triggers (plugin/repo mode only) |
 | `gotchas-missing` | Body contains specific environment-bound traps that aren't consolidated into a `## Gotchas` section (judgment-based, not length-gated) |
 | `gotchas-generic` | Gotchas section contains generic advice rather than specific facts |
 | `template-not-extracted` | Output-format template is inline when it could move to `assets/` |
