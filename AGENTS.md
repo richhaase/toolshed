@@ -116,10 +116,6 @@ the explicit validation and privacy commands required by the workflow above.
   cache/provenance/privacy diagnostics, passive session capture, active
   LLM-driven interview, queue review, and gated promotion to a marketplace git
   repo, defaulting to the Memento RSI target.
-- **legate** — Retired delegated-work orchestration. Code is retained for
-  history/reference, but the plugin is not installable from toolshed
-  marketplace surfaces. Use harness-native background agents / agents view
-  instead of Legate's tmux coordination layer.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.
@@ -142,9 +138,8 @@ the explicit validation and privacy commands required by the workflow above.
   routes to it, not a duplicated copy of the same Memento state.
 - Prefer generic wording in skills: "agent entrypoint" rather than only
   `CLAUDE.md`, unless the instruction is explicitly Claude-specific.
-- Keep `memento` independent from retired `legate`; Memento should use
-  harness-native background-agent primitives where available and degrade cleanly
-  when no delegation surface exists.
+- Memento should use harness-native background-agent primitives where
+  available and degrade cleanly when no delegation surface exists.
 
 ## Public-repo hygiene
 

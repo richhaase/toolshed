@@ -11,7 +11,6 @@ machine when the plugin is installed and a skill is invoked.
 - `plugins/<name>/skills/<skill>/scripts/` and
   `plugins/<name>/skills/_shared/scripts/` may contain Bash or dependency-free
   Node.js programs that the agent invokes. Read them before installing a plugin.
-- `plugins/legate/` interacts with `tmux`, `gh`, and `git`.
 - `plugins/memento/` reads and writes files inside the resolved Memento
   root and may invoke `git` against that root.
 - `plugins/actuary/` is read-only by design; it reads skill files and may use

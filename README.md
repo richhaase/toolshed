@@ -99,17 +99,6 @@ immutable change identity. Any agent, bundled workflow, or human process may
 construct the change. The dependency-free CLI preserves local immutable
 revisions without a remote ticket store or builder adapter.
 
-### [Legate](plugins/legate/) — Delegated Work Orchestration _(deprecated)_
-
-> **⚠️ DEPRECATED (2026-06-02)** — superseded by Claude Code's native agents
-> view (session list + resume + worktree isolation + background notifications).
-> Not installable from the marketplace; code retained for reference. See
-> [`plugins/legate/DEPRECATED.md`](plugins/legate/DEPRECATED.md).
-
-Legacy delegated work orchestration for agent sessions. It dispatched Claude
-Code or Codex work into tagged tmux windows and provided debrief/watch/logs/stop
-helpers. New work should use harness-native background agents / agents view.
-
 ## Distribution layout
 
 | Harness | Marketplace metadata | Plugin manifest | Context |
