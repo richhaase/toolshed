@@ -24,6 +24,12 @@
       "source": "./plugins/steward",
       "description": "Create, critique, freeze, and assess portable software intent contracts.",
       "category": "Developer Tools"
+    },
+    {
+      "name": "ostrich",
+      "source": "./plugins/ostrich",
+      "description": "Escape unwanted work through one fresh, unrelated tangent chosen and led by the agent.",
+      "category": "Productivity"
     }
   ]
 }

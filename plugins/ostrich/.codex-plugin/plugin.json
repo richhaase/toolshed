@@ -1,0 +1,27 @@
+{
+  "name": "ostrich",
+  "version": "0.1.0",
+  "description": "Create a deliberate hard cut from unwanted work by choosing and leading one maximally unrelated tangent, with cautious local preference learning.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": ["distraction", "tangent", "context-switch", "conversation", "play"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Ostrich",
+    "shortDescription": "Escape work through one fresh tangent",
+    "longDescription": "Create a deliberate hard cut from overwhelming or unwanted work. Ostrich silently excludes the active work cluster, chooses one distant and engaging tangent without presenting a menu, grounds factual claims when needed, and learns broad preferences without retaining the work context that prompted the escape.",
+    "developerName": "Rich Haase",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Interactive"],
+    "websiteURL": "https://github.com/richhaase/toolshed",
+    "defaultPrompt": [
+      "Ostrich.",
+      "Distract me for five minutes.",
+      "Take me somewhere completely unrelated."
+    ]
+  }
+}

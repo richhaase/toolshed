@@ -41,6 +41,7 @@ codex plugin marketplace add richhaase/toolshed
 codex plugin add memento@toolshed
 codex plugin add actuary@toolshed
 codex plugin add steward@toolshed
+codex plugin add ostrich@toolshed
 ```
 
 Codex reads `.agents/plugins/marketplace.json` and each plugin's
@@ -98,6 +99,14 @@ conditionally challenges material ambiguity without expanding scope, and
 immutable change identity. Any agent, bundled workflow, or human process may
 construct the change. The dependency-free CLI preserves local immutable
 revisions without a remote ticket store or builder adapter.
+
+### [Ostrich](plugins/ostrich/) — Deliberate Distraction
+
+Break away from overwhelming or unwanted work through one agent-chosen tangent.
+Ostrich silently excludes the active work cluster, leads a maximally unrelated
+five-minute escape without presenting another decision, grounds factual
+tangents when needed, and learns broad preferences without retaining the work
+context that prompted the break.
 
 ## Distribution layout
 

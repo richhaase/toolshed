@@ -1,0 +1,13 @@
+{
+  "name": "ostrich",
+  "version": "0.1.0",
+  "description": "Create a deliberate hard cut from unwanted work by choosing and leading one maximally unrelated tangent, with cautious local preference learning.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": ["distraction", "tangent", "context-switch", "conversation", "play"],
+  "skills": "./skills/"
+}
