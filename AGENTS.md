@@ -125,9 +125,11 @@ the explicit validation and privacy commands required by the workflow above.
   challenges material ambiguity without expanding scope, and `assess` judges
   immutable changes claim by claim using proportionate post-build evidence.
   A dependency-free local CLI owns the deterministic lifecycle.
-- **ostrich** — Deliberate context-break workflow. Silently excludes the active
-  work cluster, chooses and leads one maximally unrelated tangent without a
-  menu, grounds factual tangents when needed, and learns broad preferences
+- **ostrich** — Deliberate context-break workflow. Silently excludes the
+  active work cluster, rolls one maximally unrelated tangent from a grid of
+  domains, formats, constraints, and no-key real-world seeds so it never
+  starts from the model's habits, delivers it at the highest capability tier
+  the harness offers, and learns broad preferences through a bounded ledger
   without retaining the work context that prompted the escape.
 
 ## Portability rules

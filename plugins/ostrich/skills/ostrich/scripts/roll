@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -eu
+
+usage() {
+  cat <<'USAGE'
+Usage: roll [--count N] [--grid PATH]
+
+Roll one Ostrich tangent: an explore/exploit mode, a random date, a recent
+date, coordinates, an integer, a letter, and N candidate combinations of
+domain, format, constraint, seed source, and opening shape drawn from the
+tangent grid. Set OSTRICH_SEED to make a roll reproducible.
+USAGE
+}
+
+script_dir=$(cd "$(dirname "$0")" && pwd)
+grid="$script_dir/../references/tangent-grid.md"
+count=3
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --count)
+      [ $# -ge 2 ] || { echo "roll: --count requires a number" >&2; exit 2; }
+      count=$2
+      shift 2
+      ;;
+    --grid)
+      [ $# -ge 2 ] || { echo "roll: --grid requires a path" >&2; exit 2; }
+      grid=$2
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "roll: unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "$count" in
+  ''|*[!0-9]*) echo "roll: --count must be a positive integer" >&2; exit 2 ;;
+esac
+[ "$count" -ge 1 ] || { echo "roll: --count must be a positive integer" >&2; exit 2; }
+[ -f "$grid" ] || { echo "roll: grid not found: $grid" >&2; exit 2; }
+
+if [ -n "${OSTRICH_SEED:-}" ]; then
+  state=$(( OSTRICH_SEED & 0x7fffffff ))
+else
+  state=$(( ( (RANDOM << 16) ^ ($$ << 4) ^ $(date +%s) ) & 0x7fffffff ))
+fi
+
+rand() {
+  state=$(( (state * 1103515245 + 12345) & 0x7fffffff ))
+  r=$(( (state >> 8) % $1 ))
+}
+
+section() {
+  awk -v s="$1" '
+    /^## / { active = ($0 == "## " s); next }
+    active && /^- / { sub(/^- /, ""); print }
+  ' "$grid"
+}
+
+pick() {
+  local lines n
+  lines=$(section "$1")
+  n=$(printf '%s\n' "$lines" | grep -c . || true)
+  if [ "$n" -eq 0 ]; then
+    echo "roll: grid has no entries under '## $1'" >&2
+    exit 3
+  fi
+  rand "$n"
+  picked=$(printf '%s\n' "$lines" | sed -n "$(( r + 1 ))p")
+}
+
+pad2() {
+  if [ "$1" -lt 10 ]; then printf '0%d' "$1"; else printf '%d' "$1"; fi
+}
+
+signed_coord() {
+  local whole frac sign
+  rand "$1"; whole=$r
+  rand 10000; frac=$r
+  rand 2; sign=$r
+  if [ "$sign" -eq 0 ]; then coord=$(printf -- '-%d.%04d' "$whole" "$frac"); else coord=$(printf '%d.%04d' "$whole" "$frac"); fi
+}
+
+rand 4; if [ "$r" -eq 0 ]; then mode=exploit; else mode=explore; fi
+
+rand 194; year=$(( 1770 + r ))
+rand 12; month=$(( r + 1 ))
+rand 28; day=$(( r + 1 ))
+this_year=$(date +%Y)
+rand $(( this_year - 1996 )); recent_year=$(( 1996 + r ))
+rand 12; recent_month=$(( r + 1 ))
+rand 28; recent_day=$(( r + 1 ))
+rand 100; integer=$(( r + 1 ))
+letters=ABCDEFGHIJKLMNOPQRSTUVWXYZ
+rand 26; letter=${letters:$r:1}
+signed_coord 90; lat=$coord
+signed_coord 180; lon=$coord
+
+printf 'mode: %s\n' "$mode"
+printf 'date: %d-%s-%s\n' "$year" "$(pad2 "$month")" "$(pad2 "$day")"
+printf 'recent-date: %d-%s-%s\n' "$recent_year" "$(pad2 "$recent_month")" "$(pad2 "$recent_day")"
+printf 'coordinates: %s, %s\n' "$lat" "$lon"
+printf 'integer: %d\n' "$integer"
+printf 'letter: %s\n' "$letter"
+
+i=1
+while [ "$i" -le "$count" ]; do
+  printf 'candidate %d:\n' "$i"
+  pick Domains; printf '  domain: %s\n' "$picked"
+  pick Formats; printf '  format: %s\n' "$picked"
+  pick Constraints; printf '  constraint: %s\n' "$picked"
+  pick Seeds; printf '  seed: %s\n' "$picked"
+  pick Openings; printf '  opening: %s\n' "$picked"
+  i=$(( i + 1 ))
+done

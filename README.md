@@ -103,10 +103,12 @@ revisions without a remote ticket store or builder adapter.
 ### [Ostrich](plugins/ostrich/) — Deliberate Distraction
 
 Break away from overwhelming or unwanted work through one agent-chosen tangent.
-Ostrich silently excludes the active work cluster, leads a maximally unrelated
-five-minute escape without presenting another decision, grounds factual
-tangents when needed, and learns broad preferences without retaining the work
-context that prompted the break.
+Ostrich silently excludes the active work cluster, rolls a tangent from a grid
+of domains, formats, and constraints, seeds it from no-key public sources such
+as a random newspaper page or a museum object, delivers it as markdown, a
+linked image or recording, a playable artifact, or a terminal toy depending on
+the harness, and learns broad preferences through a bounded ledger without
+retaining the work context that prompted the break.
 
 ## Distribution layout
 

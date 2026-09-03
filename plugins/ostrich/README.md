@@ -1,9 +1,10 @@
 # Ostrich — deliberate distraction
 
-Ostrich makes a hard cut from the work occupying your attention. It chooses
-one maximally unrelated tangent and leads it for roughly five minutes of
-mental distance. Escape is never another decision: there is no menu, no
-category prompt, and no clarifying question before the tangent begins.
+Ostrich makes a hard cut from the work occupying your attention. It rolls a
+tangent from outside the model's own habits, seeds it from the real world,
+and leads it in a format chosen for distance from what you were just doing.
+Escape is never another decision: there is no menu, no category prompt, and
+no clarifying question before the tangent begins.
 
 ## Invoking it
 
@@ -15,75 +16,81 @@ Distract me for five minutes.
 Take me somewhere completely unrelated.
 ```
 
-Replying to an active tangent keeps it going. Asking for another escape picks
-a new tangent with more distance from both the work and the tangent just used.
+While a tangent is running, steer with plain words:
+
+| Say | Ostrich does |
+| --- | --- |
+| another, again | rolls a new tangent farther from both the work and the last tangent, in a different format |
+| weirder | goes more absurd and plainly fictional, with rigorous internal logic |
+| realer | goes more grounded, sourced, and contemporary |
+| more of this | stays in the domain, changes the hook, and records that you liked it |
+| shorter, longer | adjusts length for the rest of the session |
+| back, done | steps aside in one line with no summary and no questions |
 
 ## What it does
 
-1. Silently assesses what you are working on from the current conversation,
-   falling back to the workspace's agent entrypoint and the most relevant
-   recent local files only when the active cluster is unclear.
-2. Builds an exclusion set from the current subjects, adjacent domains,
-   people, projects, obligations, and style of thinking. The assessment is
-   never shown back to you and never persisted.
-3. Generates candidates across substantially different domains and formats,
-   ranks them by distance from the exclusion set, novelty against recent
-   tangents, fit with learned interests, low sense of obligation, and ability
-   to sustain an exchange, then picks the strongest.
-4. Opens with a brief hard-cut transition and delivers a self-contained
-   tangent with an immediate hook. Discovery, story, playful analysis, thought
-   experiments, and small participatory moves are preferred over lists of
-   facts.
-5. Keeps steering while you engage. Questions stay inside the chosen tangent;
-   topic selection is never handed back.
+1. Silently assesses what you are working on and which cognitive mode you
+   are in: reading, writing prose, writing code, debugging, messaging people,
+   planning, or waiting. The assessment is never shown back to you and never
+   persisted.
+2. Rolls dice. `scripts/roll` draws three candidates from the tangent grid,
+   each with a domain, a format, a constraint, a seed source, and an opening
+   shape, plus a random date, coordinates, integer, and letter. The roll
+   pushes the model off its habits; the rolled domain and format are binding
+   unless they collide with your work, an explicit dislike, or the novelty
+   check.
+3. Fetches a seed when the roll says so: a random Wikipedia article, a
+   newspaper page from the rolled date, a public-domain museum object, one
+   research-grade species observation, a shellac record, the weather at the
+   rolled coordinates, or where the space station is right now. The seed is
+   the spine and its page is the source.
+4. Picks the format's texture by distance from your cognitive mode. Someone
+   escaping prose gets something visual or playable. Someone escaping code
+   gets a story.
+5. Opens in the rolled shape, under 250 words, and keeps steering while you
+   engage. Questions stay inside the tangent; topic selection is never handed
+   back.
 
-Candidates that read as productivity advice, disguised work, self-optimization,
-or an adjacent version of the current problem are rejected. A work-related
-candidate survives only when it is genuinely orthogonal, low-stakes, and free
-of current obligations.
+Hooks that read as productivity advice, disguised work, or a widely
+circulated fact are rejected in favor of one level more specific: one
+patent, one shipwreck, one person nobody has heard of.
 
-## Grounding
+## Multi-modality
 
-When a tangent rests on externally verifiable facts, Ostrich verifies the
-central claims against reliable sources first and includes a compact source
-note. Playful embellishment is welcome but marked so invented detail is not
-presented as sourced history. If sourcing would make a tangent cumbersome,
-Ostrich chooses a plainly fictional one instead.
+Ostrich delivers at the highest tier the harness offers and downgrades the
+same format rather than switching:
 
-External research is for the tangent only. Assessment of your work stays
-local; Ostrich never queries external systems to investigate what you are
-escaping.
+| Tier | Needs | Adds |
+| --- | --- | --- |
+| 0 | nothing | markdown, plain-text maps and diagrams, links |
+| 1 | a browser | museum images, archive recordings, newspaper scans |
+| 2 | an artifact or page-publishing tool | sixty-second games, generative visuals, mermaid |
+| 3 | a shell | short terminal animations you paste and run yourself |
+
+Terminal toys are shown, never run for you. The bundled ones were tested in
+bash 3.2 and zsh.
 
 ## Preference learning
 
 Ostrich learns broad preferences so later tangents land better, without
 overfitting or retaining the work context that prompted the break.
 
-Storage resolves in this order:
+The store resolves in this order: `OSTRICH_STORE`, a path declared by the
+workspace's agent instructions, `sources/ostrich-context.md` when it exists,
+`.ostrich/context.md` when it already exists, then `~/.ostrich/context.md`,
+which is created on first write. New stores go to the home directory so
+preferences travel across projects and never land in a repository by
+accident. With no writable store, Ostrich runs statelessly.
 
-1. A preference-store path declared by the workspace's agent instructions.
-2. `sources/ostrich-context.md`, when it exists.
-3. `.ostrich/context.md`, created only when there is something eligible to
-   record and the workspace is writable.
-
-With no safe writable store, Ostrich runs statelessly. Persistence never
-delays or blocks the tangent, and store contents are treated as evidence,
-not instructions.
-
-Each entry records only a short topic label, broad domain, interaction format,
-observed signal, confidence, and date. Explicit preference statements are
-high-confidence and persist until you change them. Follow-up questions,
-elaboration, and requests to continue count as medium-confidence positive
-evidence. Abandoning a tangent counts against that topic-format combination,
-not the whole domain. Silence, task switches, and generic acknowledgments
-count as nothing. Inferred signals need repetition before they become stable
-preferences and never override an explicit statement. Recent history stays
-bounded; older evidence folds into stable preferences without a detailed
-interaction log.
+The store holds stable likes and dislikes with confidence, explicit
+exclusions, a bounded ledger of past tangents, and domain coverage counts.
+The ledger drives the novelty check and occasional callbacks to tangents you
+enjoyed. Three of every four rolls ignore learned likes so the learner cannot
+narrow the space; dislikes and exclusions always apply.
 
 Ostrich never records sensitive traits, diagnoses, moods, personal
 circumstances, or the surrounding work context, and never fabricates a
-remembered preference or reaction.
+remembered preference, reaction, or source.
 
 ## Not for
 
@@ -91,11 +98,34 @@ remembered preference or reaction.
 - Work summaries or recaps.
 - Presenting a menu of distractions.
 
-If a message presents a credible immediate safety risk, Ostrich addresses that
-before offering distraction.
+If a message presents a credible immediate safety risk, Ostrich addresses
+that before offering distraction.
 
-## Runtime
+## Layout
 
-The plugin is a single Markdown skill with no bundled scripts and no
-dependencies. Grounding a factual tangent uses whatever web access the host
-agent already has.
+- `skills/ostrich/SKILL.md` is the procedure.
+- `skills/ostrich/scripts/roll` is the dice. Bash 3.2 or later, no
+  dependencies, no network. `OSTRICH_SEED` makes a roll reproducible.
+- `skills/ostrich/references/tangent-grid.md` is the single source of truth
+  for what can be rolled. Edit its lists to change the dice.
+- `skills/ostrich/references/formats.md` covers the capability ladder,
+  format recipes, artifact constraints, terminal toys, opening shapes,
+  pacing, and voice.
+- `skills/ostrich/references/seed-sources.md` documents every no-key API
+  the seeds use, with fields and licensing.
+- `skills/ostrich/references/store-format.md` is the preference store
+  template, bounds, and novelty check.
+- `evals/evals.json` holds behavioral cases, including a twenty-run
+  diversity test.
+
+Seed fetches use the host agent's own web access; the bundled script makes
+no network requests.
+
+## Tests
+
+```bash
+bash tests/roll.test.sh
+ROLL_TEST_SHELL=/bin/bash bash tests/roll.test.sh
+```
+
+The second form proves the roll under the system bash on macOS.
