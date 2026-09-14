@@ -13,9 +13,11 @@ that should be re-read within a week and acted on. Three levels of
 engagement: see what's open (`list`), look at one item (`show`), or
 triage one-by-one (`walk`).
 
-The Memento does not store tasks. Commitments live in the user's issue
-tracker, not here. If a follow-up turns out to be a real commitment,
-file it in Jira (or wherever) and dismiss the follow-up.
+Follow-ups do not create tasks. By default, commitments live in the user's
+issue tracker. A root may explicitly declare an intentional Markdown task
+store, but filing there remains a separate, user-requested workflow. If a
+follow-up becomes a real commitment, file it in the configured task system and
+dismiss the follow-up.
 
 ## Memento root
 

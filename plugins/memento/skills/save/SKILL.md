@@ -138,11 +138,12 @@ trajectory clustering, SkillOpt) consumes — see "Trajectory channel" below.
 
 ### Where commitments go
 
-`/save` does not create tasks. A real commitment — "I am driving this to
-done" — lives in the user's issue tracker (Jira, Linear, GitHub issues),
-not in a markdown file. If the session surfaced something the user
-committed to, surface it back as a one-liner ("Worth filing in Jira: …")
-and let the user file it. Do not write `sources/tasks/`.
+`/save` does not create tasks. By default, a real commitment — "I am driving
+this to done" — lives in the user's issue tracker. A root may explicitly
+declare an intentional Markdown task store, but writing there remains a
+separate, user-requested workflow. If the session surfaced something the user
+committed to, report it as a one-liner and let the user file it in the
+configured task system. Do not write `sources/tasks/` from `/save`.
 
 ### The follow-up bar
 
@@ -154,7 +155,7 @@ re-read on the next triage walk. Apply the bar before proposing one:
    not a confident yes, it is not a follow-up.
 2. **Does it have to be a follow-up?** If the value is the information,
    route to `sources/notes/` so `/compile` folds it into the wiki. If it
-   is a commitment, surface for Jira. If it is sensitive entity context,
+   is a commitment, surface it for the configured task system. If it is sensitive entity context,
    route to `private/`. Follow-up is the last resort.
 3. **Is there already an open follow-up on this topic?** If yes, update
    that file's `## Notes` rather than creating a new one.

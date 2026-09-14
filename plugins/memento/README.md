@@ -129,7 +129,10 @@ private/                # Sensitive notes — never compiled
 The Memento is a knowledge base, not a task tracker. Real commitments
 (things you are driving to done) belong in your issue tracker — Jira,
 Linear, GitHub issues — not in markdown here. `/save` does not write
-`sources/tasks/`; the directory is intentionally absent.
+`sources/tasks/` by default. A root may opt into an intentional Markdown task
+store by documenting its semantics and adding
+`<!-- MEMENTO_TASK_STORE: sources/tasks -->` to its public root policy. The
+`save` and `followups` skills still do not create tasks automatically.
 
 What `/save` does write:
 

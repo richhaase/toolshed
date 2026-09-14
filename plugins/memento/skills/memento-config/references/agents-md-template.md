@@ -77,7 +77,9 @@ All inputs that feed the wiki. Organized by origin:
   (lists expired-first by default, or `/followups walk` to triage) and
   either dismissed, answered into a note, noted, or filed-and-dismissed
   when something turns out to be a real commitment that belongs in the
-  issue tracker. The Memento does not store tasks itself.
+  issue tracker. The Memento does not create a task store by default. A root
+  that intentionally stores tasks must document their semantics and declare
+  `<!-- MEMENTO_TASK_STORE: sources/tasks -->` in this public policy file.
 - **`trajectories/`** — `YYYY-MM-DD/<run-id>.md` session telemetry emitted by
   `/save` and `/ama` (outcome, skills/tools used, lessons). Local-only, never
   compiled or promoted — the substrate the learning loop reads.

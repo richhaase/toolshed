@@ -140,7 +140,8 @@ Empty is fine for a clean routine session.>
 
 ## Tasks
 
-The Memento does not store tasks. Commitments belong in the user's issue
-tracker (Jira, Linear, GitHub issues). If a session surfaces a real
-commitment, `/save` reports it back as a one-liner so the user can file
-it themselves; it does not create `sources/tasks/`.
+`/save` does not create tasks. By default, commitments belong in the user's
+issue tracker. A root may explicitly declare an intentional Markdown task
+store, but task creation remains a separate, user-requested workflow. If a
+session surfaces a real commitment, `/save` reports it back as a one-liner so
+the user can file it in the configured task system.

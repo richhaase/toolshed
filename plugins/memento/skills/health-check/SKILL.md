@@ -171,8 +171,12 @@ Inspect active `sources/followups/*.md`:
   count, not the bodies.
 - Total follow-up count above ~10 is a warning sign on its own. The
   queue is meant to be small enough to walk in a single sitting.
-- The Memento does not store tasks. Any presence of `sources/tasks/`
-  is a P2 finding — surface it so the directory can be removed.
+- Memento does not create or assume a task store by default. If a public root
+  policy file declares `<!-- MEMENTO_TASK_STORE: sources/tasks -->`, treat
+  `sources/tasks/` as an intentional L3 source collection and apply the normal
+  source-integrity checks; do not recommend moving or deleting it merely
+  because it contains tasks. Without that declaration, any presence of
+  `sources/tasks/` is a P2 finding because it may be a legacy task cache.
 
 ### Check 7: Harness And Plugin Drift
 

@@ -23,8 +23,11 @@ outputs/                # Products of the system
 private/                # Sensitive notes — never compiled into wiki
 ```
 
-The Memento intentionally does not create `sources/tasks/`. Real commitments
-belong in the user's issue tracker, not in markdown.
+The Memento does not create `sources/tasks/` by default. A root may opt into an
+intentional Markdown task store by documenting its semantics in the public root
+policy and adding `<!-- MEMENTO_TASK_STORE: sources/tasks -->`. The declaration
+prevents health checks from treating that directory as legacy drift; it does
+not authorize `save` or `followups` to manufacture tasks.
 
 Empty directories are not Git artifacts. Only files actually written belong in
 `MEMENTO_TOUCHED`.

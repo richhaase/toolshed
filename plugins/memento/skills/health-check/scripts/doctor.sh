@@ -365,10 +365,18 @@ check_domain_store_mentions() {
 
 check_vestigial_tasks_dir() {
   [ -d sources/tasks ] || return 0
+  local policy rc=1
+  for policy in AGENTS.md CLAUDE.md GEMINI.md; do
+    [ -f "$policy" ] || continue
+    rc=0
+    scan_quiet '<!--[[:space:]]*MEMENTO_TASK_STORE:[[:space:]]*sources/tasks/?[[:space:]]*-->' "$policy" || rc=$?
+    scan_guard "$rc" "check_vestigial_tasks_dir"
+    [ "$rc" -eq 0 ] && return 0
+  done
   local count
   count="$(find sources/tasks -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
   emit P2 "Vestigial sources/tasks/ directory" "sources/tasks/" \
-    "Memento no longer stores tasks (commitments belong in the issue tracker). $count file(s) inside. Remove the directory after triaging the contents."
+    "No intentional task-store declaration was found. $count file(s) inside. Triage the contents, then either remove the legacy directory or document the root's task-store policy."
 }
 
 check_followup_hygiene() {
