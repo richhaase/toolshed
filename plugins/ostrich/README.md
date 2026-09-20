@@ -1,4 +1,4 @@
-# Ostrich — deliberate distraction
+# <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> Ostrich — deliberate distraction
 
 Ostrich creates a quick, lighthearted break from the work occupying your
 attention. It silently excludes the current work cluster, chooses one coherent

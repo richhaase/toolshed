@@ -67,11 +67,7 @@ packages or make network requests on their own.
 
 ## Plugins
 
-| Memento | Actuary | Steward | Ostrich |
-| :---: | :---: | :---: | :---: |
-| <img src="plugins/memento/assets/icon.png" width="128" alt="Book with a gold bookmark"> | <img src="plugins/actuary/assets/icon.png" width="128" alt="Teal precision caliper"> | <img src="plugins/steward/assets/icon.png" width="128" alt="Framed contract with a gold check mark"> | <img src="plugins/ostrich/assets/icon.png" width="128" alt="Ostrich with its head in the sand"> |
-
-### [Memento](plugins/memento/) — Personal Memory Base
+### <img src="plugins/memento/assets/icon.png" width="48" height="48" align="middle" alt=""> [Memento](plugins/memento/) — Personal Memory Base
 
 Multi-layer cache memory base with automated compilation. Treats knowledge
 like a CPU cache hierarchy: L1 (`AGENTS.md` hot set) -> L2 (wiki, loaded on
@@ -85,7 +81,7 @@ a project repo; the bundled `skills/_shared/scripts/memento-root` and
 `skills/_shared/scripts/memento-run` helpers make each skill operate from the
 resolved root instead of assuming the current repo is the Memento.
 
-### [Actuary](plugins/actuary/) — Skill Audit
+### <img src="plugins/actuary/assets/icon.png" width="48" height="48" align="middle" alt=""> [Actuary](plugins/actuary/) — Skill Audit
 
 Audit Agent Skill design against the agentskills.io specification, named Claude
 and Codex profiles, and evidence-backed authoring criteria. The `skill-audit`
@@ -93,7 +89,7 @@ skill uses a deterministic analyzer for portable L1 and structural L2 evidence,
 then applies ranked L3 craft judgment. An optional privacy review reports
 disclosure risks without producing a release or task-success verdict.
 
-### [Steward](plugins/steward/) — Intent and Assurance Contracts
+### <img src="plugins/steward/assets/icon.png" width="48" height="48" align="middle" alt=""> [Steward](plugins/steward/) — Intent and Assurance Contracts
 
 Separate software intent and assurance from an interchangeable builder.
 `frame` freezes the minimum decision-complete intent delta for explicit human
@@ -104,7 +100,7 @@ human process may construct the change. The dependency-free CLI maintains the
 single local contract lifecycle without a remote ticket store or builder
 adapter.
 
-### [Ostrich](plugins/ostrich/) — Deliberate Distraction
+### <img src="plugins/ostrich/assets/icon.png" width="48" height="48" align="middle" alt=""> [Ostrich](plugins/ostrich/) — Deliberate Distraction
 
 Break away from overwhelming or unwanted work through one agent-chosen tangent.
 Ostrich silently excludes the active work cluster, uses optional random domain

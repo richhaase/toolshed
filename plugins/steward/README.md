@@ -1,4 +1,4 @@
-# Steward — the outer intent and assurance loop
+# <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> Steward — the outer intent and assurance loop
 
 Steward freezes the minimum decision-complete intent delta, delegates
 construction to an arbitrary inner loop, and assesses the resulting immutable

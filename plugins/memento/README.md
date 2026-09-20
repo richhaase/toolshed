@@ -1,4 +1,4 @@
-# memento — Personal Memory Base Plugin
+# <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> memento — Personal Memory Base Plugin
 
 A multi-layer cache memory base with automated compilation from sources to
 wiki to canonical `AGENTS.md` context.
