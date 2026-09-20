@@ -45,6 +45,7 @@ jobs:
         run: |
           plugins/memento/skills/_shared/scripts/memento-root --self-test
           plugins/memento/skills/_shared/scripts/compile-output-guard --self-test
+          node plugins/memento/skills/compile/scripts/source-impact --self-test
           node plugins/memento/skills/_shared/scripts/build-graph --self-test
           node plugins/memento/skills/_shared/scripts/eval-score --self-test
 

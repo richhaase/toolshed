@@ -46,10 +46,14 @@ the durable run record.
 
 ## Incremental orchestration
 
-1. Resolve the change set from the start SHA and INDEX baseline; stop current
-   when empty.
-2. Read changed sources in one batch, using `touches` where present.
-3. Build affected entities, then read affected pages in one batch.
+1. Resolve the ordinary change set from the start SHA and INDEX baseline, then
+   run the lifecycle impact scan. Stop current only when the active change set
+   and lifecycle `affected_pages` are both empty.
+2. Read active changed sources plus the impact report's readable old, remaining
+   active, and linked replacement sources in one batch, using `touches` where
+   present.
+3. Build actively changed entities, union those pages with lifecycle-affected
+   pages, then read that exact affected-page union in one batch.
 4. Batch Class-A edits and concurrently dispatch at least three Class-B pages;
    wait for every page writer.
 5. Reconcile evidence, build the graph fail-open, and write INDEX while
@@ -71,9 +75,14 @@ Rebuild only the dynamic hot set in canonical `AGENTS.md`; `CLAUDE.md` remains
 a thin harness entrypoint and never receives a duplicate.
 
 1. From INDEX read pages, `Last Updated`, `pinned`, and `rediscovery_recent`.
+   For automatic recency selection, retain only pages whose `sources:`
+   frontmatter resolves to at least one current active source. A page with no
+   active evidence is historical-only even if this compile just updated it.
 2. Find `<!-- HOT SET START -->` and `<!-- HOT SET END -->` in AGENTS.md.
-3. Include every pinned page, then fill by descending Last Updated. Cap at five
-   rows per entity type and about 20 rows total.
+3. Include every pinned page, then fill by descending Last Updated. An explicit
+   pin may include a historical-only page; label its one-line summary as
+   historical. Never select a historical-only page merely for recency. Cap at
+   five rows per entity type and about 20 rows total.
 4. Render name, one-line summary, and wiki link using `templates.md`; replace
    only content between markers.
 5. If the Step 5.6 graph succeeded, compute rediscovery:

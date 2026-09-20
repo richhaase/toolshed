@@ -1,0 +1,354 @@
+#!/usr/bin/env node
+'use strict';
+
+const cp = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const argv = process.argv.slice(2);
+const opt = {
+  root: process.env.MEMENTO_ROOT || process.cwd(),
+  baseline: null,
+  json: false,
+  selfTest: false,
+};
+
+function usage(stream = process.stderr) {
+  stream.write('usage: source-impact [--root DIR] [--baseline SHA] [--json] [--self-test]\n');
+}
+
+for (let i = 0; i < argv.length; i++) {
+  const arg = argv[i];
+  if (arg === '--root') opt.root = argv[++i];
+  else if (arg === '--baseline') opt.baseline = argv[++i];
+  else if (arg === '--json') opt.json = true;
+  else if (arg === '--self-test') opt.selfTest = true;
+  else if (arg === '-h' || arg === '--help') { usage(process.stdout); process.exit(0); }
+  else { process.stderr.write(`source-impact: unknown argument ${arg}\n`); usage(); process.exit(64); }
+}
+
+function die(message, code = 2) {
+  process.stderr.write(`source-impact: ${message}\n`);
+  process.exit(code);
+}
+
+function walk(dir) {
+  if (!fs.existsSync(dir)) return [];
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walk(full));
+    else if (entry.isFile() && entry.name.endsWith('.md')) out.push(full);
+  }
+  return out;
+}
+
+function splitFrontmatter(text) {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  if (lines[0] !== '---') return null;
+  const end = lines.indexOf('---', 1);
+  return end < 0 ? null : lines.slice(1, end);
+}
+
+function cleanScalar(value) {
+  const trimmed = String(value || '').trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed.replace(/\s+#.*$/, '').trim();
+}
+
+function inlineList(value) {
+  const trimmed = String(value || '').trim();
+  if (!(trimmed.startsWith('[') && trimmed.endsWith(']'))) return null;
+  const body = trimmed.slice(1, -1).trim();
+  if (!body) return [];
+  return body.split(',').map(cleanScalar).filter(Boolean);
+}
+
+function parseFrontmatter(lines) {
+  const result = { status: 'active', sources: [], supersedes: [], superseded_by: [] };
+  if (!lines) return result;
+  let listKey = null;
+  let listIndent = -1;
+
+  for (const line of lines) {
+    const indent = (line.match(/^(\s*)/) || ['', ''])[1].length;
+    const item = line.match(/^(\s*)-\s+(.+?)\s*$/);
+    if (listKey && item && indent > listIndent) {
+      result[listKey].push(cleanScalar(item[2]));
+      continue;
+    }
+    listKey = null;
+
+    const field = line.match(/^(\s*)(status|sources|supersedes|superseded_by):\s*(.*?)\s*$/);
+    if (!field) continue;
+    const key = field[2];
+    const raw = field[3];
+    if (key === 'status') {
+      result.status = cleanScalar(raw).toLowerCase() || 'active';
+      continue;
+    }
+    if (raw === '') {
+      listKey = key;
+      listIndent = field[1].length;
+      continue;
+    }
+    const values = inlineList(raw);
+    result[key].push(...(values === null ? [cleanScalar(raw)] : values));
+  }
+
+  for (const key of ['sources', 'supersedes', 'superseded_by']) {
+    result[key] = [...new Set(result[key].filter(Boolean))];
+  }
+  return result;
+}
+
+function normalizeSourceRef(raw) {
+  let rel = cleanScalar(raw).replace(/\\/g, '/').replace(/^\.\//, '');
+  rel = path.posix.normalize(rel);
+  if (!rel.startsWith('sources/') || rel === 'sources' || rel.includes('/../') || !rel.endsWith('.md')) return null;
+  if (rel.startsWith('sources/eval/') || rel.startsWith('sources/trajectories/')) return null;
+  return rel;
+}
+
+function readFrontmatter(file) {
+  try { return parseFrontmatter(splitFrontmatter(fs.readFileSync(file, 'utf8'))); }
+  catch { return parseFrontmatter(null); }
+}
+
+function git(root, args) {
+  try {
+    return cp.execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return null;
+  }
+}
+
+function indexBaseline(root) {
+  try {
+    const fm = splitFrontmatter(fs.readFileSync(path.join(root, 'wiki', 'INDEX.md'), 'utf8'));
+    if (!fm) return null;
+    for (const line of fm) {
+      const match = line.match(/^last_compile_commit:\s*([0-9a-fA-F]{40})\s*$/);
+      if (match) return match[1].toLowerCase();
+    }
+  } catch {}
+  return null;
+}
+
+function parseRenameOutput(text, into) {
+  if (!text) return;
+  for (const line of text.split('\n')) {
+    if (!/^R\d+\t/.test(line)) continue;
+    const parts = line.split('\t');
+    if (parts.length < 3) continue;
+    const from = normalizeSourceRef(parts[1]);
+    const to = normalizeSourceRef(parts[2]);
+    if (from && to) into.set(from, to);
+  }
+}
+
+function observedRenames(root, requestedBaseline) {
+  const renames = new Map();
+  if (git(root, ['rev-parse', '--is-inside-work-tree'])?.trim() !== 'true') return renames;
+
+  const baseline = requestedBaseline || indexBaseline(root);
+  if (baseline && /^[0-9a-f]{40}$/i.test(baseline) && git(root, ['cat-file', '-e', `${baseline}^{commit}`]) !== null) {
+    parseRenameOutput(git(root, ['diff', '--name-status', '-M', `${baseline}..HEAD`, '--', 'sources/']), renames);
+  }
+  parseRenameOutput(git(root, ['diff', '--name-status', '-M', 'HEAD', '--', 'sources/']), renames);
+  return renames;
+}
+
+function sourceIndex(root) {
+  const sources = new Map();
+  const reverseSupersedes = new Map();
+  for (const file of walk(path.join(root, 'sources'))) {
+    const rel = path.relative(root, file).split(path.sep).join('/');
+    if (!normalizeSourceRef(rel)) continue;
+    const fm = readFrontmatter(file);
+    const record = {
+      rel,
+      status: fm.status,
+      supersedes: fm.supersedes.map(normalizeSourceRef).filter(Boolean),
+      superseded_by: fm.superseded_by.map(normalizeSourceRef).filter(Boolean),
+    };
+    sources.set(rel, record);
+    if (record.status !== 'archived' && record.status !== 'superseded') {
+      for (const old of record.supersedes) {
+        if (!reverseSupersedes.has(old)) reverseSupersedes.set(old, []);
+        reverseSupersedes.get(old).push(rel);
+      }
+    }
+  }
+  return { sources, reverseSupersedes };
+}
+
+function activeReplacementCandidates(ref, record, renames, index) {
+  const candidates = new Set();
+  if (renames.has(ref)) candidates.add(renames.get(ref));
+  for (const linked of record?.superseded_by || []) candidates.add(linked);
+  for (const linked of index.reverseSupersedes.get(ref) || []) candidates.add(linked);
+  return [...candidates].filter((candidate) => {
+    const replacement = index.sources.get(candidate);
+    return replacement && replacement.status !== 'archived' && replacement.status !== 'superseded';
+  }).sort();
+}
+
+function analyze(root, requestedBaseline = null) {
+  const index = sourceIndex(root);
+  const renames = observedRenames(root, requestedBaseline);
+  const pages = walk(path.join(root, 'wiki'))
+    .filter((file) => path.basename(file) !== 'INDEX.md')
+    .sort();
+  const affected = [];
+
+  for (const file of pages) {
+    const page = path.relative(root, file).split(path.sep).join('/');
+    const fm = readFrontmatter(file);
+    const cited = fm.sources.map(normalizeSourceRef).filter(Boolean);
+    const active = [];
+    const invalidated = [];
+    const replacements = new Set();
+
+    for (const ref of cited) {
+      const record = index.sources.get(ref);
+      if (record && record.status !== 'archived' && record.status !== 'superseded') {
+        active.push(ref);
+        continue;
+      }
+      const linked = activeReplacementCandidates(ref, record, renames, index);
+      linked.forEach((replacement) => replacements.add(replacement));
+      const reason = record
+        ? record.status
+        : (renames.has(ref) ? 'renamed-away' : 'missing');
+      invalidated.push({
+        source: ref,
+        reason,
+        readable: Boolean(record),
+        replacements: linked,
+      });
+    }
+
+    if (invalidated.length) {
+      const replacementSources = [...replacements].sort();
+      const activeSources = [...new Set(active)].sort();
+      affected.push({
+        page,
+        invalidated_sources: invalidated.sort((a, b) => a.source.localeCompare(b.source)),
+        active_sources: activeSources,
+        replacement_sources: replacementSources,
+        has_active_evidence: activeSources.length + replacementSources.length > 0,
+      });
+    }
+  }
+
+  return {
+    root,
+    pages_scanned: pages.length,
+    sources_scanned: index.sources.size,
+    affected_pages: affected,
+    affected_count: affected.length,
+  };
+}
+
+function selfTest() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'memento-source-impact-'));
+  const write = (rel, content) => {
+    const full = path.join(root, rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, content);
+  };
+  const source = (fields, body = 'evidence') => `---\n${fields}\n---\n${body}\n`;
+  const page = (refs) => `---\ntitle: Test\ntype: topics\nsources:\n${refs.map((ref) => `  - ${ref}`).join('\n')}\n---\n# Test\n`;
+
+  write('sources/notes/active.md', source('status: active'));
+  write('sources/notes/archived.md', source('status: archived'));
+  write('sources/notes/replacement.md', source('status: active\nsupersedes: sources/notes/deleted.md'));
+  write('sources/notes/superseded.md', source('status: superseded\nsuperseded_by: sources/notes/new.md'));
+  write('sources/notes/new.md', source('status: active'));
+  write('sources/notes/rename-old.md', source('status: active', 'rename evidence unique'));
+  write('sources/notes/removed.md', source('status: active', 'deleted evidence unique'));
+
+  write('wiki/topics/archived.md', page(['sources/notes/archived.md', 'sources/notes/active.md']));
+  write('wiki/topics/archived-only.md', page(['sources/notes/archived.md']));
+  write('wiki/topics/superseded.md', page(['sources/notes/superseded.md']));
+  write('wiki/topics/deleted.md', page(['sources/notes/deleted.md']));
+  write('wiki/topics/removed.md', page(['sources/notes/removed.md']));
+  write('wiki/topics/no-evidence.md', page(['sources/notes/gone.md']));
+  write('wiki/topics/renamed.md', page(['sources/notes/rename-old.md']));
+  write('wiki/topics/unrelated.md', page(['sources/notes/active.md']));
+
+  const runGit = (args) => cp.execFileSync('git', ['-C', root, ...args], { stdio: 'ignore' });
+  runGit(['init']);
+  runGit(['add', '.']);
+  runGit(['-c', 'user.name=Memento Self Test', '-c', 'user.email=memento@example.invalid', 'commit', '-m', 'fixture']);
+  const baseline = git(root, ['rev-parse', 'HEAD']).trim();
+  runGit(['mv', 'sources/notes/rename-old.md', 'sources/notes/rename-new.md']);
+  fs.unlinkSync(path.join(root, 'sources/notes/removed.md'));
+
+  const result = analyze(root, baseline);
+  const byPage = new Map(result.affected_pages.map((item) => [item.page, item]));
+  const checks = [];
+  const archived = byPage.get('wiki/topics/archived.md');
+  checks.push(['archived citation targets its page', archived?.invalidated_sources[0]?.reason === 'archived']);
+  checks.push(['archived source remains readable for supported history', archived?.invalidated_sources[0]?.readable === true]);
+  checks.push(['remaining active evidence is retained', archived?.active_sources.includes('sources/notes/active.md') && archived.has_active_evidence]);
+
+  const archivedOnly = byPage.get('wiki/topics/archived-only.md');
+  checks.push(['readable archived-only page has no active evidence', archivedOnly?.invalidated_sources[0]?.readable === true && archivedOnly.has_active_evidence === false]);
+
+  const superseded = byPage.get('wiki/topics/superseded.md');
+  checks.push(['superseded metadata links an active replacement', superseded?.replacement_sources.includes('sources/notes/new.md')]);
+  checks.push(['superseded source remains readable for supported correction context', superseded?.invalidated_sources[0]?.readable === true]);
+
+  const deleted = byPage.get('wiki/topics/deleted.md');
+  checks.push(['missing citation is found without Git deletion history', deleted?.invalidated_sources[0]?.reason === 'missing']);
+  checks.push(['never-present missing source is unreadable', deleted?.invalidated_sources[0]?.readable === false]);
+  checks.push(['active reverse supersedes metadata links deleted evidence', deleted?.replacement_sources.includes('sources/notes/replacement.md')]);
+
+  const removed = byPage.get('wiki/topics/removed.md');
+  checks.push(['deleted source is unreadable and invalidates its cited page', removed?.invalidated_sources[0]?.reason === 'missing' && removed.invalidated_sources[0].readable === false && removed.has_active_evidence === false]);
+
+  const noEvidence = byPage.get('wiki/topics/no-evidence.md');
+  checks.push(['page with unavailable evidence is retained and unreadable', noEvidence?.invalidated_sources[0]?.readable === false && noEvidence.has_active_evidence === false]);
+
+  const renamed = byPage.get('wiki/topics/renamed.md');
+  checks.push(['observed rename identifies renamed-away citation', renamed?.invalidated_sources[0]?.reason === 'renamed-away']);
+  checks.push(['observed rename links the active destination', renamed?.replacement_sources.includes('sources/notes/rename-new.md')]);
+  checks.push(['unrelated active page is not targeted', !byPage.has('wiki/topics/unrelated.md')]);
+  checks.push(['only seven affected pages are selected', result.affected_count === 7]);
+
+  fs.rmSync(root, { recursive: true, force: true });
+  let ok = true;
+  for (const [label, pass] of checks) {
+    if (!pass) ok = false;
+    process.stderr.write(`self-test: ${pass ? 'PASS' : 'FAIL'} — ${label}\n`);
+  }
+  if (!ok) die('self-test failed; refusing to certify');
+  process.stderr.write('self-test: OK — lifecycle invalidation stays targeted and replacement-aware.\n');
+}
+
+if (opt.selfTest) {
+  selfTest();
+} else {
+  const root = path.resolve(opt.root);
+  if (!fs.existsSync(path.join(root, 'wiki'))) die(`not a Memento root (no wiki/ at ${root})`, 66);
+  if (!fs.existsSync(path.join(root, 'sources'))) die(`not a Memento root (no sources/ at ${root})`, 66);
+  const result = analyze(root, opt.baseline);
+  if (opt.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  else {
+    process.stdout.write(`Affected pages: ${result.affected_count}\n`);
+    for (const item of result.affected_pages) {
+      const state = item.has_active_evidence ? 'active evidence remains' : 'historical-only';
+      process.stdout.write(`- ${item.page}: ${state}\n`);
+      for (const invalid of item.invalidated_sources) {
+        const linked = invalid.replacements.length ? ` -> ${invalid.replacements.join(', ')}` : '';
+        process.stdout.write(`  ${invalid.source} (${invalid.reason})${linked}\n`);
+      }
+    }
+  }
+}

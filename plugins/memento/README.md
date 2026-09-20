@@ -100,6 +100,11 @@ Bundled scripts:
   append-only eval telemetry, snapshots compile output, and restores it on failure;
   `--self-test` exercises non-Git restoration and the Git dirty-output gate.
 - `skills/_shared/scripts/eval-score` (node) — the deterministic golden-query scorer behind the eval gate. `compile` runs it before committing; `health-check eval` runs it read-only on demand. Emits the verdict contract; `--self-test` proves it fails a poisoned hot set.
+- `skills/compile/scripts/source-impact` (node) — scans wiki `sources:`
+  frontmatter against the current source tree before incremental filtering. It
+  targets pages affected by archived, superseded, missing, or observed-renamed
+  evidence and links only explicit lifecycle/rename replacements;
+  `--self-test` covers targeted invalidation behavior.
 
 ## Directory structure
 

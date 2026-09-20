@@ -29,9 +29,10 @@ days by month. Sources remain the full historical record.
 ### Class B: substantive synthesis
 
 New pages, pages changing more than two non-activity sections, complex state
-merges, and person-enrichment merges are Class B. With three or more independent
-Class-B pages, fan out one subagent per page (or same-type batch) in one
-concurrent dispatch. With at most two, synthesize inline.
+merges, person-enrichment merges, and every lifecycle-invalidated page are
+Class B. With three or more independent Class-B pages, fan out one subagent per
+page (or same-type batch) in one concurrent dispatch. With at most two,
+synthesize inline.
 
 Each subagent receives only the entity name, entity-type definition, relevant
 source excerpts, and current page. It writes only its assigned page and returns
@@ -101,9 +102,13 @@ freshness belongs only in INDEX.md.
 For each entity:
 
 1. **Existing page:** merge current content and update dynamic sections. Keep
-   accumulated History, Key Contributions, and Key Decisions unless their
-   prior source is superseded or archived; move those claims into historical or
-   correction prose instead of current state. Refresh `sources` with the active
+   accumulated History, Key Contributions, and Key Decisions unless their prior
+   support was invalidated. For a lifecycle-affected page, rederive every
+   current-state claim from the impact report's remaining active and linked
+   replacement sources. Remove a claim supported only by unavailable evidence.
+   Move invalidated knowledge into historical or correction prose only when a
+   readable archived/superseded source or remaining active evidence supports
+   it; cite that support in the prose. Refresh `sources` with only the active
    sources used for current synthesis.
 2. **New page:** generate from the template. Sparse pages are valid.
 3. **Person enrichment:** for each person page, look up the full name in all
@@ -111,6 +116,12 @@ For each entity:
    Types registry declares that field and the existing field is absent or equal.
    Never overwrite a differing manual value; preserve it and report drift.
 4. Write independent pages in parallel where possible.
+
+If a lifecycle-affected page has no active evidence, retain its frontmatter,
+title, configured section shells, and any source-supported historical or
+correction context. Set `sources` to an empty list and remove unsupported
+current-state prose. Do not delete the page. Step 7 treats this as a
+historical-only page for automatic hot-set selection.
 
 Use targeted `Edit` for one or two substantive sections, frontmatter tweaks,
 and every routine activity append. Prefer one `Write` when more than two

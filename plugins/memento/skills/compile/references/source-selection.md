@@ -6,6 +6,7 @@ incremental change detection, batched gathering, and the affected-entity graph.
 ## Contents
 
 - [Source status metadata](#source-status-metadata)
+- [Lifecycle impact scan](#lifecycle-impact-scan)
 - [Step 1: Determine scope](#step-1-determine-scope)
 - [Step 2: Gather sources](#step-2-gather-sources)
 - [Step 3: Build the affected-entity graph](#step-3-build-the-affected-entity-graph)
@@ -31,6 +32,35 @@ correction_note: "What changed and why"
 - `supersedes` and `superseded_by` may be a scalar or list; normalize them as
   source-relative paths when checking traceability.
 
+## Lifecycle impact scan
+
+Before filtering changed sources by status, scan the current source and wiki
+trees for invalidated page references:
+
+```bash
+node scripts/source-impact --root "$MEMENTO_ROOT" --json \
+  > /tmp/memento-source-impact.$$.json
+```
+
+The helper treats canonical wiki `sources:` frontmatter as the source-to-page
+relation. It reports every page that cites an archived, superseded, or missing
+source. A missing path is enough to invalidate a page even without Git history.
+When Git observes a rename, or lifecycle metadata links an active replacement,
+the report includes that replacement; it never guesses one from similar prose
+or filenames.
+
+Run this scan on every incremental compile, including when the ordinary Git or
+mtime change set is empty. Keep its output through Step 4. It supplies:
+
+- the invalidated references and whether each old source remains readable;
+- active sources already cited by each affected page;
+- active replacements linked by `supersedes`, `superseded_by`, or an observed
+  Git rename; and
+- whether the page has any active supporting evidence after invalidation.
+
+The helper is read-only and creates no persistent index. Validate its lifecycle
+and targeting behavior with `node scripts/source-impact --self-test`.
+
 ## Step 1: Determine scope
 
 Run `date '+%Y-%m-%d'` to get today's date. Capture the HEAD SHA observed at
@@ -54,7 +84,7 @@ When `COMPILE_BASE_SHA` is non-empty, use Git as the source of truth. Read
 - Otherwise use the union of these three `sources/` queries:
 
 ```bash
-# Committed changes since baseline (rename-aware, drops deletes).
+# Committed changes since baseline (rename-aware, drops deletes from reads).
 git -C "$MEMENTO_ROOT" diff --name-only --diff-filter=AMR -M \
   "$last_compile_commit"..HEAD -- sources/
 # Unstaged working-tree changes.
@@ -64,7 +94,9 @@ git -C "$MEMENTO_ROOT" ls-files --others --exclude-standard sources/
 ```
 
 Guard each read path with `[ -f "$path" ]`; rename-old paths and deletes must
-be skipped rather than passed to a Read call.
+be skipped rather than passed to a Read call. The lifecycle impact scan still
+finds pages that cite those old paths, so skipping a nonexistent read does not
+discard the invalidation event.
 
 ### Non-Git incremental detection
 
@@ -77,22 +109,30 @@ misses new top-level source directories. Exclude eval and trajectory telemetry:
   -not -path 'sources/eval/*' -not -path 'sources/trajectories/*' 2>/dev/null
 ```
 
-After reading changed files through either path, discard sources whose status
-is `superseded` or `archived`. If no active sources remain, report
-"wiki is current — no active source changes since last compile", clean up
-`COMPILE_SNAPSHOT`, and stop.
+After reading changed files through either path, separate active synthesis
+inputs from archived or superseded invalidations. Do not discard the lifecycle
+impact report. Stop as current only when there are no active changed sources
+**and** `affected_count` is zero. A run with lifecycle-affected pages continues
+even when no active source changed.
 
 ## Step 2: Gather sources
 
 ### Incremental updates
 
-1. Use Step 1's change set, excluding `sources/eval/` and
-   `sources/trajectories/`; neither is knowledge to synthesize.
-2. In one message, issue parallel Read calls for every existing changed source
-   and `wiki/INDEX.md`.
-3. Run Step 3 to identify affected entities, honoring `touches` frontmatter.
-4. In one message, issue parallel Read calls for every affected wiki page that
-   needs updating.
+1. Use the union of Step 1's active change set and the lifecycle impact report,
+   excluding `sources/eval/` and `sources/trajectories/`; neither is knowledge
+   to synthesize.
+2. In one message, issue parallel Read calls for every existing changed active
+   source, every impact-report active/replacement source, every readable
+   invalidated source needed to assess historical context, and `wiki/INDEX.md`.
+   Never attempt to read an invalidated path reported as unreadable.
+3. Run Step 3 on active changed sources to identify affected entities, honoring
+   `touches` frontmatter. Union those pages with the exact pages named by the
+   impact report; do not infer additional pages from invalidated source prose.
+4. In one message, issue parallel Read calls for every page in that union.
+
+Lifecycle-affected pages are substantive Class B work even when their only
+change is source withdrawal. Unrelated pages remain outside the union.
 
 ### Full builds
 

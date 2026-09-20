@@ -13,8 +13,9 @@ Compile all sources into a topic-organized wiki. Each wiki page covers one entit
 organized by entity type as defined in the canonical `AGENTS.md` Entity Types
 registry. Repos with only a full `CLAUDE.md` Memento context must be migrated
 with `memento-config` before compile runs; `CLAUDE.md` should be only a thin
-Claude Code entrypoint that imports `AGENTS.md`. Pages accumulate knowledge
-over time — this is additive, not destructive.
+Claude Code entrypoint that imports `AGENTS.md`. Ordinary compilation
+accumulates knowledge; lifecycle invalidation withdraws claims that no longer
+have evidence.
 
 ## Memento root
 
@@ -54,8 +55,9 @@ Hard rules — environment-specific facts the agent will get wrong without these
 - **Only active sources shape current state.** Treat source files with no `status`
   frontmatter as `active`. Exclude files marked `status: superseded` or
   `status: archived` from current-state synthesis and from L1 hot-set promotion,
-  but preserve them in source traces when an active source's `supersedes` field
-  points to them.
+  though a readable old source may still support clearly historical or
+  correction context. An active source's `supersedes` link is the explicit
+  replacement relation; do not infer one from similar prose or filenames.
 - **Projected sources cache live state — never promote their mutable state as standing truth.**
   A source with `cache: projection` frontmatter (a provider sync over an external
   system of record) is not authority for current state; its `source_of_truth`
@@ -195,17 +197,20 @@ COMPILE_BASE_SHA="$(git -C "$MEMENTO_ROOT" rev-parse HEAD 2>/dev/null || echo ""
 ```
 
 Missing INDEX means a full build. Otherwise resolve incremental changes with
-the reference's Git-union or non-Git mtime path. Exclude eval/trajectory
-telemetry and all superseded/archived sources from synthesis. A no-active-change
-result is a successful no-op: report it and clean up `COMPILE_SNAPSHOT`.
+the reference's Git-union or non-Git mtime path and run its deterministic
+lifecycle impact scan before filtering by source status. Exclude eval/trajectory
+telemetry and all superseded/archived sources from current synthesis. A run is
+a successful no-op only when there are no active source changes and no
+lifecycle-affected pages; report it and clean up `COMPILE_SNAPSHOT`.
 
 ## Step 2: Gather all sources
 
-For incremental runs, batch-read all existing changed sources plus INDEX in one
-message, then all affected pages in one message after Step 3. For full builds,
-Glob the whole source tree and read active sources in batches of about 20. Keep
-the skipped lifecycle list for the final report. The reference defines the
-exact exclusions and missing-path guard.
+For incremental runs, batch-read all existing changed/impact sources plus INDEX
+in one message, then the union of actively changed and lifecycle-affected pages
+in one message after Step 3. Never read an unavailable invalidated source. For
+full builds, Glob the whole source tree and read active sources in batches of
+about 20. Keep the skipped lifecycle list for the final report. The reference
+defines the exact exclusions and missing-path guard.
 
 ## Step 3: Extract mentions and build entity graph
 
@@ -225,9 +230,12 @@ runs split activity-only Class A pages from substantive Class B pages. Batch
 Class-A targeted edits; fan out Class B when at least three independent pages
 need synthesis. Full builds delegate by entity type when the harness permits.
 
-Use `references/templates.md`. Merge rather than replace accumulated knowledge;
-keep lifecycle-invalidated claims as history/corrections, not current state.
-Never emit per-page compile metadata. Apply provider ID enrichment only for
+Use `references/templates.md`. Merge ordinary accumulated knowledge, but fully
+rederive a lifecycle-affected page's current state and active `sources:` list.
+Retain invalidated knowledge as history/corrections only when readable old or
+remaining active evidence supports it; remove claims whose evidence is
+unavailable. Keep a page shell when no active evidence remains. Never emit
+per-page compile metadata. Apply provider ID enrichment only for
 registry-declared fields, preserving and reporting conflicting manual values.
 
 ## Step 5: Cross-link pages
@@ -237,6 +245,11 @@ After all pages are written, ensure cross-links are consistent:
 - Every `[[page-name]]` reference should correspond to an actual wiki page.
 - Add cross-links in prose where entities are mentioned (e.g., "Working with [[jane-doe]] on [[api-migration]]").
 - Update `related` frontmatter arrays to reflect actual cross-references.
+
+On incremental runs, inspect and edit only the affected-page union fixed in
+Steps 1–3. Report a cross-link inconsistency discovered outside that union
+instead of opening or rewriting the unrelated page. Full builds may perform
+cross-link cleanup across every compiled page.
 
 ## Step 5.5: Reconcile Evidence References
 
