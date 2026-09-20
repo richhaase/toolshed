@@ -1,6 +1,6 @@
 {
   "name": "steward",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "A local outer loop for software work governed by reviewable contracts. Freeze the minimum decision-complete intent delta, conditionally critique material ambiguity without expanding scope, and assess an immutable change using proportionate post-build evidence.",
   "author": {
     "name": "Rich Haase",
@@ -11,6 +11,8 @@
   "keywords": ["contracts", "tickets", "intent", "scope", "assurance", "assessment", "software-delivery"],
   "skills": "./skills/",
   "interface": {
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
     "displayName": "Steward",
     "shortDescription": "A thin intent and assurance outer loop",
     "longDescription": "For software work governed by a Steward contract, freeze the minimum decision-complete intent delta, invoke bounded critique only for material ambiguity or changed safety boundaries, delegate construction to an arbitrary inner workflow, and assess the immutable result claim by claim using proportionate evidence selected after construction. Steward requires no remote service or builder adapter.",

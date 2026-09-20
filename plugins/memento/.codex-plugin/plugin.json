@@ -1,6 +1,6 @@
 {
   "name": "memento",
-  "version": "0.19.11",
+  "version": "0.19.12",
   "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with a hardened deterministic eval gate (source evidence proves provenance; compiled answer surfaces must contain required atoms; ungated runs are explicit), health checks, passive session capture (save), active LLM-driven interview (ama), and lightweight follow-up queue review (followups). Knowledge base only; task storage is an explicit root-level opt-in.",
   "author": {
     "name": "Rich Haase",
@@ -11,6 +11,8 @@
   "keywords": ["memory", "memento", "agent-memory", "knowledge-preservation", "wiki", "notes", "followups", "compile", "interview", "personal-knowledge-management"],
   "skills": "./skills/",
   "interface": {
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
     "displayName": "Memento",
     "shortDescription": "Personal memory base workflows",
     "longDescription": "Multi-layer local memory base. Six skills cover the full loop: memento-config (setup + ongoing config with exact-path commit safety), health-check (read-only doctor + golden-query scorer), save (session capture), ama (active interview), compile (sources -> wiki -> AGENTS.md, deterministic eval plus snapshot-backed rollback that preserves pre-existing work), and followups (small queue review). Task storage is disabled by default and may be explicitly enabled by a root policy. Supports a configurable Memento root for global installs and treats ingested content as untrusted evidence.",

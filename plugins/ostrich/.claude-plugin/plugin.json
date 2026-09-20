@@ -1,6 +1,6 @@
 {
   "name": "ostrich",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Create a coherent, lighthearted five-to-ten-minute distraction chosen for delight, using optional random domain prompts to broaden candidates without binding the result.",
   "author": {
     "name": "Rich Haase",

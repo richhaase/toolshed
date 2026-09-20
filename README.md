@@ -67,6 +67,10 @@ packages or make network requests on their own.
 
 ## Plugins
 
+| Memento | Actuary | Steward | Ostrich |
+| :---: | :---: | :---: | :---: |
+| <img src="plugins/memento/assets/icon.png" width="128" alt="Book with a gold bookmark"> | <img src="plugins/actuary/assets/icon.png" width="128" alt="Teal precision caliper"> | <img src="plugins/steward/assets/icon.png" width="128" alt="Framed contract with a gold check mark"> | <img src="plugins/ostrich/assets/icon.png" width="128" alt="Ostrich with its head in the sand"> |
+
 ### [Memento](plugins/memento/) — Personal Memory Base
 
 Multi-layer cache memory base with automated compilation. Treats knowledge

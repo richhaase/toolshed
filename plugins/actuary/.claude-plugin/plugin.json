@@ -1,6 +1,6 @@
 {
   "name": "actuary",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Read-only design audits for Agent Skills across the portable agentskills.io specification, named Claude and Codex profiles, deterministic structure checks, and evidence-backed craft criteria. It assesses writing, structure, portability, and performance-oriented design without claiming task success or release readiness.",
   "author": {
     "name": "Rich Haase",

@@ -1,6 +1,6 @@
 {
   "name": "ostrich",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Create a coherent, lighthearted five-to-ten-minute distraction chosen for delight, using optional random domain prompts to broaden candidates without binding the result.",
   "author": {
     "name": "Rich Haase",
@@ -19,6 +19,8 @@
   ],
   "skills": "./skills/",
   "interface": {
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
     "displayName": "Ostrich",
     "shortDescription": "Escape work through one fresh tangent",
     "longDescription": "Create a deliberate five-to-ten-minute break from overwhelming or unwanted work. Ostrich silently excludes the active work cluster, uses optional random domain prompts to widen its candidate pool, then chooses one coherent tangent by appeal, learned preferences, freshness, and low effort. The initial response is a complete diversion rather than setup for an interview or branching adventure.",
