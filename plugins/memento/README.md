@@ -146,10 +146,6 @@ What `/save` does write:
   it within a week and act on it. Each one carries an `expires_at`
   frontmatter field (default: date + 14 days) so the queue self-cleans.
 
-Mementos created by older releases may retain `sources/trajectories/` as a
-read-only historical archive. Current workflows do not add to it, and compile
-continues to ignore it.
-
 Follow-ups are reviewed via `/followups` — `list` (default) prints the
 inventory expired-first, `show <slug>` renders one item read-only, and
 `walk` triages one at a time (`keep` with optional expiry bump,

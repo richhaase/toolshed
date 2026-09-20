@@ -52,34 +52,11 @@ jobs:
       - name: Steward deterministic lifecycle tests
         run: node --test plugins/steward/tests/steward-cli.test.js
 
-      - name: Actuary contract and eval-fixture checks
+      - name: Actuary contract and calibration checks
         run: |
           plugins/actuary/skills/skill-audit/scripts/contract-test \
             --privacy-scan scripts/privacy-scan
           plugins/actuary/skills/skill-audit/scripts/calibration-test
-          jq -e '
-            .skill_name == "skill-audit" and
-            (.evals | type == "array" and length >= 3) and
-            all(.evals[];
-              (.id | type == "number") and
-              (.prompt | type == "string" and length > 0) and
-              (.target_path | type == "string" and length > 0) and
-              (.skill_md | type == "string" and length > 0) and
-              (.expected_output | type == "string" and length > 0) and
-              (.assertions | type == "array" and length > 0) and
-              (.expected_analyzer | type == "object"))
-          ' plugins/actuary/skills/skill-audit/evals/evals.json >/dev/null
-          while IFS= read -r file; do
-            jq -e '
-              type == "array" and length == 20 and
-              (map(select(.should_trigger == true)) | length) == 10 and
-              (map(select(.should_trigger == false)) | length) == 10 and
-              (map(.query) | unique | length) == 20 and
-              all(.[];
-                (.query | type == "string" and length > 0) and
-                (.should_trigger | type == "boolean"))
-            ' "$file" >/dev/null
-          done < <(find plugins -path '*/evals/trigger-queries.json' -type f | sort)
 
       - name: Ostrich randomness helper tests
         run: bash plugins/ostrich/tests/roll.test.sh

@@ -134,13 +134,12 @@ function makeAssessmentFail(file, classification, action) {
   ]);
 }
 
-test('format v3 defaults to a lean contract and preserves frozen integrity', (t) => {
+test('the contract defaults stay lean and preserve frozen integrity', (t) => {
   const directory = workspace(t);
   const ticket = path.join(directory, 'lean.r1.md');
   run(['create', ticket, '--id', 'lean', '--title', 'Lean contract']);
 
   const draft = fs.readFileSync(ticket, 'utf8');
-  assert.match(draft, /^steward_contract: "3"$/m);
   assert.match(draft, /^## Outcome$/m);
   assert.match(draft, /^## Acceptance$/m);
   assert.doesNotMatch(draft, /^## (?:Requirements|Evidence plan|Intent probes)$/m);
@@ -158,7 +157,7 @@ test('format v3 defaults to a lean contract and preserves frozen integrity', (t)
   const tampered = JSON.parse(run(['check', ticket, '--json'], 1).stdout);
   assert.ok(tampered.errors.includes('approved contract body differs from its frozen_body_sha256'));
 });
-test('format v3 accepts only ordered optional sections and plain unique claims', async (t) => {
+test('contracts accept only ordered optional sections and plain unique claims', async (t) => {
   await t.test('optional context and scope remain structurally valid', () => {
     const directory = workspace(t);
     const ticket = createReady(directory);
@@ -243,41 +242,28 @@ The current command prints plain text.
     assert.equal(JSON.parse(run(['check', ticket, '--json']).stdout).valid, true);
   });
 });
-test('contracts and assessments reject removed legacy formats', (t) => {
+test('retired migration commands stay unsupported', (t) => {
   const directory = workspace(t);
   const contract = createReady(directory);
-  replaceInFile(contract, [['steward_contract: "3"', 'steward_contract: "2"']]);
-  const contractResult = JSON.parse(run(['check', contract, '--json'], 1).stdout);
-  assert.ok(contractResult.errors.includes('steward_contract must be "3"'));
   assert.match(run(['create', path.join(directory, 'old.md'), '--id', 'old', '--title', 'Old', '--format', '2'], 2).stderr, /unknown option --format/);
-
-  replaceInFile(contract, [['steward_contract: "2"', 'steward_contract: "3"']]);
-  run(['approve', contract, '--by', 'Scope Owner']);
-  const assessment = path.join(directory, 'assessment.md');
-  scaffoldAssessment(contract, assessment);
-  replaceInFile(assessment, [['steward_assessment: "3"', 'steward_assessment: "2"']]);
-  const assessmentResult = JSON.parse(run(['assessment-check', assessment, '--json'], 1).stdout);
-  assert.ok(assessmentResult.errors.includes('steward_assessment must be "3"'));
   assert.match(run(['migrate', contract, '--output', path.join(directory, 'migrated.md')], 2).stderr, /unknown command: migrate/);
 });
-test('format v3 assessment selects post-build evidence without EV methods', (t) => {
+test('assessment selects post-build evidence without EV methods', (t) => {
   const directory = workspace(t);
   const contract = approveReady(directory);
-  const assessment = path.join(directory, 'assessment-v3.md');
+  const assessment = path.join(directory, 'assessment.md');
   scaffoldAssessment(contract, assessment);
 
   const scaffold = fs.readFileSync(assessment, 'utf8');
-  assert.match(scaffold, /^steward_assessment: "3"$/m);
   assert.doesNotMatch(scaffold, /Contract method:/);
   makeAssessmentPass(assessment);
   run(['assessment-complete', assessment]);
 
   const completed = JSON.parse(run(['assessment-check', assessment, '--json']).stdout);
   assert.equal(completed.valid, true);
-  assert.equal(completed.format, '3');
   assert.equal(completed.state, 'completed');
 });
-test('compare reports format-v3 contract growth without blocking approval', (t) => {
+test('compare reports contract growth without blocking approval', (t) => {
   const directory = workspace(t);
   const first = approveReady(directory, 'growth.r1.md');
   const second = path.join(directory, 'growth.r2.md');
@@ -290,10 +276,9 @@ test('compare reports format-v3 contract growth without blocking approval', (t) 
   assert.equal(compared.metric_delta.acceptance_claims, 1);
   assert.ok(compared.metric_delta.body_words > 0);
 });
-test('shipped format-v3 example remains structurally valid', () => {
+test('shipped example remains structurally valid', () => {
   const result = JSON.parse(run(['check', exampleContract, '--json']).stdout);
   assert.equal(result.valid, true);
-  assert.equal(result.format, '3');
   assert.equal(result.state, 'draft');
 });
 test('assessment scaffold requires immutable provenance and verifies the referenced contract', (t) => {
@@ -330,7 +315,6 @@ test('assessment scaffold requires immutable provenance and verifies the referen
 
   const result = JSON.parse(run(['assessment-check', assessment, '--json']).stdout);
   assert.equal(result.valid, true);
-  assert.equal(result.format, '3');
   assert.equal(result.change_identity, gitIdentity);
   assert.equal(result.state, 'draft');
   const report = fs.readFileSync(assessment, 'utf8');

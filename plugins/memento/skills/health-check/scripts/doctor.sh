@@ -139,7 +139,7 @@ print_header() {
     printf 'Scanner: `grep -E` (degraded fallback — `rg` not in use; `.gitignore` not honored)\n'
   fi
   local scope
-  scope="$(find wiki sources -type f -name '*.md' ! -path 'sources/trajectories/*' 2>/dev/null | wc -l | tr -d ' ')"
+  scope="$(find wiki sources -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
   printf 'Scan scope: %s markdown file(s) under wiki/ + sources/\n\n' "${scope:-0}"
 }
 
@@ -178,13 +178,11 @@ check_newer_sources() {
   local count
   count="$(find sources -type f -name '*.md' -newer wiki/INDEX.md \
     ! -path 'sources/eval/*' \
-    ! -path 'sources/trajectories/*' \
     | wc -l | tr -d ' ')"
   if [ "${count:-0}" -gt 0 ]; then
     local sample
     sample="$(find sources -type f -name '*.md' -newer wiki/INDEX.md \
       ! -path 'sources/eval/*' \
-      ! -path 'sources/trajectories/*' \
       | sort | sed -n '1,8p' | awk '{ printf "%s%s", sep, $0; sep="; " }')"
     emit P1 "Active sources newer than wiki index" "wiki/INDEX.md" "$count public source file(s) are newer than the compiled index. Sample: $sample"
   fi
@@ -224,7 +222,7 @@ check_source_frontmatter() {
     ' "$source"; then
       emit P2 "Source missing date frontmatter" "$source" "Markdown sources need frontmatter with at least date."
     fi
-  done < <(find sources -type f -name '*.md' ! -path 'sources/trajectories/*' | sort)
+  done < <(find sources -type f -name '*.md' | sort)
 }
 
 check_wiki_frontmatter() {
@@ -317,7 +315,6 @@ check_sensitive_route_mentions() {
   scan_guard "$rc" "check_sensitive_route_mentions"
   while IFS=: read -r file line _rest; do
     [ -n "${file:-}" ] && [ -n "${line:-}" ] || continue
-    case "$file" in sources/trajectories/*) continue ;; esac
     emit P2 "Public source names sensitive routing" "$file:$line" "Sensitive-routing keyword found in public source. Inspect manually without echoing content."
   done < <(printf '%s\n' "$out" | sed -n '1,12p')
 }

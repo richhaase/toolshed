@@ -5,11 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const CONTRACT_FORMAT = '3';
-const ASSESSMENT_FORMAT = '3';
-
 const CONTRACT_METADATA_FIELDS = [
-  'steward_contract',
   'id',
   'title',
   'revision',
@@ -30,7 +26,6 @@ const CONTRACT_H2 = [
   'Open questions',
 ];
 const ASSESSMENT_METADATA_FIELDS = [
-  'steward_assessment',
   'contract_path',
   'contract_id',
   'contract_revision',
@@ -77,8 +72,7 @@ Usage:
   steward assessment-check PATH [--json]
   steward assessment-complete PATH
 
-Contracts and assessments use format v3. approve and assessment-complete are
-the only in-place mutations.
+approve and assessment-complete are the only in-place mutations.
 `);
 }
 function die(message, code = 1) {
@@ -232,9 +226,6 @@ function validateMetadataShape(metadata, fields, errors) {
 function validateContractCommon(document, errors) {
   const { metadata, body } = document;
   validateMetadataShape(metadata, CONTRACT_METADATA_FIELDS, errors);
-  if (metadata.steward_contract !== CONTRACT_FORMAT) {
-    errors.push('steward_contract must be "3"');
-  }
   if (typeof metadata.id !== 'string' || !/^[a-z0-9][a-z0-9._-]*$/.test(metadata.id)) {
     errors.push('id must use lowercase letters, numbers, dots, underscores, or hyphens');
   }
@@ -443,9 +434,7 @@ function createCommand(tokens) {
   const result = validateContract(document);
   if (result.errors.length) throw new Error(`new contract metadata is invalid:\n- ${result.errors.join('\n- ')}`);
   writeNew(output, renderDocument(document, CONTRACT_METADATA_FIELDS));
-  process.stdout.write(
-    `created ${output} (${document.metadata.id}@${document.metadata.revision}, format v3, draft)\n`,
-  );
+  process.stdout.write(`created ${output} (${document.metadata.id}@${document.metadata.revision}, draft)\n`);
 }
 function contractMetrics(document, details) {
   const bodyWords = document.body
@@ -484,7 +473,6 @@ function checkCommand(tokens) {
   const warnings = contractWarnings(document, result);
   const output = {
     path: positional[0],
-    format: document.metadata.steward_contract || null,
     contract_id: document.metadata.id || null,
     revision: document.metadata.revision || null,
     state: document.metadata.state || null,
@@ -505,7 +493,7 @@ function checkCommand(tokens) {
       : '';
     process.stdout.write(
       `STRUCTURALLY OK ${document.metadata.id}@${document.metadata.revision} ` +
-      `format=v${document.metadata.steward_contract} state=${document.metadata.state} ` +
+      `state=${document.metadata.state} ` +
       `claims=${metrics.acceptance_claims} words=${metrics.body_words}${frozen}\n`,
     );
     if (warnings.length) process.stdout.write(`WARNING ${warnings.join('; ')}\n`);
@@ -526,7 +514,7 @@ function approveCommand(tokens) {
   writeAtomic(positional[0], renderDocument(document, CONTRACT_METADATA_FIELDS));
   process.stdout.write(
     `approved ${document.metadata.id}@${document.metadata.revision} ` +
-    `format=v${document.metadata.steward_contract} frozen=${document.metadata.frozen_body_sha256}\n`,
+    `frozen=${document.metadata.frozen_body_sha256}\n`,
   );
 }
 function changedSections(oldDocument, newDocument) {
@@ -560,8 +548,6 @@ function compareCommand(tokens) {
   const newMetrics = contractMetrics(newDocument, newValidation);
   const result = {
     contract_id: oldDocument.metadata.id,
-    from_format: oldDocument.metadata.steward_contract,
-    to_format: newDocument.metadata.steward_contract,
     from_revision: oldDocument.metadata.revision,
     to_revision: newDocument.metadata.revision,
     revision_increased: newDocument.metadata.revision > oldDocument.metadata.revision,
@@ -585,8 +571,8 @@ function compareCommand(tokens) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
     let output =
-      `${result.contract_id}: v${result.from_format} r${result.from_revision} (${result.from_state}) -> ` +
-      `v${result.to_format} r${result.to_revision} (${result.to_state})\n` +
+      `${result.contract_id}: r${result.from_revision} (${result.from_state}) -> ` +
+      `r${result.to_revision} (${result.to_state})\n` +
       `revision increased: ${result.revision_increased ? 'yes' : 'no'}\n` +
       `body changed: ${result.body_changed ? 'yes' : 'no'}\n` +
       `body words: ${oldMetrics.body_words} -> ${newMetrics.body_words} ` +
@@ -650,7 +636,6 @@ function assessmentCommand(tokens) {
 `).join('\n');
   const document = {
     metadata: {
-      steward_assessment: ASSESSMENT_FORMAT,
       contract_path: relativeArtifactPath(output, positional[0]),
       contract_id: contract.metadata.id,
       contract_revision: contract.metadata.revision,
@@ -742,9 +727,6 @@ function validateAssessment(document, assessmentPath, options = {}) {
   const errors = [];
   const warnings = [];
   validateMetadataShape(metadata, ASSESSMENT_METADATA_FIELDS, errors);
-  if (metadata.steward_assessment !== ASSESSMENT_FORMAT) {
-    errors.push('steward_assessment must be "3"');
-  }
   if (typeof metadata.contract_path !== 'string' || !metadata.contract_path.trim()) {
     errors.push('contract_path must identify the frozen contract artifact');
   }
@@ -937,7 +919,6 @@ function assessmentCheckCommand(tokens) {
   const result = validateAssessment(document, positional[0]);
   const output = {
     path: positional[0],
-    format: document.metadata.steward_assessment || null,
     contract_id: document.metadata.contract_id || null,
     contract_revision: document.metadata.contract_revision || null,
     change_identity: document.metadata.change_identity || null,
@@ -952,8 +933,7 @@ function assessmentCheckCommand(tokens) {
     process.stdout.write(`INVALID ${positional[0]}\n- ${result.errors.join('\n- ')}\n`);
   } else {
     process.stdout.write(
-      `STRUCTURALLY OK assessment format=v${document.metadata.steward_assessment} ` +
-      `state=${document.metadata.state}` +
+      `STRUCTURALLY OK assessment state=${document.metadata.state}` +
       `${document.metadata.change_identity ? ` change=${document.metadata.change_identity}` : ''}\n`,
     );
     if (result.warnings.length) process.stdout.write(`WARNING ${result.warnings.join('; ')}\n`);

@@ -1,6 +1,6 @@
 {
   "name": "steward",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A local outer loop for software work governed by reviewable contracts. Freeze the minimum decision-complete intent delta, conditionally critique material ambiguity without expanding scope, and assess an immutable change using proportionate post-build evidence.",
   "author": {
     "name": "Rich Haase",

@@ -54,8 +54,11 @@ Markdown instructions:
 
 - **Required frontmatter:** `name` (lowercase, hyphens, must match directory
   name), `description`.
-- **Optional frontmatter:** `license`, `compatibility`, `metadata`,
+- **Portable optional frontmatter:** `license`, `compatibility`, `metadata`,
   `allowed-tools`.
+- **Harness metadata used here:** `argument-hint` and `user-invocable` may
+  accompany the portable fields in the shared skill body. Keep behavior in the
+  Markdown body rather than encoding workflow in those extensions.
 - **Optional directories:** `scripts/`, `references/`, `assets/`.
 - Keep `SKILL.md` under 500 lines; move detailed reference material to
   `references/`.

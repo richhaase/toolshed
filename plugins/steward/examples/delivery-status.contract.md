@@ -1,5 +1,4 @@
 ---
-steward_contract: "3"
 id: "delivery-status"
 title: "Explain failed deliveries"
 revision: 1

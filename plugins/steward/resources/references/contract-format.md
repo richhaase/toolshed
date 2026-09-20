@@ -44,7 +44,6 @@ The file begins with single-line YAML scalar frontmatter:
 
 | Field | Meaning |
 | --- | --- |
-| `steward_contract` | `"3"` |
 | `id` | Stable contract identity |
 | `title` | Human-readable title |
 | `revision` | Positive integer |
@@ -201,7 +200,6 @@ The assessment begins with single-line YAML scalar frontmatter:
 
 | Field | Meaning |
 | --- | --- |
-| `steward_assessment` | `"3"` |
 | `contract_path` | Contract path relative to the assessment, or an absolute path |
 | `contract_id` | Exact frozen contract id |
 | `contract_revision` | Exact frozen contract revision |

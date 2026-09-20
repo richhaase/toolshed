@@ -198,8 +198,8 @@ COMPILE_BASE_SHA="$(git -C "$MEMENTO_ROOT" rev-parse HEAD 2>/dev/null || echo ""
 
 Missing INDEX means a full build. Otherwise resolve incremental changes with
 the reference's Git-union or non-Git mtime path and run its deterministic
-lifecycle impact scan before filtering by source status. Exclude eval data,
-legacy trajectory archives, and all superseded/archived sources from current synthesis. A run is
+lifecycle impact scan before filtering by source status. Exclude eval data and
+all superseded/archived sources from current synthesis. A run is
 a successful no-op only when there are no active source changes and no
 lifecycle-affected pages; report it and clean up `COMPILE_SNAPSHOT`.
 

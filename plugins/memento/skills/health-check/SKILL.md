@@ -69,9 +69,7 @@ Start with the public root files:
 
 1. Read `AGENTS.md` if present, otherwise `CLAUDE.md`.
 2. Read `wiki/INDEX.md` if present.
-3. Inspect public `sources/` Markdown only. Ignore a retained
-   `sources/trajectories/` directory; it is a read-only legacy archive outside
-   the active L3 input set.
+3. Inspect public `sources/` Markdown only.
 4. Inspect `data/` only as a domain store, not as generic memory. A skill or
    source should establish what data file is canonical.
 

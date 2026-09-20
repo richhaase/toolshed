@@ -1,5 +1,4 @@
 ---
-steward_contract: "3"
 id: "ticket-id"
 title: "Ticket title"
 revision: 1

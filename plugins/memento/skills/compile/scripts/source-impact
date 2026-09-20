@@ -110,7 +110,7 @@ function normalizeSourceRef(raw) {
   let rel = cleanScalar(raw).replace(/\\/g, '/').replace(/^\.\//, '');
   rel = path.posix.normalize(rel);
   if (!rel.startsWith('sources/') || rel === 'sources' || rel.includes('/../') || !rel.endsWith('.md')) return null;
-  if (rel.startsWith('sources/eval/') || rel.startsWith('sources/trajectories/')) return null;
+  if (rel.startsWith('sources/eval/')) return null;
   return rel;
 }
 
