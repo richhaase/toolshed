@@ -73,6 +73,9 @@ jobs:
             ' "$file" >/dev/null
           done < <(find plugins -path '*/evals/trigger-queries.json' -type f | sort)
 
+      - name: Ostrich randomness helper tests
+        run: bash plugins/ostrich/tests/roll.test.sh
+
       - name: Privacy detector self-test
         run: node scripts/privacy-scan --self-test
 

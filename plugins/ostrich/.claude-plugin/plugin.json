@@ -1,7 +1,7 @@
 {
   "name": "ostrich",
-  "version": "0.2.0",
-  "description": "Create a deliberate hard cut from unwanted work: roll one maximally unrelated tangent from outside the model's habits, seed it from the real world, deliver it in the format farthest from the user's current mode, and learn broad preferences cautiously.",
+  "version": "0.3.0",
+  "description": "Create a coherent, lighthearted five-to-ten-minute distraction chosen for delight, using optional random domain prompts to broaden candidates without binding the result.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"

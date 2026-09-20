@@ -67,15 +67,17 @@ version: 2
 - The file stays under roughly 200 lines. Nothing in it is a log of what the
   user said.
 
-## Novelty check
+## Novelty signals
 
-A candidate is not novel when any of these hold:
+Novelty helps compare otherwise strong candidates; it never overrides delight,
+coherence, or an explicit preference.
 
-- its domain appears in the last 15 ledger lines,
-- its format appears in the last 5 ledger lines,
-- its hook label matches any ledger line,
-- its domain has the highest count in `Coverage` and the roll is in
-  explore mode.
+- Reject an exact repeated hook unless the user explicitly asks to revisit it.
+- Recent use of the same domain or format lowers a candidate's rank, but does
+  not disqualify a fresh hook.
+- High `Coverage` counts are a prompt to consider other domains, not a ban.
+- `more of this` deliberately favors similarity and overrides the novelty
+  signals for the next tangent.
 
 ## What never goes in
 

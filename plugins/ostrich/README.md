@@ -1,10 +1,10 @@
 # Ostrich — deliberate distraction
 
-Ostrich makes a hard cut from the work occupying your attention. It rolls a
-tangent from outside the model's own habits, seeds it from the real world,
-and leads it in a format chosen for distance from what you were just doing.
-Escape is never another decision: there is no menu, no category prompt, and
-no clarifying question before the tangent begins.
+Ostrich creates a quick, lighthearted break from the work occupying your
+attention. It silently excludes the current work cluster, chooses one coherent
+tangent, and gives you a complete five-to-ten-minute diversion without asking
+you to pick a category or build a choose-your-own-adventure one reply at a
+time.
 
 ## Invoking it
 
@@ -20,106 +20,77 @@ While a tangent is running, steer with plain words:
 
 | Say | Ostrich does |
 | --- | --- |
-| another, again | rolls a new tangent farther from both the work and the last tangent, in a different format |
-| weirder | goes more absurd and plainly fictional, with rigorous internal logic |
+| another, again | chooses a fresh tangent with a different central hook |
+| weirder | goes more absurd and plainly fictional while staying coherent |
 | realer | goes more grounded, sourced, and contemporary |
-| more of this | stays in the domain, changes the hook, and records that you liked it |
+| more of this | stays near what worked, changes the hook, and records positive evidence |
 | shorter, longer | adjusts length for the rest of the session |
 | back, done | steps aside in one line with no summary and no questions |
 
-## What it does
+## How selection works
 
-1. Silently assesses what you are working on and which cognitive mode you
-   are in: reading, writing prose, writing code, debugging, messaging people,
-   planning, or waiting. The assessment is never shown back to you and never
-   persisted.
-2. Rolls dice. `scripts/roll` draws three candidates from the tangent grid,
-   each with a domain, a format, a constraint, a seed source, and an opening
-   shape, plus a random date, coordinates, integer, and letter. The roll
-   pushes the model off its habits; the rolled domain and format are binding
-   unless they collide with your work, an explicit dislike, or the novelty
-   check.
-3. Fetches a seed when the roll says so: a random Wikipedia article, a
-   newspaper page from the rolled date, a public-domain museum object, one
-   research-grade species observation, a shellac record, the weather at the
-   rolled coordinates, or where the space station is right now. The seed is
-   the spine and its page is the source.
-4. Picks the format's texture by distance from your cognitive mode. Someone
-   escaping prose gets something visual or playable. Someone escaping code
-   gets a story.
-5. Opens in the rolled shape, under 250 words, and keeps steering while you
-   engage. Questions stay inside the tangent; topic selection is never handed
-   back.
+Ostrich starts from the original quality-based approach: it generates several
+possible tangents and chooses the strongest by distance from the work,
+immediate appeal, coherence, learned preferences, freshness, and low effort.
 
-Hooks that read as productivity advice, disguised work, or a widely
-circulated fact are rejected in favor of one level more specific: one
-patent, one shipwreck, one person nobody has heard of.
+The bundled `scripts/roll` adds a small randomness nudge. It samples five
+unrelated domains from `references/tangent-grid.md` so the candidate pool is
+not limited to the model's usual subjects. Those prompts have no authority:
+Ostrich may use one, adapt one, or ignore all of them. The roll never chooses a
+format, source, constraint, opening, or final topic.
 
-## Multi-modality
+That boundary is deliberate. Randomness broadens imagination; judgment decides
+what is actually fun.
 
-Ostrich delivers at the highest tier the harness offers and downgrades the
-same format rather than switching:
+## The initial response is the break
 
-| Tier | Needs | Adds |
-| --- | --- | --- |
-| 0 | nothing | markdown, plain-text maps and diagrams, links |
-| 1 | a browser | museum images, archive recordings, newspaper scans |
-| 2 | an artifact or page-publishing tool | sixty-second games, generative visuals, mermaid |
-| 3 | a shell | short terminal animations you paste and run yourself |
+The first response is a complete small experience. It may be a story, a
+discovery, playful analysis, a thought experiment, or a compact visual, but it
+must work if you never reply. A single easy invitation can follow the tangent;
+participation is never required to make it coherent.
 
-Terminal toys are shown, never run for you. The bundled ones were tested in
-bash 3.2 and zsh.
+Factual tangents use compact reliable sourcing selected to support the chosen
+hook. Fictional tangents are plainly playful. Ostrich never turns a random API
+result into a premise merely because it was fetched.
 
 ## Preference learning
 
-Ostrich learns broad preferences so later tangents land better, without
-overfitting or retaining the work context that prompted the break.
+Ostrich learns broad preferences so later tangents land better without storing
+the work context that prompted the break.
 
 The store resolves in this order: `OSTRICH_STORE`, a path declared by the
 workspace's agent instructions, `sources/ostrich-context.md` when it exists,
 `.ostrich/context.md` when it already exists, then `~/.ostrich/context.md`,
-which is created on first write. New stores go to the home directory so
-preferences travel across projects and never land in a repository by
-accident. With no writable store, Ostrich runs statelessly.
+which is created on first eligible write. With no writable store, Ostrich runs
+statelessly.
 
-The store holds stable likes and dislikes with confidence, explicit
-exclusions, a bounded ledger of past tangents, and domain coverage counts.
-The ledger drives the novelty check and occasional callbacks to tangents you
-enjoyed. Three of every four rolls ignore learned likes so the learner cannot
-narrow the space; dislikes and exclusions always apply.
-
-Ostrich never records sensitive traits, diagnoses, moods, personal
-circumstances, or the surrounding work context, and never fabricates a
-remembered preference, reaction, or source.
+The store holds stable likes and dislikes, explicit exclusions, and a bounded
+ledger of prior tangents. Exact repeated hooks are rejected. Recent domains and
+formats are soft signals rather than bans, and learned preferences inform every
+selection. Ostrich never records sensitive traits, diagnoses, moods, personal
+circumstances, or the surrounding work context.
 
 ## Not for
 
 - Productive brainstorming or a fresh angle on the current problem.
 - Work summaries or recaps.
 - Presenting a menu of distractions.
+- Extended interviews or branching adventures that require repeated choices.
 
-If a message presents a credible immediate safety risk, Ostrich addresses
-that before offering distraction.
+If a message presents a credible immediate safety risk, Ostrich addresses that
+before offering distraction.
 
 ## Layout
 
 - `skills/ostrich/SKILL.md` is the procedure.
-- `skills/ostrich/scripts/roll` is the dice. Bash 3.2 or later, no
-  dependencies, no network. `OSTRICH_SEED` makes a roll reproducible.
-- `skills/ostrich/references/tangent-grid.md` is the single source of truth
-  for what can be rolled. Edit its lists to change the dice.
-- `skills/ostrich/references/formats.md` covers the capability ladder,
-  format recipes, artifact constraints, terminal toys, opening shapes,
-  pacing, and voice.
-- `skills/ostrich/references/seed-sources.md` documents every no-key API
-  the seeds use, with fields and licensing.
-- `skills/ostrich/references/store-format.md` is the preference store
-  template, bounds, and novelty check.
-- `evals/evals.json` holds behavioral cases, including a twenty-run
-  diversity test.
-
-Seed fetches use the host agent's own web access; the bundled script makes
-no network requests.
+- `skills/ostrich/scripts/roll` samples unique optional domain prompts. It is
+  Bash 3.2 compatible, has no dependencies or network access, and supports
+  reproducible `OSTRICH_SEED` runs.
+- `skills/ostrich/references/tangent-grid.md` holds the domain prompt pool.
+- `skills/ostrich/references/store-format.md` defines preference storage and
+  soft novelty signals.
+- `evals/evals.json` describes behavioral cases for self-contained delivery,
+  coherent randomization, steering, grounding, and private preference storage.
 
 ## Tests
 
@@ -128,4 +99,4 @@ bash tests/roll.test.sh
 ROLL_TEST_SHELL=/bin/bash bash tests/roll.test.sh
 ```
 
-The second form proves the roll under the system bash on macOS.
+The second form proves the helper under the system Bash on macOS.

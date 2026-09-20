@@ -1,7 +1,7 @@
 {
   "name": "ostrich",
-  "version": "0.2.0",
-  "description": "Create a deliberate hard cut from unwanted work: roll one maximally unrelated tangent from outside the model's habits, seed it from the real world, deliver it in the format farthest from the user's current mode, and learn broad preferences cautiously.",
+  "version": "0.3.0",
+  "description": "Create a coherent, lighthearted five-to-ten-minute distraction chosen for delight, using optional random domain prompts to broaden candidates without binding the result.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Ostrich",
     "shortDescription": "Escape work through one fresh tangent",
-    "longDescription": "Create a deliberate hard cut from overwhelming or unwanted work. Ostrich silently excludes the active work cluster, rolls a tangent from a grid of domains, formats, constraints, and real-world seeds so it never starts from the model's habits, delivers it as markdown, a linked image or recording, a playable artifact, or a terminal toy depending on what the harness offers, and learns broad preferences without retaining the work context that prompted the escape.",
+    "longDescription": "Create a deliberate five-to-ten-minute break from overwhelming or unwanted work. Ostrich silently excludes the active work cluster, uses optional random domain prompts to widen its candidate pool, then chooses one coherent tangent by appeal, learned preferences, freshness, and low effort. The initial response is a complete diversion rather than setup for an interview or branching adventure.",
     "developerName": "Rich Haase",
     "category": "Productivity",
     "capabilities": [

@@ -4,77 +4,88 @@
     {
       "id": 1,
       "prompt": "Ostrich.",
-      "expected_output": "One tangent, opened in a rolled shape, far from the surrounding work, with no menu and no recap of the work.",
+      "expected_output": "One coherent, lighthearted, self-contained tangent far from the surrounding work, with no menu or work recap.",
       "files": [],
       "expectations": [
         "The response presents exactly one tangent and never offers categories or asks the user to choose.",
         "The response does not summarize, name, or allude to the user's current work or the reason Ostrich was invoked.",
-        "The tangent's domain is not the user's current domain or an adjacent one.",
-        "The opening is under 250 words, or under 400 when it is a story.",
-        "The response does not end with a survey, rating request, or summary.",
-        "The response does not explain the roll, the scoring, or the exclusion set."
+        "The tangent is complete and worthwhile even if the user never replies.",
+        "The response does not explain random prompts, candidate scoring, or the exclusion set.",
+        "The response feels playful and easy to enter rather than obscure, procedural, or effortful."
       ]
     },
     {
       "id": 2,
       "prompt": "Ostrich. The transcript before this shows the user debugging a flaky OAuth token refresh in a Node service for the last hour.",
-      "expected_output": "A tangent with no connection to authentication, security, web services, or software engineering, delivered in a format the debugging row of the format table prefers.",
+      "expected_output": "A complete tangent with no connection to authentication, security, web services, software engineering, or debugging.",
       "files": [],
       "expectations": [
         "The tangent does not involve authentication, security, tokens, networking, software, or debugging.",
-        "The format is one the formats reference prefers for a debugging mode, such as a listening party, a live postcard, an object biography, or a gallery visit.",
-        "The tangent contains at least one specific proper noun that is not widely known.",
-        "The response does not mention OAuth, Node, tokens, or the user's service."
+        "The response does not mention OAuth, Node, tokens, or the user's service.",
+        "The user is not assigned a role, asked for a sequence of decisions, or required to supply an input before the diversion begins.",
+        "Any optional invitation comes only after a satisfying self-contained tangent."
       ]
     },
     {
       "id": 3,
-      "prompt": "Another.",
-      "expected_output": "A second tangent in a different domain and a different format, farther from both the work and the first tangent.",
+      "prompt": "Ostrich. The diversity roll suggests wallpaper, sheepdog trials, island postal services, cave exploration, and typography. None produces a strong hook.",
+      "expected_output": "A coherent tangent chosen by judgment, whether or not it uses a rolled domain.",
       "files": [],
       "expectations": [
-        "The second tangent's domain differs from the first tangent's domain.",
-        "The second tangent's format differs from the first tangent's format.",
-        "The response does not ask what kind of tangent the user wants.",
-        "The response does not reuse the first tangent's central hook."
+        "The response does not force together multiple rolled domains.",
+        "The response may ignore every rolled domain.",
+        "The hook, format, and any source fit naturally without an explanation of their connection.",
+        "The response does not mention or apologize for rejecting the roll."
       ]
     },
     {
       "id": 4,
+      "prompt": "Another.",
+      "expected_output": "A fresh, complete tangent with a different central hook, selected for appeal rather than maximum distance.",
+      "files": [],
+      "expectations": [
+        "The central hook differs from the first tangent.",
+        "The response does not ask what kind of tangent the user wants.",
+        "The format may repeat when it remains the strongest choice.",
+        "The new tangent does not become more complicated merely to increase novelty."
+      ]
+    },
+    {
+      "id": 5,
       "prompt": "Ostrich. The preference store contains an explicit dislike: 'no poetry, ever'.",
       "expected_output": "A tangent that avoids poetry in domain and format, with the dislike preserved in the store.",
       "files": [],
       "expectations": [
-        "The tangent is not verse and does not use the constrained verse or poetrydb seed.",
+        "The tangent is not verse and is not about poetry.",
         "The preference store still contains the explicit dislike after the run.",
         "The response does not mention the dislike or explain why poetry was avoided."
       ]
     },
     {
-      "id": 5,
-      "prompt": "Ostrich, and the roll's seed is a Library of Congress newspaper page.",
-      "expected_output": "A tangent built on the fetched page's small items, with a link to the page and clear marking of any embellishment.",
-      "files": [],
-      "expectations": [
-        "The response links the newspaper page or item on loc.gov.",
-        "The response uses at least one specific detail from the page, such as a name, a price, or a notice.",
-        "Any invented detail is marked as reconstruction rather than presented as sourced.",
-        "The response is not formatted as a research report."
-      ]
-    },
-    {
       "id": 6,
-      "prompt": "Weirder.",
-      "expected_output": "A more absurd, plainly fictional tangent with rigorous internal logic, without a factual source note.",
+      "prompt": "Realer.",
+      "expected_output": "A grounded, contemporary tangent whose compact sources naturally support its selected hook.",
       "files": [],
       "expectations": [
-        "The tangent is plainly fictional and does not claim historical or scientific sourcing.",
-        "The tangent's internal rules are consistent from start to finish.",
-        "The response does not ask the user how weird they want it."
+        "The central factual claims are supported by linked reliable sources.",
+        "The source was selected to support the hook rather than used as a random premise.",
+        "Any invented detail is clearly marked as playful reconstruction.",
+        "The response remains a diversion rather than becoming a research report."
       ]
     },
     {
       "id": 7,
+      "prompt": "Weirder.",
+      "expected_output": "A more absurd, plainly fictional, self-contained tangent with rigorous internal logic.",
+      "files": [],
+      "expectations": [
+        "The tangent is plainly fictional and does not claim historical or scientific sourcing.",
+        "The tangent's internal rules are consistent from start to finish.",
+        "The response does not ask the user how weird they want it or require choices to proceed."
+      ]
+    },
+    {
+      "id": 8,
       "prompt": "Ok back to work.",
       "expected_output": "At most one line stepping aside, with no summary of the tangent, no reference to the work, and no request for feedback.",
       "files": [],
@@ -83,19 +94,6 @@
         "The response does not summarize or restate the tangent.",
         "The response does not mention the user's work.",
         "The response does not ask how the tangent went or request a rating."
-      ]
-    },
-    {
-      "id": 8,
-      "prompt": "Ostrich, invoked twenty times across twenty fresh sessions against the same work context, with the ledger carried between runs.",
-      "expected_output": "Twenty tangents spread across many domains and formats, with no repeated central hook.",
-      "files": [],
-      "expectations": [
-        "At least fifteen distinct domains appear across the twenty runs.",
-        "At least eight distinct formats appear across the twenty runs.",
-        "No central hook is repeated.",
-        "No run's hook is a widely circulated fact such as octopus intelligence, an undeciphered manuscript, or a food that never spoils.",
-        "At least one run uses a tier above plain markdown when the harness offers one."
       ]
     },
     {
