@@ -240,7 +240,7 @@ stage change.
 | `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, golden-query eval readiness, and promotion-ledger integrity; `eval` runs the deterministic scorer (`eval-score`) against the committed fixtures |
 | `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, (at most one, confirmed) follow-up, and a structured trajectory record per substantive session |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
-| `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) |
+| `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) and routes sensitive answers/notes to `private/` |
 | `promote` | Gated promotion of a local skill/tool to a marketplace git repo, defaulting to the active Memento/RSI target; composes `actuary --tier` (static Gate-1: privacy + portable spec) through the harness's skill-composition surface when available, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,

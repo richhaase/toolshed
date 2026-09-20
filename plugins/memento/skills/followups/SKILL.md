@@ -26,7 +26,7 @@ MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
 ```
 
 See `../_shared/references/memento-root.md` for the full resolution
-contract. All `sources/followups/` paths below are relative to
+contract. All `sources/` and `private/` paths below are relative to
 `MEMENTO_ROOT`.
 
 ## Arguments
@@ -97,6 +97,10 @@ Examples:
 - **Default to keep when fresh and ambiguous.** Inside the active
   window, ambiguity defaults to keep — the user can revisit on the
   next walk.
+- **Private answers and notes stay private.** Before writing new context from
+  `answer` or `note`, apply the Entity Types `private_notes` routing used by
+  Save and AMA, plus any explicit user instruction that the context is private.
+  Private content never falls back to a public file.
 - **Never push.** Local commit only, and only `walk` ever commits.
 
 ## Step 1: Build the worklist
@@ -217,6 +221,29 @@ confirmation otherwise. Options:
 
 Wait for the answer. Take the action below. Then move on.
 
+### Privacy routing for answer / note
+
+Before writing context supplied through `answer` or `note`, read the Entity
+Types registry in canonical `AGENTS.md` and identify any entity types with
+`private_notes: yes` and their configured filename patterns. Classify the new
+context using the same boundary as Save and AMA:
+
+- An observation about an entity whose type has `private_notes: yes` is private.
+- Context the user explicitly marks private is private.
+- If an answer mixes public and private context, split it at that boundary;
+  never copy the private portion into a public destination.
+
+Resolve each private portion to the registry-configured path under `private/`
+and append it under a dated heading using the private-note format in
+`../save/assets/templates/file-formats.md`. Create the file when absent; never
+overwrite it. Local private-note commits are expected and require no additional
+confirmation.
+
+If private context has no resolvable configured destination, write nothing from
+that action, leave the follow-up unchanged, and ask the user which entity or
+configured private destination applies. Do not invent a path or fall back to
+the follow-up, `sources/`, wiki, outputs, or telemetry.
+
 ### keep / skip
 
 Do nothing for the file. Move to the next item.
@@ -261,6 +288,15 @@ The user has the answer or new context. Ask which fits:
 When in doubt, prefer capture-to-wiki + delete: an answered
 follow-up should not keep appearing in future walks.
 
+Apply privacy routing before either write:
+
+- For a resolved private answer, append the private content to its configured
+  private note and delete the follow-up. If the answer also has a public
+  portion, write that portion to the normal dated source first.
+- For a partial private answer, append the private content to its configured
+  private note and keep the follow-up open without copying that content into
+  the follow-up. A public portion may use the existing `## Notes` append.
+
 ### note
 
 Append a dated entry to the existing file under a `## Notes`
@@ -274,6 +310,10 @@ section:
 ```
 
 Do not rewrite the body.
+
+Apply privacy routing first. A private note appends only to its configured file
+under `private/` and leaves the follow-up open and otherwise unchanged. Public
+notes retain the existing `## Notes` behavior.
 
 ## Step 3: Wrap up (walk subcommand)
 
@@ -299,10 +339,11 @@ git -C "$MEMENTO_ROOT" commit -m "followups: review — <one-line summary>"
 ```
 
 Stage **only the files this walk touched** (dismissals, expiry bumps, note
-appends, and any answer-to-note files) — never `git add sources/followups/`
-broadly, which would sweep a concurrent agent's untracked files into this commit.
-`git add -- <path>` stages a deletion too, so dismissed items commit correctly.
-Skip the commit if nothing changed. `list` and `show` never commit.
+appends, private-note appends, and any answer-to-note files) — never `git add
+sources/followups/` or `git add private/` broadly, which would sweep a concurrent
+agent's untracked files into this commit. `git add -- <path>` stages a deletion
+too, so dismissed items commit correctly. Skip the commit if nothing changed.
+`list` and `show` never commit. Never push.
 
 ## Guidelines
 
