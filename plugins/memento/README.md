@@ -272,11 +272,11 @@ and hot-set synthesis.
 - **Gated, not trusted.** `compile` restores its exact pre-run output snapshot if
   the eval gate finds a load-bearing fact missing; pre-existing edits are never
   swept into the compile commit.
-- **Private is a synthesis boundary, not encryption.** `private/` is never
-  compiled into public surfaces, but committed private history is pushable if a
-  remote exists. Save/AMA require explicit confirmation before adding private
-  content to a repository with a remote; use a separate non-remote or encrypted
-  store when that risk is unacceptable.
+- **Private stays private.** `private/` is usable local context and may be
+  committed locally for history and rollback. Its contents are not compiled
+  into public surfaces or shared externally. If Git history contains private
+  material, the repository is not pushed unless the user explicitly authorizes
+  that disclosure.
 - **Opinionated defaults, customizable.** Works immediately; `memento-config` interview tunes it on first run, and updates it on subsequent runs.
 
 ## File conventions

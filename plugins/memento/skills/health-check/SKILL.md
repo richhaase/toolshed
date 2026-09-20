@@ -1,6 +1,6 @@
 ---
 name: health-check
-description: Audit a Memento for cache drift, stale projections, broken evidence paths, privacy-boundary risks, compile metadata drift, open queue visibility, or golden-query eval readiness. Use when the user asks for a health check, doctor, audit, staleness check, provenance check, privacy lint, L1/L2/L3 integrity check, or whether a Memento is current. Read-only by default; never reads private/. Not for auditing an Agent Skill, plugin, or marketplace against the skills spec — that is `actuary:skill-audit`.
+description: Audit a Memento for cache drift, stale projections, broken evidence paths, privacy-boundary risks, compile metadata drift, open queue visibility, or golden-query eval readiness. Use when the user asks for a health check, doctor, audit, staleness check, provenance check, privacy lint, L1/L2/L3 integrity check, or whether a Memento is current. Read-only by default and focused on public surfaces. Not for auditing an Agent Skill, plugin, or marketplace against the skills spec — that is `actuary:skill-audit`.
 compatibility: Requires Bash; eval and connection-graph diagnostics additionally require Node.js. Git is used when present for repository diagnostics.
 argument-hint: "[doctor|privacy|eval|fixtures|full]"
 user-invocable: true
@@ -35,8 +35,9 @@ Arguments are passed as: $ARGUMENTS
 
 ## Non-negotiable rules
 
-- **Never read `private/`.** Do not count, list, hash, grep, or path-reference
-  private files. Treat `private/` as outside the health-check input set.
+- **Audit the public boundary.** Do not inventory or quote private content.
+  Diagnose whether public surfaces disclose it; private files themselves remain
+  valid local Memento context outside this audit's normal input set.
 - **Do not write by default.** Print findings to the user. `health-check eval`
   runs the scorer with `--no-log`; compile owns gate telemetry writes. If the user asks to
   persist a report, propose a destination first; prefer `private/` for raw
@@ -146,8 +147,8 @@ as stale until compile catches up.
 Scan only public files. Useful signals:
 
 - Concrete private-data subpaths, identities, fixtures, or copied content in
-  public files. Generic boundary language such as "never read `private/`" is
-  safe and should not be flagged.
+  public files. Generic boundary language about keeping `private/` out of public
+  surfaces is safe and should not be flagged.
 - Medical chart-level detail, financial account/balance detail, or people
   observations in public sources/wiki/outputs.
 - Eval fixtures or reports that contain raw sensitive user questions.
@@ -279,7 +280,7 @@ Report:
   `<!-- REDISCOVERY START/END -->` markers in `AGENTS.md` that are unbalanced or
   outside the hot-set region (P1 — the eval gate will fail-closed on these).
 
-Read-only; never reads `private/` (`build-graph` globs `wiki/` only).
+Read-only; graph results must not quote private content.
 
 ## Golden-query eval design
 
@@ -341,8 +342,10 @@ Scoring split — what the gate can and cannot verify:
   `required_answer_atom` present (case-insensitive) in the compiled answer surface —
   `AGENTS.md` plus explicit wiki answer-surface paths. Source paths establish provenance
   only; they cannot satisfy an answer atom.
-- **Answer-level (on-demand LLM eval only):** `forbidden_answer_atoms` absent, `forbidden_paths`
-  (`private/`) never touched, and `abstain` questions don't guess. These need an actual answer —
+- **Answer-level (on-demand LLM eval only):** `forbidden_answer_atoms` absent,
+  fixture-specific `forbidden_paths` respected, and `abstain` questions don't guess. A
+  private path may be valid local context for a query; mark it forbidden only when
+  that query specifically must not use it. These checks need an actual answer —
   a corpus substring scan false-positives (the hot set mentions every entity; pages keep old
   values in history). The static gate does not enforce them; they live in the fixtures for the
   answering eval.
@@ -355,7 +358,8 @@ benchmarks inform the taxonomy; local qrels decide whether this Memento is worki
 
 Lead with findings, ordered by severity:
 
-- **P0** privacy boundary violation or forbidden-path read/write.
+- **P0** private-content disclosure into a public surface or another
+  fixture-specific forbidden-path violation.
 - **P1** broken evidence, stale authority, or compile metadata drift that can
   cause wrong answers.
 - **P2** integrity gaps, open-queue visibility gaps, harness drift.

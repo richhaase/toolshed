@@ -50,11 +50,9 @@ is no separate out-of-band handle to debrief.
   the wiki.
 - **Sensitive observations route to `private/`, never `sources/` or `wiki/`.**
   The Entity Types registry decides which entity types have this boundary.
-- **A Git remote changes the private-note risk.** Before writing or staging a
-  `private/` capture, run `git -C "$MEMENTO_ROOT" remote`. If a remote exists,
-  require explicit confirmation for this run that the user accepts private
-  content entering pushable Git history. Do not rely only on a standing
-  "never push" instruction; a later approved push can publish prior commits.
+- **Private files may be committed locally.** Local history and rollback are
+  expected. Do not push or otherwise share private content externally unless
+  the user explicitly asks.
 - Don't capture content that's already persisted (PRs, issue trackers, files
   written during the session).
 

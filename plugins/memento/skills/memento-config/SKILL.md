@@ -158,17 +158,15 @@ Create a `.gitignore` if one doesn't exist:
 ```
 
 Do **not** ignore `private/`. A Memento repo is local-only by default, and
-private notes are committed there so appends have local history. The privacy
-boundary is compilation/publication: `private/` is never read into wiki,
-outputs, or pushed unless the user explicitly makes a separate encrypted/export
-decision. If an existing Memento `.gitignore` contains `private/`, report that
-private-note commits will fail and ask before removing that line.
+private notes are committed there so appends have local history and rollback.
+Treat those files as private: they are valid local context, but do not copy their
+contents into `sources/`, `wiki/`, or `outputs/`, and do not push or otherwise
+share them externally unless the user explicitly asks. If an existing Memento
+`.gitignore` contains `private/`, report that private-note commits will fail and
+ask before removing that line.
 
-If the Memento repository already has a Git remote, explain that committed
-`private/` history is pushable even when current instructions say not to push.
-Before enabling private-note routing, require an explicit choice: accept that
-local-history risk for this repository, or keep private notes in a separate
-non-remote/encrypted store outside this Memento workflow.
+If the Memento has a remote and its history contains private material, do not
+push the repository unless the user explicitly authorizes that disclosure.
 
 ### Initialize and commit with exact paths
 

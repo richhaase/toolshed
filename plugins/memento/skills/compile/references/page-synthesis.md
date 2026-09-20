@@ -36,8 +36,9 @@ concurrent dispatch. With at most two, synthesize inline.
 Each subagent receives only the entity name, entity-type definition, relevant
 source excerpts, and current page. It writes only its assigned page and returns
 a one-line summary of sections touched and any `<provider>_id` drift. It must
-not read `private/`, write another page, or run cross-linking, INDEX/hot-set
-generation, the eval gate, or the commit. The orchestrator owns those steps.
+use only the provided public source data, write no other page, and not run
+cross-linking, INDEX/hot-set generation, the eval gate, or the commit. The
+orchestrator owns those steps.
 
 Use this brief:
 
@@ -56,8 +57,8 @@ Current page content (merge into; preserve accumulated sections):
 Source material for this entity:
 <relevant source excerpts>
 
-Write only <wiki_path>/<filename> using the page merge/write rules. Do not read
-private/ or touch any other page, INDEX.md, or AGENTS.md. Return one line:
+Write only <wiki_path>/<filename> using the page merge/write rules and provided
+public source data. Do not touch any other page, INDEX.md, or AGENTS.md. Return one line:
 sections touched + any <provider>_id drift.
 ```
 
@@ -88,7 +89,7 @@ Entity type definition:
 Entities to compile: <entity names and source files>
 
 Write each page to <wiki_path>/<filename> using references/templates.md and the
-page merge/write rules. Do not read private/. Use only the provided source data.
+page merge/write rules. Use only the provided public source data.
 ```
 
 ## Page merge and write rules
