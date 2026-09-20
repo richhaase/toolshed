@@ -73,8 +73,7 @@ Multi-layer cache memory base with automated compilation. Treats knowledge
 like a CPU cache hierarchy: L1 (`AGENTS.md` hot set) -> L2 (wiki, loaded on
 demand) -> L3 (sources, cold storage). Claude Code uses a thin `CLAUDE.md`
 entrypoint that imports `AGENTS.md`. Includes setup, compilation, read-only
-health checks, session capture, active interview, follow-up queue review, and
-gated skill/tool promotion.
+health checks, session capture, active interview, and follow-up queue review.
 
 Memento can be installed globally while the actual wiki lives in one configured
 data root. Set `MEMENTO_ROOT=/path/to/memento` or add a `.memento-root` file to
@@ -87,8 +86,8 @@ resolved root instead of assuming the current repo is the Memento.
 Audit and evaluate Agent Skills against the agentskills.io specification and
 authoring best practices. The `skill-audit` skill separates portable L1 spec
 compliance from named harness profiles, then reports L2 structure and L3 craft.
-With `--tier`, it adds privacy/genericization checks and a static Gate-1 verdict
-used by Memento's `promote` flow; final behavioral readiness remains separate.
+With `--tier`, it adds privacy/genericization checks and a static Gate-1 verdict;
+final behavioral readiness remains separate.
 
 ### [Steward](plugins/steward/) — Intent and Assurance Contracts
 

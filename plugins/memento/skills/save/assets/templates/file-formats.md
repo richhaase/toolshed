@@ -109,9 +109,10 @@ registry). Append — never overwrite. Create the file if it does not exist.
 Path: `sources/trajectories/YYYY-MM-DD/<run-id>.md`
 (`<run-id>` = `date '+%Y-%m-%dT%H%M%S'`).
 
-Compact, structured, one per substantive session. Local-only forever — never
-promoted. The body is short; the value is the frontmatter the learning loop
-queries. Keep real-entity observations out of it (those route to `private/`).
+Compact, structured, one per substantive session. Local-only forever and
+excluded from compilation. The body is short; the value is the frontmatter the
+learning loop queries. Keep real-entity observations out of it (those route to
+`private/`).
 
 ```markdown
 ---

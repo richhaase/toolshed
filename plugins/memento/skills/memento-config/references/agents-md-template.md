@@ -33,8 +33,8 @@ Raw ingestion. Session captures, automated syncs, manual notes. Only access when
 L2 doesn't resolve the question.
 
 ### Outputs (`outputs/`) — Outside the hierarchy
-Products of the system, not cache layers. `outputs/surfaces/` are HTML dashboards
-served over HTTP. `outputs/reports/` are generated briefings and analyses.
+Products of the system, not cache layers. `outputs/reports/` are generated
+briefings and analyses.
 
 ## Directory Structure
 
@@ -53,7 +53,6 @@ wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
 outputs/                # Products
-├── surfaces/           # HTML dashboards served over HTTP
 └── reports/            # Generated briefings, analyses
 private/                # Sensitive notes — never compiled
 ```
@@ -81,8 +80,8 @@ All inputs that feed the wiki. Organized by origin:
   that intentionally stores tasks must document their semantics and declare
   `<!-- MEMENTO_TASK_STORE: sources/tasks -->` in this public policy file.
 - **`trajectories/`** — `YYYY-MM-DD/<run-id>.md` session telemetry emitted by
-  `/save` and `/ama` (outcome, skills/tools used, lessons). Local-only, never
-  compiled or promoted — the substrate the learning loop reads.
+  `/save` and `/ama` (outcome, skills/tools used, lessons). Local-only and not
+  compiled — the substrate the learning loop reads.
 - **`eval/`** — golden-query fixtures and gate-run telemetry for the `/compile`
   eval gate. Not a synthesis input.
 
@@ -132,7 +131,6 @@ golden-query eval readiness. That public-surface audit does not inspect private
 content.
 
 ### Outputs (`outputs/`)
-- **`surfaces/`** — HTML dashboards, may be served via HTTP
 - **`reports/`** — Generated content, write-once
 
 ## Lookup Hierarchy

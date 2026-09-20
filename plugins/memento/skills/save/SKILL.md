@@ -205,9 +205,9 @@ trajectory clustering, and a future SkillOpt proposer all run over these.
   trajectory). Capture `outcome` (success/partial/failed), `skills_used`,
   `tools_used`, `harness`, `artifacts` (PRs/commits/files), and a short
   `lessons` list (the Reflexion hook — what would make the next run go better).
-- **Local-only forever.** Trajectories are saturated with real context and are
-  **never promoted**; they live only in the local Memento. Retention/GC is a
-  later-phase concern — for now, append; do not prune.
+- **Local-only forever.** Trajectories are saturated with real context, live
+  only in the local Memento, and are excluded from compilation. Retention/GC is
+  a later-phase concern — for now, append; do not prune.
 
 Trajectory emission does not require user confirmation (it is telemetry, not a
 follow-up). It still routes sensitive entity observations to `private/` per the

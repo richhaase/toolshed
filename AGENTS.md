@@ -111,11 +111,10 @@ the explicit validation and privacy commands required by the workflow above.
 ## Current plugins
 
 - **memento** — Memory-base workflows (memento-config, compile, health-check,
-  save, ama, followups, promote). Seven-skill core: idempotent setup/config,
+  save, ama, followups). Six-skill core: idempotent setup/config,
   sources -> wiki -> AGENTS.md hot set compilation, read-only
   cache/provenance/privacy diagnostics, passive session capture, active
-  LLM-driven interview, queue review, and gated promotion to a marketplace git
-  repo, defaulting to the Memento RSI target.
+  LLM-driven interview, and queue review.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.

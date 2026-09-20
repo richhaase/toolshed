@@ -44,7 +44,7 @@ The Memento treats knowledge like a CPU cache hierarchy. The full chain is
     carries `cache: projection` + `source_of_truth: <provider>` + `as_of:`
     frontmatter so the rest of the pipeline can tell it apart from a captured
     source.
-- **Outputs** (outside hierarchy): Products of the system — surfaces (HTML dashboards) and reports.
+- **Outputs** (outside hierarchy): Generated reports and analyses.
 
 Compilation flows upward: L3 -> L2 -> L1. The `/compile` skill handles the full pipeline.
 
@@ -115,7 +115,7 @@ sources/                # L3 — raw inputs
 │   └── <provider>/     # e.g., concept2/, github/
 ├── notes/              # Durable knowledge — folds into wiki on /compile
 ├── followups/          # Small queue of "re-read within a week, act on it" items
-├── trajectories/       # <date>/<run-id>.md — structured per-session telemetry (local-only, never promoted)
+├── trajectories/       # <date>/<run-id>.md — structured per-session telemetry (local-only, not compiled)
 └── eval/               # Golden-query eval — NOT compiled (gate data + telemetry)
     ├── fixtures/       #   regression.json (must stay 100%) + capability.json (threshold)
     ├── verdict-contract.json  #   thresholds + the frozen verdict shape
@@ -124,7 +124,6 @@ wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
 outputs/                # Products
-├── surfaces/           # HTML dashboards, served over HTTP
 └── reports/            # Generated briefings, analyses
 private/                # Sensitive notes — never compiled
 ```
@@ -153,7 +152,7 @@ What `/save` does write:
 - **Trajectory → `sources/trajectories/<date>/<run-id>.md`, one per
   substantive session.** Structured telemetry (task, outcome, skills/tools
   used, artifacts, Reflexion lessons) — the substrate the learning loop reads.
-  Local-only forever; never promoted.
+  Local-only forever; excluded from compilation.
 
 Follow-ups are reviewed via `/followups` — `list` (default) prints the
 inventory expired-first, `show <slug>` renders one item read-only, and
@@ -203,45 +202,16 @@ the fixtures are answer-level — verifiable only by an LLM-answering eval, not 
 gate. Public memory benchmarks can inform the taxonomy, but local questions decide whether
 this Memento is working.
 
-### Promotion (gated, human-triggered)
-
-A local experiment graduates outward through `promote`:
-`experiment -> marketplace-ready -> marketplace` (or `retired`). A promote
-flow always targets a marketplace git repo. The default target is `memento`,
-the active Memento/RSI target; toolshed is one other marketplace target, not a
-separate lifecycle stage. Promotion state lives as **data**:
-`promotion_stage` frontmatter on `wiki/skills/` + `wiki/tools/` pages plus an
-append-only `wiki/skills/_promotion-ledger.md`, so "what is ready" and "what
-duplicates capability" are grep queries, not folklore.
-
-- **`promote` is the sole writer** of the ledger and the stage frontmatter.
-  Hand-edited stage values desync the ledger from the pages — `health-check`
-  flags a stage with no backing ledger entry as a contradiction.
-- **Gate-1** is `actuary --tier <tier>` (invoked through harness-native skill
-  composition when available, or by applying the Actuary skill workflow directly):
-  a privacy/genericization scan + portable L1 spec check turned into a static
-  Gate-1 verdict. Privacy is a non-negotiable marketplace hard-block; static
-  readiness is not final promotion readiness.
-- **Gate-2** (harness-neutral behavioral evals) is a later phase; `promote`
-  reports it as unproven rather than synthesizing a pass.
-- The deterministic backstop is `scripts/privacy-scan` (toolshed repo infra,
-  fail-closed) at the pre-push hook — real IDs/paths/keys never reach the public
-  repo even if Gate-1 is skipped.
-
-Promotion is **human-triggered**: `promote` writes nothing until you confirm the
-stage change.
-
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set), with a deterministic eval gate + snapshot-backed rollback protecting the exact pre-run output state |
-| `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, golden-query eval readiness, and promotion-ledger integrity; `eval` runs the deterministic scorer (`eval-score`) against the committed fixtures |
+| `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness; `eval` runs the deterministic scorer (`eval-score`) against the committed fixtures |
 | `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, (at most one, confirmed) follow-up, and a structured trajectory record per substantive session |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) and routes sensitive answers/notes to `private/` |
-| `promote` | Gated promotion of a local skill/tool to a marketplace git repo, defaulting to the active Memento/RSI target; composes `actuary --tier` (static Gate-1: privacy + portable spec) through the harness's skill-composition surface when available, presents one decision, and is the **sole writer** of the promotion ledger + `promotion_stage` frontmatter |
 
 For lookup, follow the L1 -> L2 -> L3 hierarchy directly (start at `AGENTS.md`,
 descend into `wiki/` and `sources/` as needed). For passive capture, edit

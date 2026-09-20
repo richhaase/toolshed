@@ -266,8 +266,8 @@ related: [[entity-1]]
 <0-3 bullets — what would make the next interview go better. Empty is fine.>
 ```
 
-Local-only forever — trajectories are never promoted. Keep `private_notes`
-entity assessments out of the record; those route to `private/` as above.
+Local-only forever and excluded from compilation. Keep `private_notes` entity
+assessments out of the record; those route to `private/` as above.
 
 ## Step 6: Commit
 

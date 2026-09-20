@@ -18,7 +18,6 @@ sources/                # L3 — raw inputs, cold storage
     └── runs/           # <date>.jsonl — gate verdicts written by eval-score
 wiki/                   # L2 — compiled knowledge, loaded on demand
 outputs/                # Products of the system
-├── surfaces/           # HTML dashboards, served over HTTP
 └── reports/            # Generated briefings, analyses
 private/                # Sensitive notes — never compiled into wiki
 ```

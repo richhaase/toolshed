@@ -218,32 +218,7 @@ the current schema (e.g. one still using an `entity:` key). This is a P2 schema
 drift, not a broken link — recompile or normalize the page rather than treating
 it as corruption.
 
-### Check 11: Promotion Ledger Integrity
-
-`promote` is the **sole writer** of promotion state, so the ledger and the pages
-must agree. Cross-check `promotion_stage` frontmatter on `wiki/skills/` +
-`wiki/tools/` pages against `wiki/skills/_promotion-ledger.md`:
-
-- A page carries a `promotion_stage` with **no backing ledger entry** for that
-  entity -> contradiction (P2): the stage was hand-edited, not promoted. The
-  registry lists `promotion_stage` in `contradiction_fields` for both types.
-- A page's `promotion_stage` **disagrees** with the ledger's latest entry for
-  that entity -> contradiction (P2).
-- A ledger entry exists but the page is missing the field, or `last_eval_pass`
-  is set without any ledger evidence -> P3 drift.
-
-Report the entity, the page value, and the ledger value. The fix is to
-reconcile through `promote`, not to patch the frontmatter. Do not write the
-repair.
-
-This check stays **judgment-side, not in `doctor.sh`**: the ledger is human-prose
-(`## <date> — <entity>: <from> → <to> (<plugin>)`, unicode arrows) and entity
-names don't map 1:1 to page slugs (e.g. page `ts-dev-tools-pr-review` ↔ ledger
-entity `auto-review`), so a deterministic string match would cry wolf. The LLM
-does the fuzzy entity↔slug reconciliation a grep can't. Don't try to move it into
-the script without first giving the ledger a machine-parseable marker per entry.
-
-### Check 12: Trajectory Telemetry
+### Check 11: Trajectory Telemetry
 
 Trajectory records (`sources/trajectories/<date>/<run-id>.md`, written by `save`
 and `ama`) are telemetry — the learning loop queries their frontmatter, not their
@@ -255,7 +230,7 @@ deterministic frontmatter check, confirm by eye that a trajectory carries no
 `private_notes`-class entity assessment — that routes to `private/`, never a
 trajectory.
 
-### Check 13: Connection-Graph & Rediscovery Integrity
+### Check 12: Connection-Graph & Rediscovery Integrity
 
 The connection graph (`_shared/scripts/build-graph`) is the read-only substrate for
 backlink traversal and proactive rediscovery. It writes nothing; run it read-only:
