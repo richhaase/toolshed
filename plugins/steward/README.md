@@ -15,13 +15,15 @@ The lifecycle is:
    failure.
 2. `critique` conditionally challenges material ambiguity or an endangered
    boundary without expanding scope.
-3. A human explicitly approves and freezes one immutable revision.
+3. A human explicitly approves and freezes one integrity-checked revision.
 4. Any inner workflow constructs the change.
 5. `assess` judges the immutable result claim by claim using proportionate
    evidence selected after construction.
 
 Steward stores no centralized state and has no Jira or builder adapter.
-Contracts and assessments are ordinary local Markdown files.
+Contracts and assessments are ordinary local Markdown files. Their hashes
+detect later edits; Steward does not make files physically immutable or
+authenticate the identity supplied to `--by` or `--assessor`.
 
 ## Contract format
 
@@ -71,11 +73,15 @@ node resources/scripts/steward assessment-complete assessment.md
 See `resources/references/contract-format.md` for the exact portable format.
 `examples/delivery-status.contract.md` is a complete example.
 
+Create a successor revision with `create NEW --from APPROVED`; use `compare`
+to inspect section and size changes before approval.
+
 Run deterministic lifecycle tests with:
 
 ```bash
 node --test tests/steward-cli.test.js
 ```
 
-Behavioral framing, critique, convergence, and assessment cases live in
-`evals/evals.json`.
+Behavioral framing, critique, convergence, and assessment expectations live in
+`evals/evals.json`. They are specification cases, not recorded Claude or Codex
+runs, and repository CI does not claim cross-model behavioral validation.

@@ -32,8 +32,10 @@ built without owning the inner workflow that built it.
   as relevant implementation context.
 - Judge the frozen outcome, not a preferred mechanism, unless the contract
   explicitly freezes that mechanism or boundary.
-- Do not modify the implementation, contract, tests, environment, or
-  assessment target.
+- Do not modify the implementation, contract, tests, or assessed change. Use
+  non-destructive evidence collection. Existing checks may create ordinary
+  ignored or temporary artifacts when they do not alter assessed content or
+  its immutable identity.
 - Never create monitoring, credentials, diagnostic identities, probes, or
   product behavior merely to avoid an inconclusive result.
 - A builder's rationale may inform the assessment but cannot amend or waive a
@@ -76,7 +78,8 @@ works if one of them is wrong.
      environment access, a post-deploy observation, an operator/client action,
      or another human-only check outside the implementation surface; or
    - `mixed/ambiguous` — part is PR/implementation-verifiable, but an external
-     observation or unresolved outcome-versus-mechanism interpretation remains.
+     observation or unresolved mechanism question remains under one fixed
+     outcome. Materially different pass conditions are a contract defect.
 6. For each frozen claim, choose the strongest proportionate evidence now
    available. Useful evidence may include:
    - targeted tests or an existing suite;

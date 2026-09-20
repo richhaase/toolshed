@@ -49,7 +49,7 @@ works if one of them is wrong.
    current behavior, requested behavior, and material ambiguity. Existing
    repository instructions remain implementation context rather than contract
    content.
-2. Create a format-v3 draft:
+2. Create a draft:
 
    ```bash
    node "$STEWARD_CLI" create path/to/ticket.md \
@@ -60,7 +60,8 @@ works if one of them is wrong.
    lineage, and clears approval metadata for deliberate revision.
 3. State one concise `Outcome`: the requested user or business result.
 4. Write the fewest independently assessable `AC<n>` claims that distinguish
-   success from failure. Preserve stable claim ids across revisions. If
+   success from failure. Keep each claim on one line and preserve stable claim
+   ids across revisions. If
    violating a Scope or Constraints boundary would make delivery unacceptable,
    express that failure boundary in an acceptance claim; optional prose may
    clarify claims but is not scored separately during assessment.
@@ -74,7 +75,7 @@ works if one of them is wrong.
    - A material open question blocks approval. Ask the user instead of
      manufacturing a safe-looking default.
 6. Leave unspecified implementation choices to the builder. Evidence methods
-   are selected after construction and do not belong in a v3 contract.
+   are selected after construction and do not belong in the contract.
 7. If the request contains independently valuable outcomes or the draft grows
    beyond roughly eight claims or 1,200 words, first delete implementation
    detail. If it is still broad, recommend a small outcome-oriented split

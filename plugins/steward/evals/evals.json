@@ -4,11 +4,11 @@
     {
       "id": 1,
       "prompt": "Use Steward Frame for this request: On the empty Sources page, change the title from “No sources found” to “No sources yet.” Nothing else changes. Draft only; do not approve or implement.",
-      "expected_output": "A tiny format-v3 contract with the requested outcome and one or two acceptance claims, without critique ceremony or an implementation plan.",
+      "expected_output": "A tiny contract with the requested outcome and one or two acceptance claims, without critique ceremony or an implementation plan.",
       "files": [],
       "expectations": [
         "The body contains Outcome and Acceptance and is no more than 150 words.",
-        "The contract contains one or two AC identifiers and no I, R, EV, or P identifiers.",
+        "The contract contains one or two AC identifiers and no predeclared intent, requirement, evidence-method, or probe graph.",
         "The contract does not invent analytics, localization, accessibility, migration, monitoring, or redesign work.",
         "The contract contains no evidence plan, probe inventory, risk inventory, or open question."
       ]
@@ -54,7 +54,7 @@
     {
       "id": 5,
       "prompt": "Use Steward Frame for this synthetic regression: reshape integration administration around endpoint-owned surfaces. The overview owns shared status and safe next actions. Records detail preserves deployed operator controls and authorization/publication safety. Search detail exposes only real endpoint controls. Video gets no detail page until it owns meaningful controls. Connections, Access Policy, Chat Gateway, and audit/token/security remain shared. Direct links, reload, history, fallback, permissions, and no protected-content flash must remain safe. Status labels must distinguish configured from authenticated usability. Decide the consumer-backed target and migration behavior for display name, owner contacts, and freshness settings. Do not add synthetic monitoring, canaries, diagnostic identities, credentials, live protocol probes, or a monitoring subsystem; real authenticated validation is performed separately by an operator/client. Draft only.",
-      "expected_output": "A bounded format-v3 umbrella contract or a split recommendation that preserves the product decisions without becoming an endpoint, permission, component, or test matrix.",
+      "expected_output": "A bounded umbrella contract or a split recommendation that preserves the product decisions without becoming an endpoint, permission, component, or test matrix.",
       "files": [],
       "expectations": [
         "The result has no more than eight acceptance claims and no more than 1100 body words, or recommends a small outcome-oriented split.",
@@ -93,12 +93,12 @@
     {
       "id": 8,
       "prompt": "Use Steward Assess. The approved contract has AC1: Browser Back restores search text, selected status filters, sort field, and sort direction; and AC2: loading an employee-detail URL directly continues to work. The immutable post-build evidence pack contains a Playwright trace establishing AC1 and an existing route integration test establishing AC2. No evidence methods were declared before construction. Produce the claim-level assessment only; do not modify the implementation.",
-      "expected_output": "A passing assessment for exactly AC1 and AC2 using the strongest post-build evidence without requiring predeclared EV methods or inventing new criteria.",
+      "expected_output": "A passing assessment for exactly AC1 and AC2 using the strongest post-build evidence without requiring predeclared evidence methods or inventing new criteria.",
       "files": [],
       "expectations": [
         "The assessment reports exactly AC1 and AC2 and records the supplied trace and test against the relevant claims.",
         "Both claims pass when the supplied artifacts substantiate them.",
-        "The absence of predeclared EV identifiers does not cause failure or downgrade.",
+        "The absence of predeclared evidence-method identifiers does not cause failure or downgrade.",
         "The assessment introduces no cross-browser, analytics, accessibility, or performance criteria.",
         "Unavailable or inadequate evidence would produce inconclusive rather than a guessed result."
       ]

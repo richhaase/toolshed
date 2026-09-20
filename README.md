@@ -92,12 +92,13 @@ disclosure risks without producing a release or task-success verdict.
 ### [Steward](plugins/steward/) — Intent and Assurance Contracts
 
 Separate software intent and assurance from an interchangeable builder.
-`frame` freezes the minimum decision-complete intent delta, `critique`
-conditionally challenges material ambiguity without expanding scope, and
-`assess` binds proportionate post-build evidence to a frozen contract and
-immutable change identity. Any agent, bundled workflow, or human process may
-construct the change. The dependency-free CLI preserves local immutable
-revisions without a remote ticket store or builder adapter.
+`frame` freezes the minimum decision-complete intent delta for explicit human
+approval, `critique` conditionally challenges material ambiguity without
+expanding scope, and `assess` binds proportionate post-build evidence to the
+frozen contract and immutable change identity. Any agent, bundled workflow, or
+human process may construct the change. The dependency-free CLI maintains the
+single local contract lifecycle without a remote ticket store or builder
+adapter.
 
 ### [Ostrich](plugins/ostrich/) — Deliberate Distraction
 

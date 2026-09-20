@@ -120,10 +120,11 @@ the explicit validation and privacy commands required by the workflow above.
   layered report). Designed to grow with additional evaluator skills.
 - **steward** — Portable intent-and-assurance contracts for software work.
   A thin outer loop around arbitrary construction workflows: `frame` freezes
-  the minimum decision-complete intent delta, `critique` conditionally
-  challenges material ambiguity without expanding scope, and `assess` judges
-  immutable changes claim by claim using proportionate post-build evidence.
-  A dependency-free local CLI owns the deterministic lifecycle.
+  the minimum decision-complete intent delta for explicit human approval,
+  `critique` conditionally challenges material ambiguity without expanding
+  scope, and `assess` judges immutable changes claim by claim using
+  proportionate post-build evidence. A dependency-free local CLI owns the
+  single deterministic contract and assessment lifecycle.
 - **ostrich** — Deliberate context-break workflow. Silently excludes the
   active work cluster, uses optional random domain prompts to widen a
   quality-ranked candidate pool, and delivers one coherent, self-contained

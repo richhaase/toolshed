@@ -20,8 +20,8 @@ Each revision is a distinct artifact:
 `draft -> explicitly approved/frozen -> separately assessed`
 
 - `draft` is editable and does not authorize construction.
-- `approved` records the explicit scope owner and a SHA-256 hash of the
-  normalized Markdown body. Later body changes invalidate the artifact.
+- `approved` records the supplied scope-owner identity and a SHA-256 hash of
+  the normalized Markdown body. Later body changes invalidate the artifact.
 - An assessment is separate from the contract and is bound to the approved
   revision plus an immutable change identity.
 
@@ -32,6 +32,11 @@ context. Any inner workflow may construct the change.
 Never edit or reinterpret an approved artifact. Use
 `steward create NEW --from APPROVED` for a successor. This copies the body,
 increments `revision`, records `supersedes`, and clears approval metadata.
+
+“Frozen” means integrity-checked and treated as immutable by the workflow. The
+CLI does not change filesystem permissions, prevent manual edits, or
+authenticate the person named in approval metadata. The Frame workflow must
+obtain explicit human approval before invoking `approve`.
 
 ## Contract metadata
 
@@ -46,7 +51,7 @@ The file begins with single-line YAML scalar frontmatter:
 | `state` | `draft` or `approved` |
 | `created_at` | ISO-8601 timestamp for this revision |
 | `approved_at` | ISO-8601 timestamp or `null` |
-| `approved_by` | Explicit approver identity or `null` |
+| `approved_by` | Supplied approver label or `null` |
 | `frozen_body_sha256` | Normalized body hash or `null` |
 | `supersedes` | Prior `<id>@<revision>` or `null` |
 
@@ -119,8 +124,8 @@ If violating a boundary named in Scope or Constraints would make delivery
 unacceptable, represent that failure in an acceptance claim. Optional sections
 clarify the frozen claims but are not an independent set of scored outcomes.
 
-There is no mandatory intent, requirement, evidence-method, or probe graph in
-v3. Examples may clarify a claim when prose alone permits materially different
+There is no mandatory intent, requirement, evidence-method, or probe graph.
+Examples may clarify a claim when prose alone permits materially different
 interpretations; they are not a scenario inventory.
 
 ### Constraints
@@ -152,16 +157,18 @@ steward approve PATH --by APPROVER
 steward compare OLD_PATH NEW_PATH [--json]
 ```
 
-All commands operate only on caller-supplied paths. `create` and `assessment`
-refuse to overwrite files. `approve` and
-`assessment-complete` are the only in-place mutations.
+Commands write only caller-supplied artifact paths. `create` and `assessment`
+refuse to overwrite files; `approve` and `assessment-complete` are the only
+in-place mutations. Assessment validation also reads the contract referenced by
+the assessment's `contract_path` metadata.
 
 `check` reports `STRUCTURALLY OK`, never semantic completeness. JSON output
-includes `structurally_valid`, a compatibility `valid` alias, errors, warnings,
+includes equivalent `structurally_valid` and `valid` booleans, errors, warnings,
 body words, and acceptance-claim count.
 
-`compare` reports lifecycle metadata, changed sections, and word/claim deltas.
-Growth is visible but does not automatically block approval.
+`compare` requires valid contracts with the same id and reports lifecycle
+metadata, changed sections, and word/claim deltas. It reports whether revision
+increased but does not enforce succession or block approval.
 
 ## Assessment format
 
@@ -190,9 +197,30 @@ Assessment metadata binds:
 - creation/completion timestamps; and
 - a frozen completed-assessment body hash.
 
-The body contains these H2 sections in order: `Provenance`, `Overall`, `Claim
-outcomes`, `Evidence log`, `Contract observations`, `Residual risks`, and
-`Remediation`.
+The assessment begins with single-line YAML scalar frontmatter:
+
+| Field | Meaning |
+| --- | --- |
+| `steward_assessment` | `"3"` |
+| `contract_path` | Contract path relative to the assessment, or an absolute path |
+| `contract_id` | Exact frozen contract id |
+| `contract_revision` | Exact frozen contract revision |
+| `contract_body_sha256` | Exact frozen contract body hash |
+| `change_identity` | Declared immutable `TYPE:VALUE` identity for the assessed change |
+| `environment` | Single-line runtime and evidence context |
+| `assessor` | Supplied assessor identity |
+| `created_at` | ISO-8601 timestamp |
+| `completed_at` | ISO-8601 timestamp or `null` |
+| `state` | `draft` or `completed` |
+| `assessment_body_sha256` | Completed body hash or `null` |
+
+The CLI validates identity shape and artifact linkage. It does not prove that a
+Git SHA exists, authenticate the assessor, execute evidence, or establish that
+an observation is true. The assessor owns those factual checks.
+
+The body has exactly one H1 beginning `Assessment:` and these H2 sections in
+order: `Provenance`, `Overall`, `Claim outcomes`, `Evidence log`, `Contract
+observations`, `Residual risks`, and `Remediation`.
 
 Each frozen acceptance claim has one H3 block:
 
@@ -202,6 +230,10 @@ Each frozen acceptance claim has one H3 block:
 - Evidence: E1
 - Residual uncertainty: Production localization was not sampled.
 ```
+
+Every claim block requires `Outcome`, `Evidence`, and nonempty
+`Residual uncertainty` fields. Its heading must reproduce the frozen claim
+text exactly.
 
 Evidence is selected after construction:
 
@@ -231,5 +263,6 @@ inconclusive otherwise. Remediation is:
 - `insufficient-or-conflicting-evidence` when the result cannot be established.
 
 A non-pass assessment records a concrete next action. The contract remains
-frozen. `assessment-complete` validates provenance and claim evidence, then
-freezes the report body.
+frozen. `assessment-complete` validates structural provenance, claim-to-evidence
+links, and required observations, then freezes the report body. It does not
+verify the truth or sufficiency of the evidence text.
