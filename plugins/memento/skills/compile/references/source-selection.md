@@ -102,7 +102,8 @@ discard the invalidation event.
 
 When `COMPILE_BASE_SHA` is empty, retain mtime detection for scratch and
 non-Git Mementos. Search all of `sources/`; a fixed directory list silently
-misses new top-level source directories. Exclude eval and trajectory telemetry:
+misses new top-level source directories. Exclude eval data and any legacy
+trajectory archive retained from older Memento releases:
 
 ```bash
 ../_shared/scripts/memento-run find sources -name '*.md' -newer wiki/INDEX.md \
@@ -120,8 +121,8 @@ even when no active source changed.
 ### Incremental updates
 
 1. Use the union of Step 1's active change set and the lifecycle impact report,
-   excluding `sources/eval/` and `sources/trajectories/`; neither is knowledge
-   to synthesize.
+   excluding `sources/eval/` and the legacy archive at `sources/trajectories/`;
+   neither is knowledge to synthesize.
 2. In one message, issue parallel Read calls for every existing changed active
    source, every impact-report active/replacement source, every readable
    invalidated source needed to assess historical context, and `wiki/INDEX.md`.
@@ -136,8 +137,8 @@ change is source withdrawal. Unrelated pages remain outside the union.
 
 ### Full builds
 
-Glob all source directories, excluding `sources/eval/` and
-`sources/trajectories/`. Parse frontmatter first, compile only active sources,
+Glob all source directories, excluding `sources/eval/` and any retained legacy
+`sources/trajectories/` archive. Parse frontmatter first, compile only active sources,
 and retain the skipped superseded/archived list for the final report.
 
 Do not accumulate an unbounded corpus in the orchestrator. Read bounded batches

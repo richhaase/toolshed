@@ -12,7 +12,6 @@ sources/                # L3 — raw inputs, cold storage
 ├── notes/              # Durable knowledge — folds into wiki on /compile
 ├── followups/          # Small queue of "re-read within a week, act on it"
 │                       # captures with expires_at frontmatter
-├── trajectories/       # Session telemetry from /save and /ama. NOT compiled.
 └── eval/               # Golden-query eval — NOT compiled (gate data + telemetry)
     ├── fixtures/       # regression.json + capability.json (drafted via /health-check eval)
     └── runs/           # <date>.jsonl — gate verdicts written by eval-score

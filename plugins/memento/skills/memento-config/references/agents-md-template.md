@@ -46,8 +46,6 @@ sources/                # L3 — raw inputs
 ├── notes/              # Durable knowledge — folds into wiki on /compile
 ├── followups/          # Small queue of "re-read within a week, act on it"
 │                       # items with expires_at frontmatter
-├── trajectories/       # YYYY-MM-DD/<run-id>.md — session telemetry from
-│                       # /save and /ama. Local-only, NOT compiled.
 └── eval/               # Golden-query fixtures + gate-run telemetry. NOT compiled.
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
@@ -79,9 +77,6 @@ All inputs that feed the wiki. Organized by origin:
   issue tracker. The Memento does not create a task store by default. A root
   that intentionally stores tasks must document their semantics and declare
   `<!-- MEMENTO_TASK_STORE: sources/tasks -->` in this public policy file.
-- **`trajectories/`** — `YYYY-MM-DD/<run-id>.md` session telemetry emitted by
-  `/save` and `/ama` (outcome, skills/tools used, lessons). Local-only and not
-  compiled — the substrate the learning loop reads.
 - **`eval/`** — golden-query fixtures and gate-run telemetry for the `/compile`
   eval gate. Not a synthesis input.
 

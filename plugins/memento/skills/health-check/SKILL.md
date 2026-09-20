@@ -69,7 +69,9 @@ Start with the public root files:
 
 1. Read `AGENTS.md` if present, otherwise `CLAUDE.md`.
 2. Read `wiki/INDEX.md` if present.
-3. Inspect public `sources/` Markdown only.
+3. Inspect public `sources/` Markdown only. Ignore a retained
+   `sources/trajectories/` directory; it is a read-only legacy archive outside
+   the active L3 input set.
 4. Inspect `data/` only as a domain store, not as generic memory. A skill or
    source should establish what data file is canonical.
 
@@ -218,19 +220,7 @@ the current schema (e.g. one still using an `entity:` key). This is a P2 schema
 drift, not a broken link — recompile or normalize the page rather than treating
 it as corruption.
 
-### Check 11: Trajectory Telemetry
-
-Trajectory records (`sources/trajectories/<date>/<run-id>.md`, written by `save`
-and `ama`) are telemetry — the learning loop queries their frontmatter, not their
-prose. `scripts/doctor.sh` flags any trajectory missing `outcome` or
-`skills_used` (P2); without those, the record is invisible to Reflexion lessons
-and trajectory clustering. `date` is covered by Check 8 and sensitive-keyword
-leaks by Check 5 (both scan all of `sources/`, trajectories included). Beyond the
-deterministic frontmatter check, confirm by eye that a trajectory carries no
-`private_notes`-class entity assessment — that routes to `private/`, never a
-trajectory.
-
-### Check 12: Connection-Graph & Rediscovery Integrity
+### Check 11: Connection-Graph & Rediscovery Integrity
 
 The connection graph (`_shared/scripts/build-graph`) is the read-only substrate for
 backlink traversal and proactive rediscovery. It writes nothing; run it read-only:

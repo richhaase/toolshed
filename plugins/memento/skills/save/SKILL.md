@@ -105,11 +105,10 @@ This enables entity-aware routing in Step 3.
 ## Step 3: Extract value
 
 **Fast path — take it on the common case.** Most substantive sessions resolve to
-exactly two writes: one session decision/research file (when the session made
-decisions or surfaced findings worth keeping) and one trajectory record. Follow-ups,
-private notes, and analyses are exceptions, not defaults — the expected follow-up
-count per session is **zero**. Classify quickly against the table below, write the
-session file + trajectory, and report. Only spend deliberation on the detailed rules
+one session decision/research file when they produced anything worth keeping.
+Follow-ups, private notes, and analyses are exceptions, not defaults — the expected
+follow-up count per session is **zero**. Classify quickly against the table below,
+write the durable content, and report. Only spend deliberation on the detailed rules
 that follow (the follow-up bar, entity routing, commitment surfacing) when a candidate
 actually trips them. Do not re-derive the whole rubric on a session that plainly
 produced one decision file and nothing else — decisiveness here is what keeps `/save`
@@ -121,18 +120,16 @@ Review the session content and identify items in these categories:
 |----------|-----------------|-------------|
 | **Decisions** | Choices made, direction set, options ruled out | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
 | **Research** | New information, findings worth preserving | `sources/sessions/YYYY-MM-DDTHHmmss-topic.md` |
-| **Durable knowledge** | A fact, clarification, pattern, or lesson worth folding into the wiki | `sources/notes/YYYY-MM-DD-topic.md` |
+| **Durable knowledge** | A fact, clarification, pattern, or reusable lesson worth folding into the wiki | `sources/notes/YYYY-MM-DD-topic.md` |
 | **Analyses** | Substantive ad-hoc analyses, trade-off evaluations | `outputs/reports/YYYY-MM-DDTHHmmss-topic.md` |
 | **Private notes** | Observations about entities with `private_notes: yes` | `private/<filename-pattern>` (append) |
 | **Follow-up** *(at most one per session, user-confirmed)* | A single re-read-and-act-on-it-within-a-week item that genuinely cannot live anywhere else | `sources/followups/topic-slug.md` |
 | **Follow-up updates** | New context on existing follow-ups the user is still triaging | Update existing `sources/followups/*.md` |
-| **Trajectory** *(telemetry — every substantive session)* | Structured record of the run: task, outcome, skills/tools used, lessons, artifacts | `sources/trajectories/YYYY-MM-DD/<run-id>.md` |
 
 Most sessions produce 0-2 value items (and zero follow-ups — that is the
-expected outcome). The **trajectory record is different**: emit one per
-substantive session as structured telemetry, regardless of whether there were
-value items. It is the substrate the future learning loop (Reflexion lessons,
-trajectory clustering, SkillOpt) consumes — see "Trajectory channel" below.
+expected outcome). Do not create a separate telemetry copy of the session. Route
+reusable lessons through durable knowledge or the applicable private note so they
+remain available to ordinary Memento lookup and compilation.
 
 ### Where commitments go
 
@@ -187,33 +184,6 @@ kinds of value:
 - **Research / investigation**: Capture findings into a dated session file under `sources/sessions/` if they aren't already persisted elsewhere; substantive work may warrant a research doc or analysis.
 - **Code changes**: May have produced commits, PRs, or surfaced blockers. Blockers worth tracking belong in the issue tracker, not as Memento follow-ups.
 
-### Trajectory channel
-
-Emit one **trajectory record** per substantive session — structured, compact
-telemetry, separate from the prose session decision file. It is the missing
-substrate piece the learning loop reads: Reflexion failure-lessons,
-trajectory clustering, and a future SkillOpt proposer all run over these.
-
-- **Destination:** `sources/trajectories/YYYY-MM-DD/<run-id>.md`, where
-  `<run-id>` is `date '+%Y-%m-%dT%H%M%S'` (matches the session-file timestamp
-  when both are written). The per-day directory keeps the channel browsable.
-- **When:** every session that did real work (edits / decisions / research, or
-  delegated background-agent / workflow output that reported back). Skip
-  trivial no-op sessions. This is *not* gated by the "empty capture plan" rule —
-  a successful session with no other value items still emits a trajectory record.
-- **Shape:** frontmatter-heavy (see `assets/templates/file-formats.md` →
-  trajectory). Capture `outcome` (success/partial/failed), `skills_used`,
-  `tools_used`, `harness`, `artifacts` (PRs/commits/files), and a short
-  `lessons` list (the Reflexion hook — what would make the next run go better).
-- **Local-only forever.** Trajectories are saturated with real context, live
-  only in the local Memento, and are excluded from compilation. Retention/GC is
-  a later-phase concern — for now, append; do not prune.
-
-Trajectory emission does not require user confirmation (it is telemetry, not a
-follow-up). It still routes sensitive entity observations to `private/` per the
-sensitivity rules — keep the trajectory record itself free of `private_notes`
-entity assessments.
-
 ## Step 4: Capture plan (and confirmation gates)
 
 Build a capture plan — for each item:
@@ -266,7 +236,7 @@ overwrite.
 
 Stage **only the files this save wrote** — collect their exact paths from the
 Step 5 capture plan (the session file, any notes / analyses, the private-note
-file, a follow-up, and the trajectory record). Then commit:
+file, and a follow-up). Then commit:
 
 ```bash
 git -C "$MEMENTO_ROOT" add -- <path> [<path> ...]

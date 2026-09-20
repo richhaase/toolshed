@@ -115,7 +115,6 @@ sources/                # L3 — raw inputs
 │   └── <provider>/     # e.g., concept2/, github/
 ├── notes/              # Durable knowledge — folds into wiki on /compile
 ├── followups/          # Small queue of "re-read within a week, act on it" items
-├── trajectories/       # <date>/<run-id>.md — structured per-session telemetry (local-only, not compiled)
 └── eval/               # Golden-query eval — NOT compiled (gate data + telemetry)
     ├── fixtures/       #   regression.json (must stay 100%) + capability.json (threshold)
     ├── verdict-contract.json  #   thresholds + the frozen verdict shape
@@ -149,10 +148,10 @@ What `/save` does write:
   user-confirmed.** A follow-up only earns its place if you would re-read
   it within a week and act on it. Each one carries an `expires_at`
   frontmatter field (default: date + 14 days) so the queue self-cleans.
-- **Trajectory → `sources/trajectories/<date>/<run-id>.md`, one per
-  substantive session.** Structured telemetry (task, outcome, skills/tools
-  used, artifacts, Reflexion lessons) — the substrate the learning loop reads.
-  Local-only forever; excluded from compilation.
+
+Mementos created by older releases may retain `sources/trajectories/` as a
+read-only historical archive. Current workflows do not add to it, and compile
+continues to ignore it.
 
 Follow-ups are reviewed via `/followups` — `list` (default) prints the
 inventory expired-first, `show <slug>` renders one item read-only, and
@@ -209,7 +208,7 @@ this Memento is working.
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set), with a deterministic eval gate + snapshot-backed rollback protecting the exact pre-run output state |
 | `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness; `eval` runs the deterministic scorer (`eval-score`) against the committed fixtures |
-| `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, (at most one, confirmed) follow-up, and a structured trajectory record per substantive session |
+| `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, and at most one confirmed follow-up |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) and routes sensitive answers/notes to `private/` |
 
