@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+'use strict';
+
+// Execute the deterministic analyzer against checked-in synthetic fixtures.
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+function fail(message) {
+  process.stderr.write(`calibration-test: ${message}\n`);
+  process.exitCode = 1;
+}
+
+function keys(findings) {
+  return findings.map((finding) => finding.rule).sort();
+}
+
+function same(actual, expected) {
+  return JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
+}
+
+const skillRoot = path.resolve(__dirname, '..');
+const analyzer = path.join(__dirname, 'analyze');
+const fixturePath = path.join(skillRoot, 'evals', 'evals.json');
+const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'actuary-calibration-'));
+
+try {
+  for (const fixture of fixtures.evals) {
+    const target = path.join(temporaryRoot, fixture.target_path);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, fixture.skill_md);
+    const run = spawnSync(process.execPath, [analyzer, target], {
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    if (run.status !== 0) {
+      fail(`fixture ${fixture.id}: analyzer failed: ${run.stderr.trim()}`);
+      continue;
+    }
+    let report;
+    try { report = JSON.parse(run.stdout); }
+    catch (error) {
+      fail(`fixture ${fixture.id}: invalid analyzer JSON: ${error.message}`);
+      continue;
+    }
+    const skill = report.skills[0];
+    const expected = fixture.expected_analyzer;
+    const actual = {
+      l1_rule_keys: keys(skill.findings.l1),
+      claude_profile_rule_keys: keys(skill.findings.profiles.claude),
+      l2_rule_keys: keys(skill.findings.l2),
+    };
+    for (const field of Object.keys(expected)) {
+      if (!same(actual[field], expected[field])) {
+        fail(`fixture ${fixture.id}: ${field} expected ${JSON.stringify(expected[field])}, got ${JSON.stringify(actual[field])}`);
+      }
+    }
+    if (report.skill_count !== 1 || report.schema_version !== 1) {
+      fail(`fixture ${fixture.id}: analyzer envelope changed unexpectedly`);
+    }
+  }
+
+  const thresholdTarget = path.join(temporaryRoot, 'skills', 'threshold-case', 'SKILL.md');
+  fs.mkdirSync(path.dirname(thresholdTarget), { recursive: true });
+  fs.writeFileSync(thresholdTarget, `---\nname: threshold-case\ndescription: ${'x'.repeat(901)}\nallowed-tools: [Read]\n---\n\n# Threshold case\n`);
+  const thresholdRun = spawnSync(process.execPath, [analyzer, thresholdTarget], { encoding: 'utf8' });
+  if (thresholdRun.status !== 0) {
+    fail(`threshold case: analyzer failed: ${thresholdRun.stderr.trim()}`);
+  } else {
+    const thresholdSkill = JSON.parse(thresholdRun.stdout).skills[0];
+    if (!same(keys(thresholdSkill.findings.l1), ['allowed-tools-shape'])) {
+      fail(`threshold case: unexpected L1 keys ${JSON.stringify(keys(thresholdSkill.findings.l1))}`);
+    }
+    if (!same(keys(thresholdSkill.findings.l2), ['description-length-max-soft'])) {
+      fail(`threshold case: unexpected L2 keys ${JSON.stringify(keys(thresholdSkill.findings.l2))}`);
+    }
+  }
+
+  const symlink = path.join(temporaryRoot, 'linked-skill.md');
+  fs.symlinkSync(path.join(temporaryRoot, fixtures.evals[0].target_path), symlink);
+  const symlinkRun = spawnSync(process.execPath, [analyzer, symlink], { encoding: 'utf8' });
+  if (symlinkRun.status === 0 || !symlinkRun.stderr.includes('must not be a symlink')) {
+    fail('direct symlink target was not rejected');
+  }
+} finally {
+  fs.rmSync(temporaryRoot, { recursive: true, force: true });
+}
+
+if (!process.exitCode) {
+  process.stdout.write(`calibration-test: PASS (${fixtures.evals.length} fixtures + shape, threshold, and symlink boundaries)\n`);
+}

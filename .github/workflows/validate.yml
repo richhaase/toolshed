@@ -53,14 +53,18 @@ jobs:
         run: |
           plugins/actuary/skills/skill-audit/scripts/contract-test \
             --privacy-scan scripts/privacy-scan
+          plugins/actuary/skills/skill-audit/scripts/calibration-test
           jq -e '
             .skill_name == "skill-audit" and
             (.evals | type == "array" and length >= 3) and
             all(.evals[];
               (.id | type == "number") and
               (.prompt | type == "string" and length > 0) and
+              (.target_path | type == "string" and length > 0) and
+              (.skill_md | type == "string" and length > 0) and
               (.expected_output | type == "string" and length > 0) and
-              (.assertions | type == "array" and length > 0))
+              (.assertions | type == "array" and length > 0) and
+              (.expected_analyzer | type == "object"))
           ' plugins/actuary/skills/skill-audit/evals/evals.json >/dev/null
           while IFS= read -r file; do
             jq -e '

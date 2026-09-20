@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// contract-test — validate Actuary's report/rule-key contracts.
+// contract-test — validate Actuary's report, analyzer, and rule-key contracts.
 //
 // Usage:
 //   node scripts/contract-test
@@ -34,7 +34,7 @@ function difference(left, right) {
 
 const argv = process.argv.slice(2);
 if (argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write('Validate report-template and privacy-scanner rule keys against the Actuary catalog.\n');
+  process.stdout.write('Validate report, analyzer, fixtures, and privacy-scanner keys against the Actuary catalog.\n');
   process.exit(0);
 }
 
@@ -43,6 +43,8 @@ if (scanFlag >= 0 && !argv[scanFlag + 1]) fail('--privacy-scan requires a path')
 const skillRoot = path.resolve(__dirname, '..');
 const criteriaPath = path.join(skillRoot, 'references', 'criteria.md');
 const templatePath = path.join(skillRoot, 'assets', 'templates', 'report.md');
+const analyzerPath = path.join(skillRoot, 'scripts', 'analyze');
+const evalsPath = path.join(skillRoot, 'evals', 'evals.json');
 const defaultScanner = path.resolve(skillRoot, '..', '..', '..', '..', 'scripts', 'privacy-scan');
 const scannerPath = scanFlag >= 0 ? path.resolve(argv[scanFlag + 1]) : defaultScanner;
 if (scanFlag >= 0 && !fs.existsSync(scannerPath)) fail(`privacy scanner does not exist: ${scannerPath}`);
@@ -57,6 +59,31 @@ const templateKeys = values(read(templatePath), /rule:\s+([a-z0-9]+(?:-[a-z0-9]+
 const unknownTemplateKeys = difference(templateKeys, catalog);
 if (unknownTemplateKeys.length) {
   fail(`report template uses unknown rule key(s): ${unknownTemplateKeys.join(', ')}`);
+}
+
+const analyzerKeys = values(read(analyzerPath), /finding\([^,]+,[^,]+,\s*'([a-z0-9]+(?:-[a-z0-9]+)*)'/g);
+const unknownAnalyzerKeys = difference(analyzerKeys, catalog);
+if (unknownAnalyzerKeys.length) {
+  fail(`analyzer emits uncataloged rule key(s): ${unknownAnalyzerKeys.join(', ')}`);
+}
+
+let evals;
+try { evals = JSON.parse(read(evalsPath)); }
+catch (error) { fail(`invalid eval JSON: ${error.message}`); }
+if (evals.skill_name !== 'skill-audit' || !Array.isArray(evals.evals) || evals.evals.length < 3) {
+  fail('eval fixture envelope is invalid');
+}
+for (const fixture of evals.evals) {
+  if (typeof fixture.skill_md !== 'string' || !fixture.skill_md ||
+      typeof fixture.target_path !== 'string' || !fixture.target_path ||
+      !fixture.expected_analyzer) {
+    fail(`eval fixture ${fixture.id} lacks executable analyzer fields`);
+  }
+  const expectedKeys = new Set(Object.values(fixture.expected_analyzer).flat());
+  const unknownExpectedKeys = difference(expectedKeys, catalog);
+  if (unknownExpectedKeys.length) {
+    fail(`eval fixture ${fixture.id} expects uncataloged key(s): ${unknownExpectedKeys.join(', ')}`);
+  }
 }
 
 let scannerKeys = new Set();
@@ -79,6 +106,8 @@ process.stdout.write(`${JSON.stringify({
   status: 'pass',
   catalog_keys: catalog.size,
   template_keys: [...templateKeys].sort(),
+  analyzer_keys: [...analyzerKeys].sort(),
+  calibration_fixtures: evals.evals.length,
   scanner_checked: fs.existsSync(scannerPath),
   scanner_keys: [...scannerKeys].sort(),
 })}\n`);

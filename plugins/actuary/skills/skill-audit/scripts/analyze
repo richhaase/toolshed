@@ -1,0 +1,347 @@
+#!/usr/bin/env node
+'use strict';
+
+// Deterministic, dependency-free inventory and portable checks for skill-audit.
+// It never executes target content and never follows symlinks.
+
+const fs = require('fs');
+const path = require('path');
+
+function fail(message) {
+  process.stderr.write(`analyze: ${message}\n`);
+  process.exit(2);
+}
+
+function finding(layer, severity, rule, detail) {
+  return { layer, severity, rule, detail };
+}
+
+function displayPath(file) {
+  const relative = path.relative(process.cwd(), file);
+  return relative || '.';
+}
+
+function lstatRegular(file) {
+  const stat = fs.lstatSync(file);
+  return stat.isFile() && !stat.isSymbolicLink();
+}
+
+function isDirectory(directory) {
+  try {
+    const stat = fs.lstatSync(directory);
+    return stat.isDirectory() && !stat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+function walkRegular(root, predicate = () => true) {
+  const files = [];
+  if (!isDirectory(root)) return files;
+  const stack = [root];
+  while (stack.length) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true })
+      .sort((a, b) => b.name.localeCompare(a.name));
+    for (const entry of entries) {
+      if (entry.name === '.git' || entry.name === 'node_modules') continue;
+      const child = path.join(current, entry.name);
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) stack.push(child);
+      else if (entry.isFile() && predicate(child)) files.push(child);
+    }
+  }
+  return files.sort();
+}
+
+function resolveTarget(rawTarget) {
+  const target = path.resolve(rawTarget || '.');
+  if (!fs.existsSync(target)) fail(`target does not exist: ${rawTarget}`);
+  const stat = fs.lstatSync(target);
+  if (stat.isSymbolicLink()) fail('target must not be a symlink');
+
+  if (stat.isFile()) {
+    if (path.basename(target) !== 'SKILL.md' || !lstatRegular(target)) {
+      fail('a file target must be a regular SKILL.md');
+    }
+    return { mode: 'skill-file', target, skills: [target] };
+  }
+  if (!stat.isDirectory()) fail('target must be a regular file or directory');
+
+  const direct = path.join(target, 'SKILL.md');
+  if (fs.existsSync(direct)) {
+    if (!lstatRegular(direct)) fail('direct SKILL.md must be a regular file');
+    return { mode: 'skill', target, skills: [direct] };
+  }
+
+  const skillsRoot = path.join(target, 'skills');
+  const isPlugin = isDirectory(skillsRoot) ||
+    fs.existsSync(path.join(target, '.claude-plugin', 'plugin.json')) ||
+    fs.existsSync(path.join(target, '.codex-plugin', 'plugin.json'));
+  const scanRoot = isPlugin && isDirectory(skillsRoot) ? skillsRoot : target;
+  const skills = walkRegular(scanRoot, (file) => path.basename(file) === 'SKILL.md');
+  if (!skills.length) fail('no regular SKILL.md files found under target');
+  return { mode: isPlugin ? 'plugin' : 'repo', target, skills };
+}
+
+function stripPlainComment(raw) {
+  return raw.replace(/\s+#.*$/, '').trim();
+}
+
+function scalar(raw) {
+  const value = stripPlainComment(raw);
+  if (/^[>|][+-]?[0-9]?$/.test(value)) return { type: 'block-marker', value };
+  if (value.startsWith('[')) return { type: 'array', value };
+  if (value.startsWith('{')) return { type: 'map', value };
+  if (/^(?:null|~)$/i.test(value)) return { type: 'null', value: null };
+  if (/^(?:true|false)$/i.test(value)) return { type: 'boolean', value: value === 'true' };
+  if (/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(value)) return { type: 'number', value: Number(value) };
+  if (value.startsWith('"')) {
+    try { return { type: 'string', value: JSON.parse(value) }; }
+    catch { return { type: 'invalid', value }; }
+  }
+  if (value.startsWith("'")) {
+    if (!value.endsWith("'")) return { type: 'invalid', value };
+    return { type: 'string', value: value.slice(1, -1).replace(/''/g, "'") };
+  }
+  return { type: 'string', value };
+}
+
+function foldBlock(lines, style) {
+  const nonempty = lines.map((line) => line.replace(/^\s+/, '').replace(/\s+$/, ''));
+  if (style.startsWith('|')) return nonempty.join('\n').trimEnd();
+  const paragraphs = [];
+  let current = [];
+  for (const line of nonempty) {
+    if (!line) {
+      if (current.length) paragraphs.push(current.join(' '));
+      current = [];
+    } else current.push(line);
+  }
+  if (current.length) paragraphs.push(current.join(' '));
+  return paragraphs.join('\n').trimEnd();
+}
+
+function parseFlowMap(raw) {
+  const text = raw.trim();
+  if (text === '{}') return { supported: true, values: [] };
+  if (!text.startsWith('{') || !text.endsWith('}')) return { supported: false };
+  const values = [];
+  for (const part of text.slice(1, -1).split(',')) {
+    const match = part.match(/^\s*[^:]+:\s*(.*?)\s*$/);
+    if (!match) return { supported: false };
+    values.push(scalar(match[1]));
+  }
+  return { supported: true, values };
+}
+
+function parseFrontmatter(text) {
+  const lines = text.split(/\r?\n/);
+  const warnings = [];
+  const errors = [];
+  const fields = new Map();
+  if (lines[0] !== '---') {
+    errors.push('frontmatter must begin on line 1');
+    return { lines, close: -1, body: '', fields, warnings, errors };
+  }
+  const close = lines.findIndex((line, index) => index > 0 && line === '---');
+  if (close < 0) {
+    errors.push('frontmatter has no closing delimiter');
+    return { lines, close, body: '', fields, warnings, errors };
+  }
+
+  let index = 1;
+  while (index < close) {
+    const line = lines[index];
+    if (!line.trim() || /^\s*#/.test(line)) { index += 1; continue; }
+    const match = line.match(/^([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
+    if (!match) {
+      errors.push(`unsupported or invalid top-level YAML at line ${index + 1}`);
+      index += 1;
+      continue;
+    }
+    const key = match[1];
+    const raw = match[2] || '';
+    if (fields.has(key)) errors.push(`duplicate top-level key: ${key}`);
+
+    let next = index + 1;
+    const children = [];
+    while (next < close && (/^\s/.test(lines[next]) || !lines[next].trim())) {
+      children.push(lines[next]);
+      next += 1;
+    }
+
+    const parsed = scalar(raw);
+    if (parsed.type === 'block-marker') {
+      fields.set(key, { type: 'string', value: foldBlock(children, parsed.value), children });
+    } else {
+      fields.set(key, { ...parsed, children });
+      if (children.length && key !== 'metadata') {
+        warnings.push(`${key}: indented continuation is not interpreted unless block style is explicit`);
+      }
+    }
+    index = next;
+  }
+  return { lines, close, body: lines.slice(close + 1).join('\n'), fields, warnings, errors };
+}
+
+function metadataIsStringMap(field) {
+  if (!field) return true;
+  if (field.type === 'map') {
+    const parsed = parseFlowMap(field.value);
+    return parsed.supported ? parsed.values.every((value) => value.type === 'string') : null;
+  }
+  if (field.type !== 'string' || field.value !== '') return false;
+  const children = field.children.filter((line) => line.trim() && !/^\s*#/.test(line));
+  const indents = children.map((line) => line.match(/^\s*/)[0].length);
+  if (indents.some((indent) => indent !== indents[0])) return false;
+  return children.every((line) => {
+    const match = line.match(/^\s+[^:\s][^:]*:\s*(.*?)\s*$/);
+    return match && scalar(match[1]).type === 'string';
+  });
+}
+
+function metricFindings(body, description) {
+  const findings = [];
+  const lines = body.split(/\r?\n/);
+  const bodyLines = lines.length;
+  const bodyChars = body.length;
+  const bodyTokens = Math.ceil(bodyChars / 4);
+  if (bodyLines > 500) findings.push(finding('L2', 'medium', 'body-lines-soft-max', `${bodyLines} lines`));
+  if (bodyTokens > 5000) findings.push(finding('L2', 'medium', 'body-tokens-soft-max', `approximately ${bodyTokens} tokens`));
+  if (description.length > 900) findings.push(finding('L2', 'medium', 'description-length-max-soft', `${description.length} characters`));
+
+  let fence = null;
+  lines.forEach((line, offset) => {
+    const marker = line.match(/^\s*(```+|~~~+)/);
+    if (!marker) return;
+    if (!fence) fence = { marker: marker[1][0], start: offset + 1 };
+    else if (marker[1][0] === fence.marker) {
+      const count = offset - fence.start;
+      if (count >= 30) findings.push(finding('L2', 'medium', 'inline-large-template', `${count} fenced lines starting at body line ${fence.start}`));
+      fence = null;
+    }
+  });
+
+  const headings = [];
+  lines.forEach((line, offset) => { if (/^##\s+/.test(line)) headings.push(offset); });
+  headings.forEach((start, i) => {
+    const end = i + 1 < headings.length ? headings[i + 1] : lines.length;
+    const count = end - start - 1;
+    if (count > 100) findings.push(finding('L2', 'medium', 'large-section', `${count} lines under body line ${start + 1}`));
+  });
+  return { bodyLines, bodyChars, bodyTokens, findings };
+}
+
+function resourceState(skillDirectory) {
+  const state = {};
+  for (const name of ['references', 'scripts', 'assets', 'evals']) {
+    state[name] = isDirectory(path.join(skillDirectory, name));
+  }
+  return state;
+}
+
+function analyzeSkill(file) {
+  const text = fs.readFileSync(file, 'utf8');
+  const parsed = parseFrontmatter(text);
+  const l1 = [];
+  const claude = [];
+
+  if (parsed.errors.length) {
+    l1.push(finding('L1', 'high', 'frontmatter-valid-yaml', parsed.errors.join('; ')));
+  }
+
+  const nameField = parsed.fields.get('name');
+  const descriptionField = parsed.fields.get('description');
+  const name = nameField?.type === 'string' ? nameField.value : '';
+  const description = descriptionField?.type === 'string' ? descriptionField.value : '';
+
+  if (!nameField) l1.push(finding('L1', 'high', 'name-required', 'missing name'));
+  if (!descriptionField) l1.push(finding('L1', 'high', 'description-required', 'missing description'));
+  if (nameField && nameField.type !== 'string') l1.push(finding('L1', 'high', 'name-format', 'name is not a string'));
+  if (descriptionField && descriptionField.type !== 'string') l1.push(finding('L1', 'high', 'description-non-empty', 'description is not a string'));
+
+  if (nameField?.type === 'string') {
+    if (name.length < 1 || name.length > 64) l1.push(finding('L1', 'high', 'name-length', `${name.length} characters`));
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) l1.push(finding('L1', 'high', 'name-format', 'name format is not portable'));
+    if (name !== path.basename(path.dirname(file))) l1.push(finding('L1', 'high', 'name-matches-directory', `name is ${name || '(empty)'}`));
+    if (/[<>]/.test(name)) claude.push(finding('profile', 'medium', 'name-no-xml-tags', 'name contains an XML tag character'));
+    if (/anthropic|claude/i.test(name)) claude.push(finding('profile', 'medium', 'name-no-reserved-words', 'name contains a Claude reserved word'));
+  }
+
+  if (descriptionField?.type === 'string') {
+    if (!description.trim()) l1.push(finding('L1', 'high', 'description-non-empty', 'description is empty'));
+    if (description.length > 1024) l1.push(finding('L1', 'high', 'description-length-max', `${description.length} characters`));
+    if (/[<>]/.test(description)) claude.push(finding('profile', 'medium', 'description-no-xml-tags', 'description contains an XML tag character'));
+  }
+
+  const compatibility = parsed.fields.get('compatibility');
+  if (compatibility && compatibility.type !== 'string') {
+    l1.push(finding('L1', 'high', 'compatibility-shape', `compatibility is ${compatibility.type}`));
+  } else if (compatibility?.value.length > 500) {
+    l1.push(finding('L1', 'high', 'compatibility-length-max', `${compatibility.value.length} characters`));
+  }
+  const license = parsed.fields.get('license');
+  if (license && license.type !== 'string') l1.push(finding('L1', 'high', 'license-shape', `license is ${license.type}`));
+  const metadata = parsed.fields.get('metadata');
+  const metadataStatus = metadataIsStringMap(metadata);
+  if (metadata && metadataStatus === false) l1.push(finding('L1', 'high', 'metadata-shape', 'metadata is not a string-to-string map'));
+  if (metadata && metadataStatus === null) parsed.warnings.push('metadata: flow-map syntax is too complex for deterministic shape analysis');
+  const allowedTools = parsed.fields.get('allowed-tools');
+  if (allowedTools && allowedTools.type !== 'string') l1.push(finding('L1', 'medium', 'allowed-tools-shape', `allowed-tools is ${allowedTools.type}`));
+  if (!parsed.body.trim()) l1.push(finding('L1', 'high', 'body-present', 'body is empty'));
+
+  const metrics = metricFindings(parsed.body, description);
+  const skillDirectory = path.dirname(file);
+  const resources = resourceState(skillDirectory);
+  const scripts = resources.scripts
+    ? walkRegular(path.join(skillDirectory, 'scripts')).map(displayPath)
+    : [];
+
+  return {
+    path: displayPath(file),
+    name,
+    description,
+    metrics: {
+      body_lines: metrics.bodyLines,
+      body_chars: metrics.bodyChars,
+      body_tokens_estimate: metrics.bodyTokens,
+      description_chars: description.length,
+    },
+    resources,
+    scripts,
+    findings: { l1, profiles: { claude }, l2: metrics.findings },
+    analysis_warnings: parsed.warnings,
+  };
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  if (argv.includes('--help') || argv.includes('-h')) {
+    process.stdout.write('Usage: analyze [skill-path|plugin-path|repo]\n');
+    process.exit(0);
+  }
+  if (argv.length > 1) fail(`unknown argument: ${argv[1]}`);
+  const resolved = resolveTarget(argv[0] || '.');
+  const skills = resolved.skills.map(analyzeSkill);
+  const metadataCharacters = skills.reduce((sum, skill) =>
+    sum + skill.name.length + skill.description.length + skill.path.length, 0);
+  const poolFindings = [];
+  if (metadataCharacters >= 8000) {
+    poolFindings.push(finding('profile', 'medium', 'codex-pool-metadata-pressure', `${metadataCharacters} name/description/path characters`));
+  }
+  process.stdout.write(`${JSON.stringify({
+    schema_version: 1,
+    target: displayPath(resolved.target),
+    mode: resolved.mode,
+    skill_count: skills.length,
+    pool: {
+      metadata_characters: metadataCharacters,
+      codex_fallback_budget_characters: 8000,
+      findings: poolFindings,
+    },
+    skills,
+  }, null, 2)}\n`);
+}
+
+main();

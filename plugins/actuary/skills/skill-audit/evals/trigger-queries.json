@@ -24,7 +24,7 @@
     "should_trigger": false
   },
   {
-    "query": "Please do a marketplace-tier audit of ./plugins/example-plugin and tell me whether it clears the static privacy and packaging gate.",
+    "query": "Please audit ./plugins/example-plugin for portable structure and craft, and include the optional privacy review.",
     "should_trigger": true
   },
   {
@@ -56,7 +56,7 @@
     "should_trigger": false
   },
   {
-    "query": "Do a read-only --tier toolshed review of the ExampleCo plugin and return only the prioritized quick wins from the skill audit.",
+    "query": "Do a read-only --privacy review of the ExampleCo plugin and return only the prioritized quick wins from the skill design audit.",
     "should_trigger": true
   },
   {

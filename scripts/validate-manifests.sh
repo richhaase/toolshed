@@ -207,8 +207,8 @@ elif [[ "$(readlink -f "$refresh_claude_link")" != "$(readlink -f "$refresh_agen
   error "refresh-actuary-criteria — .claude symlink does not resolve to the .agents skill"
 fi
 
-# Harness-neutral eval data is release evidence. Keep its small schemas valid so
-# later runners can consume it without discovering malformed fixtures at runtime.
+# Harness-neutral design-audit calibration data is release evidence. Keep its
+# schema valid so the deterministic runner can consume it in CI.
 actuary_evals=plugins/actuary/skills/skill-audit/evals/evals.json
 if [[ -f "$actuary_evals" ]] && ! jq -e '
   .skill_name == "skill-audit" and
@@ -216,10 +216,13 @@ if [[ -f "$actuary_evals" ]] && ! jq -e '
   all(.evals[];
     (.id | type == "number") and
     (.prompt | type == "string" and length > 0) and
+    (.target_path | type == "string" and length > 0) and
+    (.skill_md | type == "string" and length > 0) and
     (.expected_output | type == "string" and length > 0) and
-    (.assertions | type == "array" and length > 0))
+    (.assertions | type == "array" and length > 0) and
+    (.expected_analyzer | type == "object"))
 ' "$actuary_evals" >/dev/null 2>&1; then
-  error "$actuary_evals — invalid behavioral eval fixture schema"
+  error "$actuary_evals — invalid design-audit calibration fixture schema"
 fi
 
 while IFS= read -r file; do

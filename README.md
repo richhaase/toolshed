@@ -83,11 +83,11 @@ resolved root instead of assuming the current repo is the Memento.
 
 ### [Actuary](plugins/actuary/) — Skill Audit
 
-Audit and evaluate Agent Skills against the agentskills.io specification and
-authoring best practices. The `skill-audit` skill separates portable L1 spec
-compliance from named harness profiles, then reports L2 structure and L3 craft.
-With `--tier`, it adds privacy/genericization checks and a static Gate-1 verdict;
-final behavioral readiness remains separate.
+Audit Agent Skill design against the agentskills.io specification, named Claude
+and Codex profiles, and evidence-backed authoring criteria. The `skill-audit`
+skill uses a deterministic analyzer for portable L1 and structural L2 evidence,
+then applies ranked L3 craft judgment. An optional privacy review reports
+disclosure risks without producing a release or task-success verdict.
 
 ### [Steward](plugins/steward/) — Intent and Assurance Contracts
 

@@ -1,109 +1,97 @@
-# Skill audit report — `<target>`
+# Skill design audit — `<target>`
 
-`<target>` = single skill path | plugin path | repo / marketplace root.
 Date: YYYY-MM-DD. Auditor: actuary/skill-audit.
 
-**Finding format:** every finding line begins with `- [<layer> <severity>] rule: <rule-key> —`
-where `<rule-key>` is one of the canonical keys in
-`references/criteria.md` § Rule catalog. The format keeps reports
-machine-parseable for any future eval runner — do not paraphrase it.
+**Scope:** read-only assessment of writing, structure, portability, and
+performance-oriented design. This report does not establish task success.
+
+**Finding format:**
+`- [<layer> <severity>] rule: <rule-key> — <finding>`
+
+## Analysis provenance
+
+- analyzer schema: 1
+- target mode: skill-file | skill | plugin | repo
+- regular skills analyzed: N
+- analysis warnings: none *(or list uncertainty without converting it to a pass)*
 
 ## Inventory
 
-| Skill | Body lines | Body tokens (~) | Description chars | refs/ | scripts/ | assets/ |
+| Skill | Body lines | Tokens (~) | Description chars | refs | scripts | assets |
 |---|---:|---:|---:|:-:|:-:|:-:|
-| <plugin>/<skill> | N | N | N | ✓/– | ✓/– | ✓/– |
+| `<plugin>/<skill>` | N | N | N | ✓/– | ✓/– | ✓/– |
 
-(One row per `SKILL.md`. Token estimate at ~4 chars/token.)
+Pool metadata: N characters of name, description, and path data. Codex fallback
+initial-list budget: 8,000 characters.
 
-## L1 — Portable spec compliance
+## L1 — Portable specification
 
-For each skill, list defects. If none, write `OK`.
+Copy deterministic analyzer findings. If none, write `OK`.
 
-### <plugin>/<skill>
+### `<plugin>/<skill>`
+
 - **OK** *(or)*
-- [L1 high] rule: name-matches-directory — frontmatter `name` is `foo`, directory is `foo-bar`.
-- [L1 high] rule: description-length-max — description is 1187 chars (limit 1024).
-- [L1 medium] rule: allowed-tools-shape — `allowed-tools` is a YAML list; spec calls for a space-separated string.
+- [L1 high] rule: name-matches-directory — frontmatter name does not match its directory.
 
 ## Harness profiles
 
-List compatibility findings separately from portable L1. If none for a
-profile, write `OK`.
+Harness concerns do not change portable L1.
 
-### <plugin>/<skill> — Claude profile
+### `<plugin>/<skill>` — Claude
+
+- **OK** *(or copy analyzer profile findings)*
+
+### `<plugin>/<skill>` — Codex
+
 - **OK** *(or)*
-- [profile medium] rule: name-no-reserved-words — `name` contains a Claude-profile reserved word; portable L1 is unaffected.
+- [profile medium] rule: codex-description-frontloading — shortening could remove the first distinguishing trigger.
 
-## L2 — Structural metrics
+### Pool — Codex
 
-For each skill, list flags only — don't repeat values that are within
-guidance.
+- **OK** *(or copy the analyzer pool-budget finding and explain material collisions)*
 
-### <plugin>/<skill>
+## L2 — Structure
+
+Copy deterministic flags only. Values already appear in the inventory.
+
+### `<plugin>/<skill>`
+
 - **OK** *(or)*
-- [L2 medium] rule: body-lines-soft-max — body is 612 lines (>500 guideline).
-- [L2 medium] rule: description-length-max-soft — description is 947 chars (>900 guideline; little tuning headroom remains).
-- [L2 medium] rule: inline-large-template — 3 fenced blocks ≥ 30 lines at lines 234, 412, 580 — candidates for `assets/templates/`.
+- [L2 medium] rule: body-lines-soft-max — body is 612 lines.
 
-## L3 — Craft recommendations
+## L3 — Craft
 
-For each skill, list ranked findings. Each finding has:
-- **Severity** (`high` / `medium` / `low`)
-- **Rule key** from the catalog (kebab-case)
-- One-line **what**, quoting SKILL.md where possible
-- One-line **why** referencing the best-practice
-- One-line **fix sketch** — direction only, do not prescribe wording
+Rank only evidence-backed findings, at most six per skill.
 
-### <plugin>/<skill>
-- [L3 high] rule: description-no-triggers — "Process CSV files." Per optimizing-descriptions, descriptions need to enumerate user intents the skill should activate on. Fix: add 3–5 casual paraphrases ("clean up this csv", "what's the pattern in my sales data").
-- [L3 medium] rule: template-not-extracted — Inline 80-line wiki page template (lines 234–315). Best-practices recommends moving long templates to `assets/`. Fix: extract to `assets/templates/wiki-page.md` and reference.
-- [L3 medium] rule: gotchas-missing — The body scatters two environment-bound traps ("the CLI exits zero on a partial write" and "workspace IDs differ from channel IDs") without a `## Gotchas` section. Consolidating those named traps prevents predictable misuse.
-- [L3 low] rule: options-without-default — "Use pdfplumber, pypdf, or PyMuPDF…" presents a menu. Pick a default and demote alternatives.
+### `<plugin>/<skill>`
 
-## Static Gate-1 readiness
+- [L3 high] rule: verification-anchors-missing — the workflow creates a checkable artifact but never defines evidence of success. Rationale: missing verification increases execution ambiguity. Fix direction: name the smallest observable check.
+- [L3 medium] rule: description-confusable-in-pool — its audit intent overlaps `<counterpart>` without a distinguishing target boundary. Fix direction: state the object each skill audits.
 
-Only when `--tier <tier>` was passed. One block per audited skill. Keep the
-`static-verdict:` line machine-parseable. The legacy `verdict:` line is a
-compatibility alias for this static gate only. Mask any real value cited in a
-finding.
+## Privacy review
 
-### <plugin>/<skill> — tier: <local|toolshed|marketplace>
-- gate: static-1
-- static-verdict: ready *(or)* not-ready
-- verdict: ready *(or)* not-ready *(compatibility alias; static Gate-1 only)*
-- promotion-readiness: unproven *(marketplace: behavioral CI and dedup require separate evidence)*
-- privacy: OK *(or list)*
-  - [privacy high] rule: privacy-machine-path — `/U…dh` at SKILL.md:46 (use `~/` or `/path/to/`).
-  - [privacy high] rule: privacy-internal-email — real address at references/foo.md:12 (use `user@example.com`).
-- blocking rule keys: `privacy-machine-path`, `privacy-internal-email`  *(empty when ready)*
-- prerequisites out of audit scope (marketplace only): behavioral CI — unproven; dedup — unchecked here. A static-ready result is not final promotion approval.
+Render only with `--privacy`. Mask concrete values. This section carries no
+release or readiness verdict.
 
-## Quick-wins shortlist
+### `<plugin>/<skill>`
 
-Cross-cutting recommendations sorted by ratio of impact to effort.
+- **OK** *(or)*
+- [privacy high] rule: privacy-machine-path — concrete machine path at `SKILL.md:46`; replace it with a placeholder.
 
-1. **Consolidate the named environment traps in `<a>`, `<b>`, `<c>`.** A
-   focused Gotchas section makes those operational facts easier to apply.
-2. **Extract `<skill>` templates to `assets/templates/`.** Frees N tokens
-   per skill; pure mechanical move.
-3. **Tune `<skill>` description to add trigger phrases.** Single-string
-   change; biggest activation lever.
+## Quick wins
+
+Sorted by expected design impact divided by effort; maximum seven.
+
+1. **`<change>`.** Resolves `<rule-key>` in N skills.
 
 ## Open questions and residual risk
 
-Auditor commentary the rule catalog does not cover. Never rule-keyed — a
-concern that maps to a catalog key belongs in L1/L2/L3 or the Gate-1 block
-instead, not here. Omit the section entirely when there is nothing to raise.
-
-- **Open question:** `<skill>` hands Step 4 to an external CLI whose exit codes
-  are not documented here — is a non-zero exit a hard stop or advisory?
-- **Residual risk:** `<skill>` ships fixtures under `assets/` that read as
-  synthetic but were not traceable to a generator; confirm with the owner
-  before a public push.
+Include only concerns the catalog cannot express or analyzer warnings that
+prevent a confident conclusion. Omit when empty.
 
 ## What this audit did not check
 
-- Trigger rate (would require running the skill against a query set).
-- Output quality (would require an eval harness with assertions).
-- Script behavior (would require running the scripts).
+- Live trigger precision or recall.
+- Whether the workflow produces the result a user wants.
+- Runtime behavior of bundled scripts.
+- Release, publication, or promotion readiness.

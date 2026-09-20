@@ -1,86 +1,56 @@
 ---
 name: refresh-actuary-criteria
 description: >
-  Refresh the actuary skill-audit rubric by diffing pinned upstream sources
-  against current HEAD. Use when the user says "refresh actuary criteria",
-  "update audit rules", "is criteria.md stale", "check actuary drift", or
-  is preparing a release of the actuary plugin and wants to verify the
-  rubric is current. Toolshed-local — not exported to the marketplace.
-  Reads upstream, diffs against the git SHAs and arXiv version pins in
-  criteria.md, and proposes specific edits for human review. Never auto-applies bulk
-  changes; every rule add/remove is surfaced for approval.
+  Refresh the Actuary design-audit rubric by comparing its pinned evidence and
+  live harness documentation with current upstream sources. Use when the user
+  asks to refresh Actuary criteria, check rubric drift, verify evidence pins,
+  or prepare an Actuary release. Toolshed-local and proposal-first: surface
+  rule changes for review rather than bulk-applying upstream prose.
 allowed-tools: Read Edit WebFetch Bash
 ---
 
-# Refresh actuary criteria
+# Refresh Actuary criteria
 
-`plugins/actuary/skills/skill-audit/references/criteria.md` is curated
-on top of upstream guidance. This skill answers "is it still current?"
-by fetching the pinned sources at HEAD and proposing edits.
+Actuary separates its compact operational rubric from source detail:
 
-## Sources to check
+- `plugins/actuary/skills/skill-audit/references/criteria.md` — rules applied
+  during ordinary audits.
+- `plugins/actuary/skills/skill-audit/references/evidence.md` — repository,
+  paper, and live-documentation provenance.
 
-The criteria.md Sources block names four source tiers:
+This workflow checks whether both remain current without turning Actuary into a
+mirror of upstream documentation.
 
-1. **agentskills/agentskills repo** — primary spec + best-practices.
-   Pinned by SHA in criteria.md's Sources table.
-2. **anthropics/skills skill-creator** — co-primary for L3 craft rules.
-   GitHub-hosted, pinned by blob SHA in criteria.md's second Sources
-   table.
-3. **arXiv papers** — empirical grounding for the L3 "Skill mechanisms"
-   subsection and the L2 size-threshold note. Pinned by arXiv version
-   in `Pinned to arXiv \`NNNN.NNNNNvK\`` blocks. Versions are
-   immutable; drift means a newer version was published (Step 2.5).
-4. **Anthropic platform docs page** — co-primary for L3 craft rules.
-   A web page with no SHA to pin; drift is only detectable by
-   re-reading it, so Step 4 runs on every full refresh regardless of
-   what the SHA comparison finds.
+## Sources
 
-Cursor and OpenAI material was reviewed but isn't pinned; the criteria
-cite them inline only at the rules they sourced. Re-check those pages
-only if you suspect rule drift.
+Read `evidence.md` and extract:
+
+1. the pinned `agentskills/agentskills` commit and per-file blob SHAs;
+2. the pinned `anthropics/skills` skill-creator blob;
+3. the pinned arXiv paper versions;
+4. the live Anthropic and OpenAI skill-documentation URLs.
+
+Bind the full agentskills commit to `PINNED_REF` before comparing content.
 
 ## Procedure
 
-### Step 1: Read the current pin
+### 1. Fetch repository state
 
-Read `plugins/actuary/skills/skill-audit/references/criteria.md` and
-extract the pinned refs + per-file blob SHAs from both Sources tables
-(`agentskills/agentskills` and `anthropics/skills`) plus the pinned
-arXiv versions from the `Pinned to arXiv` blocks. These are the anchor
-points.
-
-Bind the `agentskills/agentskills` pinned commit to `PINNED_REF` before
-running anything below — Step 3 diffs `$HEAD` against it:
-
-```bash
-PINNED_REF="<pinned agentskills/agentskills commit SHA from criteria.md>"
-```
-
-### Step 2: Fetch upstream state
-
-Resolve `gh` first — the Bash tool runs in a non-interactive shell that
-may not have Homebrew's PATH on macOS. Use `$GH` for every subsequent
-`gh` invocation in this skill:
+Resolve `gh` explicitly because non-interactive macOS shells may omit
+Homebrew's path:
 
 ```bash
 GH=$(command -v gh || for p in /opt/homebrew/bin/gh /usr/local/bin/gh; do
   [ -x "$p" ] && echo "$p" && break
 done)
-[ -n "$GH" ] || { echo "gh not found — install with brew install gh"; exit 1; }
+[ -n "$GH" ] || { echo "gh not found"; exit 1; }
 ```
 
-Fetch HEAD:
+Fetch the current agentskills HEAD and blob SHA for every path in evidence.md.
+Also list `docs/skill-creation/` so newly added authoring guidance is visible.
 
 ```bash
 HEAD=$($GH api repos/agentskills/agentskills/commits/main --jq .sha)
-echo "Upstream HEAD: $HEAD"
-```
-
-For each path listed in criteria.md's Sources table, fetch the current
-blob SHA:
-
-```bash
 for path in \
   docs/specification.mdx \
   docs/skill-creation/best-practices.mdx \
@@ -89,139 +59,85 @@ for path in \
   docs/skill-creation/using-scripts.mdx \
   docs/skill-creation/quickstart.mdx \
   docs/client-implementation/adding-skills-support.mdx; do
-  sha=$($GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD" --jq .sha)
-  echo "$path  $sha"
+  $GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD" --jq .sha
 done
-```
-
-Also list the contents of `docs/skill-creation/` to detect new files
-not currently pinned:
-
-```bash
 $GH api "repos/agentskills/agentskills/contents/docs/skill-creation?ref=$HEAD" --jq '.[].path'
+$GH api repos/anthropics/skills/contents/skills/skill-creator/SKILL.md --jq .sha
 ```
 
-Fetch the skill-creator blob SHA the same way — it is pinned in
-criteria.md's second Sources table:
+### 2. Inspect changed pinned files
+
+For each changed blob, fetch both versions and diff them. Use unique temporary
+paths so concurrent runs do not collide:
 
 ```bash
-$GH api "repos/anthropics/skills/contents/skills/skill-creator/SKILL.md" --jq .sha
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD" --jq .content | base64 -d > "/tmp/actuary-new.$$.mdx"
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF" --jq .content | base64 -d > "/tmp/actuary-pinned.$$.mdx"
+diff -u "/tmp/actuary-pinned.$$.mdx" "/tmp/actuary-new.$$.mdx"
 ```
 
-### Step 2.5: Check the arXiv paper pins
+Classify each change:
 
-For each paper pinned in criteria.md's `Pinned to arXiv` blocks, fetch
-the abstract page and read the submission history:
+- specification or documented behavior changed;
+- guidance was added or removed;
+- wording moved without changing meaning;
+- a new source file may affect the rubric.
 
-```
-WebFetch https://arxiv.org/abs/<paper-id>
-```
+Update the compact criterion only when the applied rule changes. Cosmetic source
+movement needs only an evidence-pin refresh.
 
-Compare the latest version in the submission history against the pinned
-`vK`. arXiv versions are immutable, so a matching latest version means
-that source is fully current — no content re-read needed. When a newer
-version exists:
+### 3. Check paper versions
 
-1. Fetch the revision's full text
-   (`https://arxiv.org/html/<paper-id>v<latest>`).
-2. Re-validate every criteria.md statement citing that paper. The cite
-   trail is the parenthetical arXiv IDs (e.g. `(2608.14036)`) in the
-   L3 "Skill mechanisms" subsection, the L2 size-threshold note, and
-   the Sources block. Check each quoted statistic and finding against
-   the revision.
-3. Propose edits per Step 5, including the version-pin bump. A revised
-   or withdrawn finding is a rule-semantics change, not a cosmetic
-   bump — surface it explicitly, including any catalog key whose
-   evidence base weakened.
+Open each pinned arXiv abstract page and compare the latest submission version
+with evidence.md. Matching versions need no content reread because arXiv
+versions are immutable.
 
-### Step 3: Identify what changed
+When a newer version exists, recheck every statistic and mechanism summarized
+in evidence.md, then identify the exact operational rules in criteria.md whose
+support strengthened, weakened, or changed.
 
-Compare the per-file blob SHAs from Step 2 against both pinned tables
-in criteria.md. For any file whose blob SHA changed, fetch the new
-content and the pinned content (swap in `repos/anthropics/skills` when
-the moved blob is skill-creator's):
+### 4. Recheck live harness documentation
 
-```bash
-$GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD"        --jq .content | base64 -d > /tmp/upstream-new.$$.mdx
-$GH api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF"  --jq .content | base64 -d > /tmp/upstream-pinned.$$.mdx
-diff -u /tmp/upstream-pinned.$$.mdx /tmp/upstream-new.$$.mdx
+Always read both pages during a full refresh:
+
+```text
+https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+https://learn.chatgpt.com/docs/build-skills
 ```
 
-Read the diff with intent. We are not mirroring upstream — we are
-auditing whether the curated `criteria.md` still reflects what upstream
-publishes. For each diff, ask:
+The pages have no immutable SHA. Compare them with evidence.md's harness
+summaries and criteria.md's named profiles. In particular, verify Claude's
+frontmatter constraints and Codex's initial skill-list budget, description
+shortening, and omission behavior.
 
-- **Did a rule change semantics?** (e.g., the 1024-char description
-  ceiling shifted to 2048). Update the corresponding rule in criteria.md.
-- **Was a rule added?** Propose a new rule key + catalog entry.
-- **Was a rule removed?** Propose deprecating the catalog entry, but
-  preserve it with a `(deprecated, kept for legacy skills)` note unless
-  upstream explicitly forbids the old behavior.
-- **Cosmetic/prose-only change?** Just bump the SHA in the Sources table.
+Recheck other unpinned prompting sources only when their specific criterion is
+disputed or the user requests a complete source review.
 
-### Step 4: Recheck the Anthropic platform docs page
+### 5. Propose edits
 
-This page has no SHA, so a quiet Step 2 says nothing about it. Run
-this step on every full refresh:
+Do not bulk-apply upstream changes. For each proposed edit, provide:
 
-```
-WebFetch https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
-```
+- affected rule key or evidence statement;
+- one or two lines of upstream evidence with its URL or path;
+- the exact `old_string` and `new_string` in criteria.md or evidence.md;
+- whether the change affects audit behavior or only refreshes provenance.
 
-(The old `docs.claude.com/en/docs/...` address 302-redirects here. If
-this URL ever redirects again, follow it and update the pin in
-criteria.md's Additional sources.)
+If nothing changed, report that each pin and live page was checked. A quiet Git
+SHA comparison does not clear the live documentation.
 
-Compare the rules the page publishes against the rules in criteria.md
-that cite it. The cite trail in criteria.md (parenthetical "Anthropic
-best-practices" / "skill-creator" annotations) tells you which rules
-to re-validate. Flag any quoted text in criteria.md that no longer
-appears upstream. skill-creator needs no content re-read here — its
-blob SHA comparison in Step 2 already detects drift; re-read it only
-when that SHA moved.
+### 6. Apply approved edits
 
-### Step 5: Propose edits
-
-Produce a **proposal**, not a unilateral rewrite. For each finding,
-state:
-
-- The change (rule key added / removed / semantics-shifted / SHA bumped).
-- The upstream evidence (1–2 lines quoted with source URL or path).
-- The exact lines in criteria.md to edit, in `old_string` / `new_string`
-  shape so the user can approve them as `Edit` calls.
-
-If the only change is "blob SHAs moved but content equivalent," propose
-just the SHA-table refresh. Don't make work where there isn't any.
-
-### Step 6: Apply approved edits
-
-Once the user approves the proposal, apply each edit with the `Edit`
-tool. Update the pinned SHA at the top of the Sources table and the
-per-file blob SHAs in the same edit set. Stop after the edit batch —
-do not commit; the user controls git.
+After approval, update the operational rule and its evidence together. Keep
+source detail in evidence.md rather than expanding criteria.md. Run Actuary's
+contract and calibration tests, then stop without committing unless the user
+has separately authorized repository publication.
 
 ## Gotchas
 
-- **This skill never edits anything outside `plugins/actuary/skills/skill-audit/`.**
-  It exists to maintain that one rubric.
-- **No auto-apply on bulk diffs.** Even if upstream rewrites every file,
-  the human signs off each rule change. Mass criteria edits without
-  judgment is exactly the failure mode the skill exists to prevent.
-- **A quiet arXiv check is authoritative; a quiet web check is not.**
-  arXiv versions are immutable, so "latest version equals pinned
-  version" fully clears that source in Step 2.5. The Anthropic platform
-  docs page has no such property and must be re-read on every full
-  refresh.
-- **A quiet SHA table doesn't cover the web page.** Step 2's SHA
-  comparison short-circuits only the GitHub-pinned sources. The
-  Anthropic platform docs page has no SHA, so skipping Step 4 because
-  "nothing moved" means that source is never checked at all — the
-  blind spot that once let this skill report "all current" for months
-  without looking. Skip Step 4 only when the user explicitly asks for
-  a SHA-only status check.
-- **Anthropic platform docs are SPA-rendered.** `curl` returns the
-  Next.js shell, not the rule text. Use `WebFetch` for those URLs;
-  use `gh api` for the GitHub-hosted skill-creator SKILL.md.
-- **The Cursor/OpenAI sources don't get auto-rechecked.** They're noted
-  as inline cites at specific rules. Only re-read them if the user
-  asks "are the OpenAI rules still current?" or similar.
+- This skill edits only the Actuary skill directory.
+- Never infer a rule change from a large upstream rewrite without reading the
+  semantic diff.
+- Use `gh api` for GitHub content and a web reader for rendered documentation.
+- Do not let vendor-only preferences become portable L1 requirements.
+- Paper associations support design findings; they do not prove an audited
+  skill succeeds or fails its task.
