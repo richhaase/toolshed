@@ -1,13 +1,21 @@
-# Plugin icon generation
+# Toolshed and plugin icon generation
 
-The four icons were generated with the built-in image generation tool. Each
+The icons were generated with the built-in image generation tool. Each
 `plugins/<name>/assets/icon.png` is the original transparent PNG; the Codex
 manifest uses it for both `interface.composerIcon` and `interface.logo`.
+The parent Toolshed icon lives at `assets/icon.png` and appears beside the
+main README title.
 
 The Memento icon established the illustration style. The other three used
 that icon as a style reference, with the prompts below. To revise this set,
 preserve the rounded dark outlines, warm restrained colors, generous padding,
 and distinct silhouettes. Keep lettering out of the artwork.
+
+## Toolshed
+
+Uses the Memento and Actuary icons as style references.
+
+Use case: logo-brand. Create one finished square icon for Toolshed, the parent collection that houses the Memento, Actuary, Steward, and Ostrich agent plugins. The two supplied images are STYLE REFERENCES ONLY: match their chunky friendly illustrated badge aesthetic, bold rounded dark-brown outlines, subtle tactile shading, warm cream and gold accents, muted teal, and rust-colored wood. Subject: one charming compact wooden toolshed, front view with a tiny hint of perspective, a strong simple teal pitched roof, warm rust timber walls, and a large open cream-lit doorway. One door is slightly swung open. Inside the doorway are just two very simple recognizable tool silhouettes, a short hammer and an open-ended wrench, mounted side by side. These must read as workshop tools at icon scale, not tiny clutter. Let the roof and doorway carry the main silhouette, with at most two broad timber seams, no tiny woodgrain or fussy hardware. A welcoming personal workshop, cheerful but practical. The icon should feel like the home of the existing icon family without combining the individual plugin icons into a collage. Centered compact composition filling about 70 percent of a square canvas with generous even transparent padding. True transparent background outside the symbol, no painted checkerboard. Match the reference icons' optical weight. No words, letters, numbers, signage, landscape, trees, grass, people, animal, sparkles, smoke, separate tool objects outside the shed, surrounding tile, mockup, or contact sheet. Output one actual high-resolution transparent PNG icon.
 
 ## Memento
 

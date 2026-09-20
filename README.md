@@ -1,4 +1,4 @@
-# toolshed
+# <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> toolshed
 
 My personal Agent Skills for Claude Code and Codex. Treat it like
 dotfiles: I update it when I choose, breaking changes are normal, and
