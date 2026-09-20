@@ -26,8 +26,8 @@ built without owning the inner workflow that built it.
 - Use Scope and Constraints to interpret the claims. They do not independently
   determine overall status; any boundary meant to do so must be represented by
   a frozen acceptance claim.
-- Select proportionate evidence after construction. For format v3, no
-  predeclared evidence method is required.
+- Select proportionate evidence after construction. No predeclared evidence
+  method is required.
 - Treat documented engineering constraints and target-repository conventions
   as relevant implementation context.
 - Judge the frozen outcome, not a preferred mechanism, unless the contract
@@ -93,8 +93,7 @@ works if one of them is wrong.
    meaning, classify a contract defect and require a successor revision. If an
    evidence request remains unanswered, retain it as the concrete next action.
 8. Record each command or artifact and its observed result as `E<n>`. Link it
-   from the relevant claim outcome. Format-v3 evidence maps directly to claims
-   and has no `EV<n>` backlink.
+   directly from the relevant claim outcome.
 9. Assign each claim:
    - `pass` when observed evidence establishes it;
    - `fail` when observed evidence contradicts it or demonstrates an omitted

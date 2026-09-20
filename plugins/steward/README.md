@@ -23,9 +23,9 @@ The lifecycle is:
 Steward stores no centralized state and has no Jira or builder adapter.
 Contracts and assessments are ordinary local Markdown files.
 
-## Format v3
+## Contract format
 
-V3 makes the outer loop cheap enough for ordinary work:
+The format keeps the outer loop cheap enough for ordinary work:
 
 - `Outcome` and `Acceptance` are the only required body sections.
 - Only `AC<n>` identifiers are mandatory.
@@ -42,10 +42,6 @@ V3 makes the outer loop cheap enough for ordinary work:
 Post-build input may provide missing evidence for the frozen meaning. If it
 would change what counts as passing, Steward routes through a successor
 contract rather than redefining the approved revision.
-
-Formats v1 and v2 remain valid under their original rules. Format-v2 contracts
-continue using EV-linked v2 assessments; deliberately reframe and approve a
-lean v3 successor before adopting post-build v3 evidence.
 
 ## Runtime
 
@@ -72,9 +68,8 @@ node resources/scripts/steward assessment-check assessment.md
 node resources/scripts/steward assessment-complete assessment.md
 ```
 
-See `resources/references/contract-format.md` for the exact portable formats
-and compatibility rules. `examples/delivery-status.contract.md` is a complete
-v3 example.
+See `resources/references/contract-format.md` for the exact portable format.
+`examples/delivery-status.contract.md` is a complete example.
 
 Run deterministic lifecycle tests with:
 

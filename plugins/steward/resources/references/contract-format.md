@@ -7,14 +7,13 @@ their repository, issue tracker, or software builder.
 
 ## Contents
 
-- [Lifecycle and compatibility](#lifecycle-and-compatibility)
+- [Lifecycle](#lifecycle)
 - [Contract metadata](#contract-metadata)
-- [Format-v3 body](#format-v3-body)
+- [Contract body](#contract-body)
 - [Contract CLI](#contract-cli)
-- [Assessment format v3](#assessment-format-v3)
-- [Legacy formats](#legacy-formats)
+- [Assessment format](#assessment-format)
 
-## Lifecycle and compatibility
+## Lifecycle
 
 Each revision is a distinct artifact:
 
@@ -30,17 +29,9 @@ The approved contract defines outcomes and load-bearing boundaries. The target
 codebase and its agent instructions remain the source of implementation
 context. Any inner workflow may construct the change.
 
-Format v3 is the default. Formats v1 and v2 remain readable, approvable,
-comparable, and assessable under their original validation rules. Never edit or
-reinterpret an approved artifact.
-
-Use `steward create NEW --from APPROVED` for a successor in the same format.
-This copies the body, increments `revision`, records `supersedes`, and clears
-approval metadata. Use `--format 3` with an approved v1/v2 source to create a
-blank lean successor with the same lineage. The CLI does not transform the old
-body; reframing it into v3 remains a scope-owner judgment.
-
-The legacy `migrate` command remains available only for v1-to-v2 compatibility.
+Never edit or reinterpret an approved artifact. Use
+`steward create NEW --from APPROVED` for a successor. This copies the body,
+increments `revision`, records `supersedes`, and clears approval metadata.
 
 ## Contract metadata
 
@@ -48,7 +39,7 @@ The file begins with single-line YAML scalar frontmatter:
 
 | Field | Meaning |
 | --- | --- |
-| `steward_contract` | `"3"` for the current format; `"1"` and `"2"` remain supported |
+| `steward_contract` | `"3"` |
 | `id` | Stable contract identity |
 | `title` | Human-readable title |
 | `revision` | Positive integer |
@@ -61,7 +52,7 @@ The file begins with single-line YAML scalar frontmatter:
 
 The CLI preserves no hidden state outside the Markdown artifacts.
 
-## Format-v3 body
+## Contract body
 
 Use exactly one H1 matching `title`. Only these H2 sections are recognized, in
 this order when present:
@@ -154,20 +145,15 @@ valuable outcomes remain coupled, split them into smaller contracts.
 ## Contract CLI
 
 ```text
-steward create PATH --id ID --title TITLE [--format 2|3]
-steward create PATH --from APPROVED_PATH [--format 3]
-steward migrate V1_APPROVED_PATH --output V2_DRAFT_PATH
+steward create PATH --id ID --title TITLE
+steward create PATH --from APPROVED_PATH
 steward check PATH [--json]
 steward approve PATH --by APPROVER
 steward compare OLD_PATH NEW_PATH [--json]
 ```
 
-New contracts default to v3. `--format 2` exists for compatibility testing and
-legacy workflows. `create --from` preserves its source format unless
-`--format 3` explicitly requests a blank lean successor.
-
-All commands operate only on caller-supplied paths. `create`, `migrate`, and
-`assessment` refuse to overwrite files. `approve` and
+All commands operate only on caller-supplied paths. `create` and `assessment`
+refuse to overwrite files. `approve` and
 `assessment-complete` are the only in-place mutations.
 
 `check` reports `STRUCTURALLY OK`, never semantic completeness. JSON output
@@ -177,7 +163,7 @@ body words, and acceptance-claim count.
 `compare` reports lifecycle metadata, changed sections, and word/claim deltas.
 Growth is visible but does not automatically block approval.
 
-## Assessment format v3
+## Assessment format
 
 Create a provenance-bound scaffold only after the change has an immutable
 identity:
@@ -227,7 +213,7 @@ Evidence is selected after construction:
 
 Evidence may be a targeted test, existing suite, static inspection, browser or
 API observation, deployment artifact, log, or separately recorded
-operator/client validation. V3 does not require a predeclared contract
+operator/client validation. Steward does not require a predeclared contract
 evidence method.
 
 Outcomes are `pass`, `fail`, or `inconclusive`. A completed assessment cannot
@@ -244,41 +230,6 @@ inconclusive otherwise. Remediation is:
 - `contract-defect` when the frozen intent itself is defective; or
 - `insufficient-or-conflicting-evidence` when the result cannot be established.
 
-A non-pass v3 assessment records a concrete next action. The contract remains
+A non-pass assessment records a concrete next action. The contract remains
 frozen. `assessment-complete` validates provenance and claim evidence, then
 freezes the report body.
-
-V3 contracts use v3 assessments. Format-v2 contracts continue using v2
-assessments so their frozen EV methods remain enforced. A v2 contract must be
-deliberately reframed and approved as a v3 successor before using v3
-post-build evidence. Format-v1 contracts use v3 assessment because their legacy
-assessment format lacks immutable provenance.
-
-## Legacy formats
-
-### Contract v2
-
-V2 requires exactly these H2 sections:
-
-`Intent`, `Context`, `Scope`, `Requirements`, `Acceptance claims`, `Evidence
-plan`, `Intent probes`, `Constraints`, `Assumptions and risks`, and `Open
-questions`.
-
-It enforces `I<n> -> R<n> -> AC<n> -> EV<n>` links, mandatory normal,
-boundary/failure, and accepted-tradeoff `P<n>` probes, and structured `U<n>`
-unknowns. Those rules remain unchanged for existing artifacts but are not the
-v3 default.
-
-### Contract v1
-
-V1 retains its original nine-section body, one evidence-plan row per acceptance
-claim, and no approved open questions. `migrate` creates a review-required v2
-successor and leaves v1 untouched.
-
-### Assessments v1 and v2
-
-Assessment v1 remains readable with a warning and cannot be completed because
-it lacks immutable provenance. Assessment v2 remains readable and completable
-under its original rules: each pass/fail claim must reference observed `E<n>`
-evidence tied to a contract `EV<n>` method. V3 removes only that predeclared
-method linkage; it does not weaken frozen v2 artifacts.

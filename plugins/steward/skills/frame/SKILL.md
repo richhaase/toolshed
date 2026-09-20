@@ -56,10 +56,8 @@ works if one of them is wrong.
      --id short-ticket-id --title "Ticket title"
    ```
 
-   Use `create --from` for a successor in the same format. Use
-   `create NEW --from APPROVED --format 3` for a blank lean successor that
-   preserves an approved v1/v2 artifact's lineage. Deliberately reframe its
-   meaning; do not mechanically compress the old graph.
+   Use `create --from` for a successor that copies the approved body, preserves
+   lineage, and clears approval metadata for deliberate revision.
 3. State one concise `Outcome`: the requested user or business result.
 4. Write the fewest independently assessable `AC<n>` claims that distinguish
    success from failure. Preserve stable claim ids across revisions. If
