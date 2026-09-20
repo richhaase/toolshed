@@ -242,7 +242,7 @@ confirmation.
 If private context has no resolvable configured destination, write nothing from
 that action, leave the follow-up unchanged, and ask the user which entity or
 configured private destination applies. Do not invent a path or fall back to
-the follow-up, `sources/`, wiki, outputs, or telemetry.
+the follow-up, `sources/`, wiki, or telemetry.
 
 ### keep / skip
 

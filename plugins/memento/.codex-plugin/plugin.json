@@ -1,6 +1,6 @@
 {
   "name": "memento",
-  "version": "0.19.9",
+  "version": "0.19.10",
   "description": "Multi-layer cache memory base. L3 (sources) -> L2 (wiki) -> L1 (AGENTS.md) compilation pipeline with a hardened deterministic eval gate (source evidence proves provenance; compiled answer surfaces must contain required atoms; ungated runs are explicit), health checks, passive session capture (save), active LLM-driven interview (ama), and lightweight follow-up queue review (followups). Knowledge base only; task storage is an explicit root-level opt-in.",
   "author": {
     "name": "Rich Haase",

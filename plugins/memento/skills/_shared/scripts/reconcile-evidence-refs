@@ -65,7 +65,7 @@ function walk(dir) {
 }
 
 function bodyPathTokenRegex() {
-  return /`?((?:sources|wiki|data|outputs)\/[A-Za-z0-9._/-]+\.md)`?/g;
+  return /`?((?:sources|wiki|data)\/[A-Za-z0-9._/-]+\.md)`?/g;
 }
 
 function splitFrontmatter(text) {
@@ -104,7 +104,7 @@ function cleanFrontmatter(lines, stats, fileRel) {
         inSources = false;
       } else {
         const rawValue = item[2].replace(/^["']|["']$/g, '');
-        const ref = rawValue.match(/^(sources|wiki|data|outputs)\/[A-Za-z0-9._/-]+$/);
+        const ref = rawValue.match(/^(sources|wiki|data)\/[A-Za-z0-9._/-]+$/);
         if (ref) {
           if (relExists(rawValue)) {
             out.push(line);

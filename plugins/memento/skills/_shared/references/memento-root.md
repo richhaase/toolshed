@@ -33,5 +33,5 @@ another directory, invoke the same scripts by absolute path.
 ## Path conventions
 
 All Memento paths in skill instructions (`sources/`, `wiki/`, `private/`,
-`outputs/`, `AGENTS.md`) are interpreted as relative to `MEMENTO_ROOT`, never
+`AGENTS.md`) are interpreted as relative to `MEMENTO_ROOT`, never
 the caller's current working directory.

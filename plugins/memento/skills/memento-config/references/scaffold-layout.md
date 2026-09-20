@@ -16,8 +16,6 @@ sources/                # L3 — raw inputs, cold storage
     ├── fixtures/       # regression.json + capability.json (drafted via /health-check eval)
     └── runs/           # <date>.jsonl — gate verdicts written by eval-score
 wiki/                   # L2 — compiled knowledge, loaded on demand
-outputs/                # Products of the system
-└── reports/            # Generated briefings, analyses
 private/                # Sensitive notes — never compiled into wiki
 ```
 

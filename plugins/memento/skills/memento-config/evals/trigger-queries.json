@@ -32,7 +32,7 @@
     "should_trigger": false
   },
   {
-    "query": "My Memento is missing outputs/ and its thin Claude entrypoint. Re-scaffold only the missing pieces without replacing my existing sources.",
+    "query": "My Memento is missing sources/eval/ and its thin Claude entrypoint. Re-scaffold only the missing pieces without replacing my existing sources.",
     "should_trigger": true
   },
   {

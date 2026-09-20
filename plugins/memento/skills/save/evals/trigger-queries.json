@@ -76,7 +76,7 @@
     "should_trigger": true
   },
   {
-    "query": "Write the final answer to outputs/session-summary.md so I can share it with the ExampleCo team.",
+    "query": "Write the final answer to docs/session-summary.md so I can share it with the ExampleCo team.",
     "should_trigger": false
   }
 ]

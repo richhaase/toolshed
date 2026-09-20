@@ -111,7 +111,7 @@ Validate inspectable public paths:
 - `sources:` frontmatter entries in wiki pages.
 - Hot-set Details paths in `AGENTS.md`.
 - Inline backtick paths that look canonical, especially `sources/...`,
-  `wiki/...`, `data/...`, `outputs/...`, and skill paths.
+  `wiki/...`, `data/...`, and skill paths.
 - `related:` wiki links and `[[wikilinks]]`. `scripts/doctor.sh` resolves
   `[[wikilink]]` targets against wiki page slugs deterministically; treat an
   unresolved target as either rot or an intentional forward-reference and judge
@@ -152,7 +152,7 @@ Scan only public files. Useful signals:
   public files. Generic boundary language about keeping `private/` out of public
   surfaces is safe and should not be flagged.
 - Medical chart-level detail, financial account/balance detail, or people
-  observations in public sources/wiki/outputs.
+  observations in public sources or wiki pages.
 - Eval fixtures or reports that contain raw sensitive user questions.
 - A configured Git remote combined with tracked `private/` content. Check this
   as a boolean without printing private filenames; report that private history

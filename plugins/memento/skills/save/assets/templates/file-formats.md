@@ -78,21 +78,6 @@ title: Short description
 [The knowledge worth keeping. Plain prose — /compile distills it.]
 ```
 
-## Analysis
-
-Path: `outputs/reports/YYYY-MM-DDTHHmmss-topic.md`
-
-```markdown
----
-date: YYYY-MM-DD
-topic: Short description
----
-
-# [Topic]
-
-[Content]
-```
-
 ## Private note
 
 Path: `private/<filename-pattern>` (filename pattern comes from Entity Types

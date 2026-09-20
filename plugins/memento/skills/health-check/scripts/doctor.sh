@@ -198,12 +198,12 @@ check_public_paths() {
   [ "${#search_roots[@]}" -gt 0 ] || return 0
 
   local out rc=0
-  out="$(scan_oloc '(sources|wiki|data|outputs)/[A-Za-z0-9._/-]+' "${search_roots[@]}")" || rc=$?
+  out="$(scan_oloc '(sources|wiki|data)/[A-Za-z0-9._/-]+' "${search_roots[@]}")" || rc=$?
   scan_guard "$rc" "check_public_paths"
   while IFS=: read -r file line path; do
     [ -n "${path:-}" ] || continue
     case "$path" in
-      *YYYY*|*...*|*/|outputs/*) continue ;;
+      *YYYY*|*...*|*/) continue ;;
     esac
     if [ ! -e "$path" ]; then
       emit P1 "Broken public evidence path" "$file:$line" "Referenced path does not exist: $path"

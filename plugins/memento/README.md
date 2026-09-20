@@ -44,8 +44,6 @@ The Memento treats knowledge like a CPU cache hierarchy. The full chain is
     carries `cache: projection` + `source_of_truth: <provider>` + `as_of:`
     frontmatter so the rest of the pipeline can tell it apart from a captured
     source.
-- **Outputs** (outside hierarchy): Generated reports and analyses.
-
 Compilation flows upward: L3 -> L2 -> L1. The `/compile` skill handles the full pipeline.
 
 **Events vs. state in projected sources.** A projected source records two things
@@ -122,8 +120,6 @@ sources/                # L3 — raw inputs
 wiki/                   # L2 — compiled knowledge
 ├── INDEX.md            # Master index with freshness + pinned status
 └── <entity-type>/      # Subdirs per entity type
-outputs/                # Products
-└── reports/            # Generated briefings, analyses
 private/                # Sensitive notes — never compiled
 ```
 
@@ -141,8 +137,9 @@ What `/save` does write:
 
 - **Durable knowledge → `sources/notes/`.** Facts, clarifications,
   patterns, lessons. `/compile` folds these into `wiki/`.
-- **Decisions and research → `sources/sessions/`.** Dated session captures.
-- **Analyses → `outputs/reports/`.** Substantive trade-off evaluations.
+- **Decisions, research, and substantive analyses → `sources/sessions/`.**
+  Dated session captures. Reusable conclusions may instead go to
+  `sources/notes/` as durable knowledge.
 - **Sensitive observations → `private/`.** Per the Entity Types registry.
 - **Follow-ups → `sources/followups/`, at most one per session,
   user-confirmed.** A follow-up only earns its place if you would re-read
@@ -208,7 +205,7 @@ this Memento is working.
 | `memento-config` | Idempotent setup-and-update surface — scaffolds new Mementos, offers a targeted update branch on existing ones |
 | `compile` | Full pipeline: L3 -> L2 (sources -> wiki) then L2 -> L1 (wiki -> `AGENTS.md` hot set), with a deterministic eval gate + snapshot-backed rollback protecting the exact pre-run output state |
 | `health-check` | Read-only doctor for stale projections, broken evidence paths, privacy lint, compile metadata drift, and golden-query eval readiness; `eval` runs the deterministic scorer (`eval-score`) against the committed fixtures |
-| `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, analyses, private notes, and at most one confirmed follow-up |
+| `save` | Passive end-of-session capture — extract decisions, research, durable knowledge, private notes, and at most one confirmed follow-up |
 | `ama` | Active LLM-driven interview — read the wiki, ask the user to fill gaps, capture answers as a session source |
 | `followups` | Review open follow-ups: `list` (default, expired-first) prints the inventory, `show <slug>` renders one item read-only, `walk` triages one at a time (keep, dismiss, answer, note, file-and-dismiss) and routes sensitive answers/notes to `private/` |
 

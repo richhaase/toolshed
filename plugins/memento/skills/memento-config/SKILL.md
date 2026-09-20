@@ -124,7 +124,7 @@ Read `references/scaffold-layout.md` for the canonical tree and what each
 directory holds, then create all directories:
 
 ```bash
-mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/sources/eval/fixtures "$MEMENTO_ROOT"/sources/eval/runs "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/outputs/reports "$MEMENTO_ROOT"/private
+mkdir -p "$MEMENTO_ROOT"/sources/sessions "$MEMENTO_ROOT"/sources/syncs "$MEMENTO_ROOT"/sources/notes "$MEMENTO_ROOT"/sources/followups "$MEMENTO_ROOT"/sources/eval/fixtures "$MEMENTO_ROOT"/sources/eval/runs "$MEMENTO_ROOT"/wiki "$MEMENTO_ROOT"/private
 ```
 
 ### Starter context files
@@ -160,7 +160,7 @@ Create a `.gitignore` if one doesn't exist:
 Do **not** ignore `private/`. A Memento repo is local-only by default, and
 private notes are committed there so appends have local history and rollback.
 Treat those files as private: they are valid local context, but do not copy their
-contents into `sources/`, `wiki/`, or `outputs/`, and do not push or otherwise
+contents into `sources/` or `wiki/`, and do not push or otherwise
 share them externally unless the user explicitly asks. If an existing Memento
 `.gitignore` contains `private/`, report that private-note commits will fail and
 ask before removing that line.
@@ -276,7 +276,7 @@ git -C "$MEMENTO_ROOT" commit -m "Customize Memento: <brief summary of entity ty
 Suggest they:
 - Add notes to `sources/`
 - Use `/save` at end of sessions to capture value (decisions, research,
-  durable notes, analyses, private notes; at most one user-confirmed
+  durable notes, private notes; at most one user-confirmed
   follow-up per session — commitments go to the issue tracker, not here)
 - Use `/ama` when they want the agent to interview them and fill gaps
   in the wiki
