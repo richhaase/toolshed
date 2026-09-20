@@ -391,6 +391,17 @@ The current command prints plain text.
     ]]);
     assert.match(run(['approve', question, '--by', 'Owner'], 1).stderr, /Open questions/);
   });
+
+  await t.test('technical angle brackets are not treated as placeholders', () => {
+    const directory = workspace(t);
+    const ticket = createReadyV3(directory, 'technical-syntax.md');
+    replaceInFile(ticket, [[
+      '- AC1: Running with --greet Ada prints Hello, Ada.',
+      '- AC1: The greeting form renders a native <button> labelled Greet.',
+    ]]);
+    run(['approve', ticket, '--by', 'Scope Owner']);
+    assert.equal(JSON.parse(run(['check', ticket, '--json']).stdout).valid, true);
+  });
 });
 
 test('format v3 assessment selects post-build evidence without EV methods', (t) => {
@@ -454,6 +465,34 @@ test('format-v2 contracts preserve EV assessment semantics by default', (t) => {
     ], 1).stderr,
     /format-v2 contracts require assessment v2/,
   );
+});
+
+test('edited assessment metadata cannot bypass contract format semantics', async (t) => {
+  await t.test('format-v2 contract rejects an edited format-v3 assessment', () => {
+    const directory = workspace(t);
+    const contract = approveV2(directory);
+    const assessment = path.join(directory, 'edited-v3.md');
+    scaffoldAssessment(contract, assessment);
+    replaceInFile(assessment, [['steward_assessment: "2"', 'steward_assessment: "3"']]);
+
+    const result = JSON.parse(run(['assessment-check', assessment, '--json'], 1).stdout);
+    assert.ok(result.errors.some((error) => error.includes(
+      'format-v2 contracts require assessment v2',
+    )));
+  });
+
+  await t.test('format-v3 contract rejects an edited format-v2 assessment', () => {
+    const directory = workspace(t);
+    const contract = approveV3(directory);
+    const assessment = path.join(directory, 'edited-v2.md');
+    scaffoldAssessmentV3(contract, assessment);
+    replaceInFile(assessment, [['steward_assessment: "3"', 'steward_assessment: "2"']]);
+
+    const result = JSON.parse(run(['assessment-check', assessment, '--json'], 1).stdout);
+    assert.ok(result.errors.includes(
+      'assessment format v2 requires a format-v2 contract with EV evidence methods',
+    ));
+  });
 });
 
 test('approved legacy contract can start a blank format-v3 successor with lineage', (t) => {

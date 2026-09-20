@@ -4,13 +4,13 @@ description: >
   Independently assess an immutable software change against an approved
   Steward contract using the strongest proportionate evidence available after
   construction. Distinguish PR/implementation-verifiable claims from external
-  operator validation and mechanism ambiguity. Use after any inner builder or
-  workflow finishes, including when evidence differs from what was anticipated,
-  or when the user says "assess this against the contract", "did this do what
-  the ticket asked", "check this branch against its spec", or "verify the work
-  before I sign off". Produce claim-level pass/fail/inconclusive outcomes
-  bound to exact provenance. Do not add criteria, reinterpret the contract,
-  fix the build, or invent validation infrastructure.
+  operator validation and mechanism ambiguity. Use after construction when an
+  approved Steward contract governed the work, or when the user says "assess
+  this against the contract", "did this do what the ticket asked", "check this
+  branch against its spec", or "verify the work before I sign off". Produce
+  claim-level pass/fail/inconclusive outcomes bound to exact provenance. Do not
+  add criteria, reinterpret the contract, fix the build, or invent validation
+  infrastructure.
 ---
 
 # Assess
@@ -23,6 +23,9 @@ built without owning the inner workflow that built it.
 - Require an approved contract and an immutable change identity.
 - Assess only the frozen `AC<n>` claims. Do not introduce acceptance criteria
   retrospectively.
+- Use Scope and Constraints to interpret the claims. They do not independently
+  determine overall status; any boundary meant to do so must be represented by
+  a frozen acceptance claim.
 - Select proportionate evidence after construction. For format v3, no
   predeclared evidence method is required.
 - Treat documented engineering constraints and target-repository conventions
@@ -82,11 +85,13 @@ works if one of them is wrong.
    - deployment artifacts or logs; or
    - a separately recorded operator/client validation.
 7. When external/operator-only evidence or mechanism ambiguity blocks a
-   conclusion, surface one concise question or validation task to the current
-   scope owner/user when interaction is available. Ask only for the decision
-   or observation the assessor cannot obtain. Do not assign it back to the
-   implementer or guess an individual owner. If it remains unanswered, retain
-   it as the concrete next action.
+   conclusion, surface one concise observation request or validation task to
+   the current scope owner/user when interaction is available. Ask only for an
+   existing fact or observation the assessor cannot obtain. Do not assign it
+   back to the implementer or guess an individual owner. If the answer would
+   change what counts as passing rather than supply evidence for the frozen
+   meaning, classify a contract defect and require a successor revision. If an
+   evidence request remains unanswered, retain it as the concrete next action.
 8. Record each command or artifact and its observed result as `E<n>`. Link it
    from the relevant claim outcome. Format-v3 evidence maps directly to claims
    and has no `EV<n>` backlink.
@@ -120,10 +125,11 @@ works if one of them is wrong.
 - Repository-wide suites are not automatically stronger than focused evidence.
 - Do not mandate a library, transport, service, datastore, instrumentation
   path, or test type that the frozen contract does not require.
-- If engineering evidence leaves multiple plausible mechanisms or meanings,
-  ask the scope owner which outcome was intended and use `inconclusive` until
-  evidence establishes the outcome or that answer resolves the ambiguity. Do
-  not convert one preferred mechanism into a retroactive acceptance criterion.
+- If engineering evidence leaves multiple plausible mechanisms for one frozen
+  outcome, request the missing observation and use `inconclusive` until the
+  evidence establishes that outcome. If the frozen words permit materially
+  different pass conditions, classify a contract defect and route through a
+  successor revision; a post-freeze answer cannot redefine the claim.
 - Engineering difficulty, missing access, or inconvenience does not waive an
   explicit frozen outcome. Contradictory evidence and genuine in-scope
   omissions still fail; a defective frozen claim requires a successor revision.

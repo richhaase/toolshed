@@ -30,12 +30,18 @@ V3 makes the outer loop cheap enough for ordinary work:
 - `Outcome` and `Acceptance` are the only required body sections.
 - Only `AC<n>` identifiers are mandatory.
 - Context, scope, constraints, examples, and open questions are optional.
+- A boundary that can make delivery fail belongs in an acceptance claim;
+  optional sections clarify claims but are not scored separately.
 - There is no mandatory intent/requirement/evidence/probe graph.
 - Evidence is chosen after construction rather than predicted during framing.
 - Critique is risk-triggered, bounded to three contract defects, and converges
   on later delta-only passes.
 - Structural checks report their limited guarantee honestly and expose
   nonblocking size/growth signals.
+
+Post-build input may provide missing evidence for the frozen meaning. If it
+would change what counts as passing, Steward routes through a successor
+contract rather than redefining the approved revision.
 
 Formats v1 and v2 remain valid under their original rules. Format-v2 contracts
 continue using EV-linked v2 assessments; deliberately reframe and approve a

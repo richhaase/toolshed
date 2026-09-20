@@ -46,13 +46,13 @@ Only `contract-defect` can produce `revise-minimally`.
 
 ## Preconditions
 
-Resolve these relative to this `SKILL.md` before running any step; nothing below
-works if one of them is wrong.
+Resolve these relative to this `SKILL.md` before running the applicable step.
 
 - Read `../../resources/references/contract-format.md`.
-- Bind `../../resources/scripts/steward` as `STEWARD_CLI`.
-- Confirm Node.js is on `PATH` (`command -v node`); every CLI call runs as
-  `node "$STEWARD_CLI" ...`. Stop and report if it is missing.
+- For a file-backed contract, bind `../../resources/scripts/steward` as
+  `STEWARD_CLI`, confirm Node.js is on `PATH` (`command -v node`), and run every
+  CLI call as `node "$STEWARD_CLI" ...`. Stop and report if either is missing.
+  Inline critique does not require the CLI or Node.js.
 
 ## Procedure
 
@@ -76,6 +76,10 @@ works if one of them is wrong.
 4. Tie every defect to the exact outcome, claim, or endangered boundary it
    protects. Describe the plausible compliant-but-wrong interpretation and the
    smallest resolution.
+   - When violating a named Scope or Constraints boundary would make delivery
+     unacceptable but no acceptance claim captures that failure, require the
+     smallest observable acceptance claim rather than inventing a second
+     assessment system for optional sections.
 5. Classify other concerns rather than turning them into requirements. Do not
    report an exhaustive inventory of non-blocking observations.
 6. Prefer deletion, local clarification, or splitting over additional

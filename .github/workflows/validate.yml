@@ -49,6 +49,9 @@ jobs:
           node plugins/memento/skills/_shared/scripts/build-graph --self-test
           node plugins/memento/skills/_shared/scripts/eval-score --self-test
 
+      - name: Steward deterministic lifecycle tests
+        run: node --test plugins/steward/tests/steward-cli.test.js
+
       - name: Actuary contract and eval-fixture checks
         run: |
           plugins/actuary/skills/skill-audit/scripts/contract-test \

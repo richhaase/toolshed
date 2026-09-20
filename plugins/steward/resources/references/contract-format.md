@@ -74,9 +74,10 @@ this order when present:
 6. `Examples` — optional
 7. `Open questions` — optional
 
-Approval rejects placeholder tokens (`TODO`, `TBD`, `FIXME`, `CHANGEME`, and
-angle-bracket placeholders). An Open questions section must be absent or
-contain exactly `- None.` at approval.
+Approval rejects the explicit placeholder tokens `TODO`, `TBD`, `FIXME`, and
+`CHANGEME`. An Open questions section must be absent or contain exactly
+`- None.` at approval. Ordinary technical notation, including HTML tags and
+generic type syntax, is content rather than a placeholder.
 
 ### Outcome
 
@@ -122,6 +123,10 @@ Give each independently assessable outcome a stable `AC<n>` identifier:
 Preserve stable ids across revisions and do not renumber unaffected claims.
 Claims describe observable results. They do not prescribe components, tests,
 evidence methods, or internal call sequences.
+
+If violating a boundary named in Scope or Constraints would make delivery
+unacceptable, represent that failure in an acceptance claim. Optional sections
+clarify the frozen claims but are not an independent set of scored outcomes.
 
 There is no mandatory intent, requirement, evidence-method, or probe graph in
 v3. Examples may clarify a claim when prose alone permits materially different

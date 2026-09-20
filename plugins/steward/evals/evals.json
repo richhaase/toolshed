@@ -119,13 +119,14 @@
     {
       "id": 10,
       "prompt": "Use Steward Assess. A frozen synthetic claim says: AC1: each failed delivery increments an operational counter grouped only by channel. The immutable change emits the repository's established bounded structured event for log-derived counters. Repository documentation says this is the conventional metrics path and that no direct metrics client or listener exists. Evidence establishes the emitted event but does not observe the downstream counter. The contract does not prescribe a metrics transport. The builder explains that adding a direct client would create new infrastructure. Produce the claim-level assessment only.",
-      "expected_output": "A mixed/ambiguous, inconclusive assessment that treats the repository's engineering constraints as evidence, does not retroactively require a direct metrics client, and asks the scope owner whether the established log-derived path satisfies the frozen counter outcome or requires separate observation.",
+      "expected_output": "A mixed/ambiguous, inconclusive assessment that treats the repository's engineering constraints as evidence, does not retroactively require a direct metrics client, and requests observation of the frozen counter outcome rather than asking the scope owner to redefine it.",
       "files": [],
       "expectations": [
         "The claim is classified as mixed/ambiguous because implementation evidence exists but the observable counter has not been established.",
         "The assessment does not mandate a direct metrics client, listener, transport, or other mechanism absent from the frozen claim.",
         "The builder's engineering rationale is considered but does not by itself pass or waive AC1.",
-        "The assessor raises one concise outcome-versus-mechanism question to the scope owner/user and leaves AC1 inconclusive pending resolution or observation.",
+        "The assessor requests one concise downstream-counter observation from the scope owner/user and leaves AC1 inconclusive until that evidence is available.",
+        "A post-freeze answer cannot redefine whether emitting the structured event counts as incrementing the frozen counter; materially different pass conditions require a successor contract.",
         "The result is insufficient-or-conflicting-evidence rather than an implementation defect unless evidence actually contradicts the frozen counter outcome."
       ]
     },
@@ -140,6 +141,19 @@
         "Overall is fail and remediation is implementation-defect with a concrete in-scope next action.",
         "The assessment does not downgrade the contradiction to inconclusive or route it as an external operator check.",
         "No additional acceptance criteria or implementation mechanisms are invented."
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Use Steward Assess. A frozen synthetic claim says: AC1: migrating an existing freshness setting preserves its behavior. The immutable change converts stored minutes into a timestamp. Repository evidence cannot determine whether the frozen words meant preserving the configured duration or preserving the next scheduled refresh time, and those interpretations produce different pass conditions. The scope owner is available to answer questions after construction. Produce the claim-level assessment only.",
+      "expected_output": "An inconclusive assessment classified as a contract defect because the frozen claim permits materially different pass conditions; a post-freeze answer cannot redefine the claim, so Steward requires a successor revision.",
+      "files": [],
+      "expectations": [
+        "AC1 remains inconclusive because the immutable evidence cannot select between two materially different frozen meanings.",
+        "The assessment does not use a post-freeze scope-owner answer to choose the more convenient pass condition.",
+        "Overall is inconclusive and remediation is contract-defect with a successor revision as the next action.",
+        "The assessment does not mandate a storage representation, migration algorithm, or new test infrastructure.",
+        "Existing evidence may inform the successor contract but does not mutate the approved revision."
       ]
     }
   ]

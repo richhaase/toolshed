@@ -2,14 +2,13 @@
 name: frame
 description: >
   Turn an ordinary software request into the smallest Steward Markdown
-  contract that can distinguish success from failure. Use before construction
-  for work of any size, including small fixes, refactors, features, migrations,
-  or broad requests that may need splitting. Use when the user says "frame this
-  as a contract", "write up what we are actually building", "what does done
-  look like here", "freeze the scope before I start", or "turn this request
-  into something I can approve". Add ceremony only for a material product
-  decision, load-bearing boundary, or preserved invariant. Draft and freeze
-  intent; do not plan or implement the change.
+  contract that can distinguish success from failure. Use when the user asks
+  to frame, freeze, or approve software intent, or when repository instructions
+  require a Steward contract before construction. It applies to small fixes,
+  refactors, features, migrations, and broad requests that may need splitting.
+  Add ceremony only for a material product decision, load-bearing boundary, or
+  preserved invariant. Draft and freeze intent; do not plan or implement the
+  change.
 ---
 
 # Frame
@@ -63,7 +62,10 @@ works if one of them is wrong.
    meaning; do not mechanically compress the old graph.
 3. State one concise `Outcome`: the requested user or business result.
 4. Write the fewest independently assessable `AC<n>` claims that distinguish
-   success from failure. Preserve stable claim ids across revisions.
+   success from failure. Preserve stable claim ids across revisions. If
+   violating a Scope or Constraints boundary would make delivery unacceptable,
+   express that failure boundary in an acceptance claim; optional prose may
+   clarify claims but is not scored separately during assessment.
 5. Add optional Context, Scope, Constraints, Examples, or Open questions only
    when the section records information that changes a material outcome:
    - Scope may name the change, an endangered invariant to preserve, or an

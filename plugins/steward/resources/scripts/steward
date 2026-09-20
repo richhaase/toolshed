@@ -89,7 +89,7 @@ const ASSESSMENT_H2_V2 = [
   'Residual risks',
   'Remediation',
 ];
-const PLACEHOLDER_PATTERN = /\b(?:TODO|TBD|FIXME|CHANGEME)\b|<[^>\n]+>/i;
+const PLACEHOLDER_PATTERN = /\b(?:TODO|TBD|FIXME|CHANGEME)\b/i;
 const REMEDIATION_ACTIONS = {
   none: 'None.',
   'implementation-defect':
@@ -1340,6 +1340,17 @@ function validateAssessmentCurrent(document, assessmentPath, format, options = {
       if (contractDetails.errors.length) {
         errors.push(`referenced contract is invalid: ${contractDetails.errors.join('; ')}`);
       } else {
+        if (format === ASSESSMENT_FORMAT_V2 &&
+            contract.metadata.steward_contract !== CONTRACT_FORMAT_V2) {
+          errors.push('assessment format v2 requires a format-v2 contract with EV evidence methods');
+        }
+        if (format === ASSESSMENT_FORMAT_V3 &&
+            contract.metadata.steward_contract === CONTRACT_FORMAT_V2) {
+          errors.push(
+            'format-v2 contracts require assessment v2 so their frozen EV methods remain enforced; ' +
+            'create and approve a deliberate format-v3 successor before using assessment v3',
+          );
+        }
         if (contract.metadata.state !== 'approved') errors.push('referenced contract must be approved');
         if (contract.metadata.id !== metadata.contract_id) errors.push('contract_id does not match referenced contract');
         if (contract.metadata.revision !== metadata.contract_revision) {
