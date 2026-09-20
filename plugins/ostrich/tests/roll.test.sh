@@ -2,8 +2,8 @@
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
-roll="$here/../skills/ostrich/scripts/roll"
-grid="$here/../skills/ostrich/references/tangent-grid.md"
+roll="$here/../skills/head-in-sand/scripts/roll"
+grid="$here/../skills/head-in-sand/references/tangent-grid.md"
 shell=${ROLL_TEST_SHELL:-bash}
 pass=0
 fail=0

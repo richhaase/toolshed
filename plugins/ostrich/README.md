@@ -8,7 +8,7 @@ time.
 
 ## Invoking it
 
-Say any of:
+Ostrich's skill is `head-in-sand`. Invoke it by name, or say any of:
 
 ```text
 Ostrich.
@@ -82,13 +82,14 @@ before offering distraction.
 
 ## Layout
 
-- `skills/ostrich/SKILL.md` is the procedure.
-- `skills/ostrich/scripts/roll` samples unique optional domain prompts. It is
-  Bash 3.2 compatible, has no dependencies or network access, and supports
-  reproducible `OSTRICH_SEED` runs.
-- `skills/ostrich/references/tangent-grid.md` holds the domain prompt pool.
-- `skills/ostrich/references/store-format.md` defines preference storage and
-  soft novelty signals.
+- `skills/head-in-sand/SKILL.md` is the procedure.
+- `skills/head-in-sand/scripts/roll` samples unique optional domain
+  prompts. It is Bash 3.2 compatible, has no dependencies or network access,
+  and supports reproducible `OSTRICH_SEED` runs.
+- `skills/head-in-sand/references/tangent-grid.md` holds the domain
+  prompt pool.
+- `skills/head-in-sand/references/store-format.md` defines preference
+  storage and soft novelty signals.
 - `evals/evals.json` describes behavioral cases for self-contained delivery,
   coherent randomization, steering, grounding, and private preference storage.
 

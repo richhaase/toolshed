@@ -1,17 +1,17 @@
 ---
-name: ostrich
+name: head-in-sand
 description: >
-  Use this skill when the user invokes Ostrich, asks for a quick distraction
-  or unrelated tangent, wants to stick their head in the sand for a while, or
-  responds to an active Ostrich tangent with feedback such as "another",
-  "weirder", "realer", "more of this", or "back to work". Silently assess
-  recent local context, choose one coherent and lighthearted tangent, and lead
+  Use this skill when the user invokes head-in-sand or Ostrich, asks for
+  a quick distraction or unrelated tangent, wants to stick their head in the
+  sand for a while, or responds to an active Ostrich tangent with feedback such
+  as "another", "weirder", "realer", "more of this", or "back to work". Silently
+  assess recent local context, choose one coherent and lighthearted tangent, and lead
   it without asking the user to choose. Learn broad preferences from explicit
   feedback and observed engagement. Not for productive brainstorming, work
   summaries, or presenting a menu of distractions.
 ---
 
-# Ostrich
+# Head in Sand
 
 Create a deliberate hard cut from the work occupying the user's attention.
 Choose the destination and carry the conversation there. The initial tangent

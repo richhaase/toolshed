@@ -102,7 +102,8 @@ adapter.
 
 ### <img src="plugins/ostrich/assets/icon.png" width="48" height="48" align="middle" alt=""> [Ostrich](plugins/ostrich/) — Deliberate Distraction
 
-Break away from overwhelming or unwanted work through one agent-chosen tangent.
+The `head-in-sand` skill offers a break from overwhelming or unwanted work
+through one agent-chosen tangent.
 Ostrich silently excludes the active work cluster, uses optional random domain
 prompts to widen a quality-ranked candidate pool, then delivers one coherent,
 self-contained five-to-ten-minute diversion. It learns broad preferences

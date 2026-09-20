@@ -128,10 +128,10 @@ the explicit validation and privacy commands required by the workflow above.
   scope, and `assess` judges immutable changes claim by claim using
   proportionate post-build evidence. A dependency-free local CLI owns the
   single deterministic contract and assessment lifecycle.
-- **ostrich** — Deliberate context-break workflow. Silently excludes the
-  active work cluster, uses optional random domain prompts to widen a
-  quality-ranked candidate pool, and delivers one coherent, self-contained
-  five-to-ten-minute tangent. Learns broad preferences through a bounded
+- **ostrich** — Deliberate context-break workflow (`head-in-sand`).
+  Silently excludes the active work cluster, uses optional random domain
+  prompts to widen a quality-ranked candidate pool, and delivers one coherent,
+  self-contained five-to-ten-minute tangent. Learns broad preferences through a bounded
   ledger without retaining the work context that prompted the escape.
 
 ## Portability rules
