@@ -22,7 +22,7 @@
     {
       "name": "steward",
       "source": "./plugins/steward",
-      "description": "Stay aligned as software work evolves, then check that the result solves the problem without unjustified scope or complexity.",
+      "description": "Stay aligned, simplify completed changes in repository context, and check that the result solves the problem with justified complexity.",
       "category": "Developer Tools"
     },
     {

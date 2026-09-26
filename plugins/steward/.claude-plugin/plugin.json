@@ -1,13 +1,13 @@
 {
   "name": "steward",
-  "version": "0.6.0",
-  "description": "Stay aligned as software work evolves, then check that the result solves the problem and its scope and complexity are justified.",
+  "version": "0.7.0",
+  "description": "Stay aligned as software work evolves, simplify completed changes in repository context, and check that the result solves the problem with justified complexity.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["alignment", "goals", "scope", "complexity", "review", "software-delivery"],
+  "keywords": ["alignment", "goals", "scope", "simplification", "refactoring", "complexity", "review", "software-delivery"],
   "skills": "./skills/"
 }

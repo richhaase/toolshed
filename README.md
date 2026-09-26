@@ -93,12 +93,16 @@ disclosure risks without producing a release or task-success verdict.
 
 Keep software work aligned with what you want as it evolves. `align` helps
 agents respond to discoveries and feedback without losing the purpose of the
-work. `check` verifies that the result solves the current problem and examines
-unnecessary scope or complexity. Both use the conversation and codebase, with
-no required Steward artifact or support for its old contract formats.
+work. `simplify` makes worthwhile local edits so completed work fits the
+repository and costs less to maintain, while preserving behavior. `check`
+reviews whether the result solves the current problem and whether its scope
+and complexity are justified, without changing the work. All three use the
+conversation and codebase, with no required sequence, Steward artifact, or
+support for old contract formats.
 
-Ask “Use Steward Align with my latest feedback” or “Use Steward Check: does this
-solve my problem, and have we overbuilt it?” See the
+Ask “Use Steward Align with my latest feedback,” “Use Steward Simplify on this
+completed change,” or “Use Steward Check: does this solve my problem, and have
+we overbuilt it?” See the
 [usage examples](plugins/steward/README.md#use-it).
 
 ### <img src="plugins/ostrich/assets/icon.png" width="48" height="48" align="middle" alt=""> [Ostrich](plugins/ostrich/) — Deliberate Distraction

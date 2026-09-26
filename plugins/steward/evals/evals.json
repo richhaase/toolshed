@@ -132,6 +132,78 @@
         "The clarification asks for current intent rather than a rewrite of a legacy schema."
       ],
       "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "Use Steward Simplify to finish the completed filtered employee CSV download. The current diff adds a local quoteCsvField function. The repository already has escapeCsvField, used by two other download paths, with the same treatment of nulls, quotes, commas, and embedded newlines and the same handling of unsupported values. The download tests passed before this finishing pass. Make any worthwhile local simplifications and preserve the download behavior.",
+      "expected_output": "Confirm the existing helper is equivalent, replace the new duplication with that helper, and verify the resulting download behavior after the edit.",
+      "expectations": [
+        "The existing helper and its callers are examined for relevant behavior, including unsupported inputs, before reuse is chosen.",
+        "A useful authorized simplification is implemented without an additional approval round or a mandatory planning artifact.",
+        "The current download's filtering and CSV behavior are preserved.",
+        "Verification addresses the edited state; the tests that passed before the finishing pass are not presented as validation of the subsequent edit."
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "Use Steward Simplify on the completed download change. Its new private buildCsv function returns the header-only result immediately when rows is empty. A later branch still handles rows.length === 0, although rows is neither reassigned nor mutated between the checks. The README paragraph added in this change describes that later branch as a fallback. Simplify the change and keep its documentation accurate.",
+      "expected_output": "Remove the demonstrated unreachable empty-row branch, update the directly related README explanation, and check that empty and nonempty downloads retain their established results.",
+      "expectations": [
+        "Reachability is established from the early return and intervening code rather than inferred from a branch appearing old or inconvenient.",
+        "The unreachable branch is removed while the early return's header-only result remains intact.",
+        "The documentation changed by this work is made accurate without broadening into an unrelated documentation rewrite.",
+        "The final report ties the simplification and its verification to preserved behavior."
+      ],
+      "files": []
+    },
+    {
+      "id": 15,
+      "prompt": "Use Steward Simplify on the completed retry-limit validation change. The new parseRetryLimit accepts only positive decimal integers and throws the established InvalidRetryLimit error for malformed input. There is an existing parseCount helper with a similar name that accepts numeric prefixes and returns zero for invalid input. Happy-path values produce the same numbers. See whether reuse improves this change while preserving the requested strict validation and error response.",
+      "expected_output": "Reject replacing the strict parser with parseCount because the accepted inputs and error behavior differ; retain the local parser unless another supported simplification preserves those semantics.",
+      "expectations": [
+        "Reuse is judged against malformed inputs and error behavior as well as successful inputs.",
+        "The existing helper is not changed globally to force it to fit this caller, and its other callers are not migrated without scope authorization.",
+        "Strict validation and the established error response are preserved even if the proposed reuse would reduce code.",
+        "The pass can conclude that this candidate offers no worthwhile simplification instead of manufacturing an abstraction or claiming an unsafe replacement is equivalent."
+      ],
+      "files": []
+    },
+    {
+      "id": 16,
+      "prompt": "Use Steward Simplify for advice only before I finish this change. The new download handler constructs its filename with a local function that duplicates the repository's existing makeExportFilename helper, including its date, extension, and invalid-name behavior. Tell me whether to reuse the helper and what would need checking. Do not edit the repository.",
+      "expected_output": "Recommend the concrete helper reuse if inspection confirms equivalence, explain the benefit and relevant verification, and leave the repository untouched.",
+      "expectations": [
+        "The advisory request controls execution: no source, test, or documentation files are modified.",
+        "The advice concerns the actual local duplication and relevant behavior rather than a generic cleanup checklist.",
+        "Suggested verification is distinguished from checks actually performed; implementation or successful tests are not claimed without evidence.",
+        "The response does not turn this optional finishing pass into a required approval stage, report artifact, or delivery pipeline."
+      ],
+      "files": []
+    },
+    {
+      "id": 17,
+      "prompt": "Use Steward Simplify to finish the current employee-list change. The changed render path computes the same immutable display label twice for the same row; computing it once locally would preserve both existing branches. While reading nearby code, you also notice old customer-list and supplier-list modules with similar formatting and loading patterns. They are outside this change, have different error flows, and have not been requested for cleanup. Make the useful simplification for this change.",
+      "expected_output": "Consolidate the duplicate label computation locally and verify the affected render path, keeping the unrelated lists and their architecture outside the edit.",
+      "expectations": [
+        "Repository context informs the local decision without expanding the pass to every similar module.",
+        "The duplicate display-label computation is simplified without merging or changing the branches' distinct behavior.",
+        "No new shared list framework, repository-wide normalization, or migration of the other list modules is introduced.",
+        "The authorized local improvement proceeds without asking the user to approve unrelated architecture decisions."
+      ],
+      "files": []
+    },
+    {
+      "id": 18,
+      "prompt": "Use Steward Simplify on the completed employee-list accessibility fix. It now uses the repository's standard focus helper, retains separate branches for keyboard and pointer behavior, and updates the affected documentation. Inspection finds no dead branches or equivalent duplicated helper; the separate input branches have intentionally different focus behavior. Focused checks on this exact state already cover both input methods and pass. I want a useful finishing pass, and it is fine if no edit is warranted.",
+      "expected_output": "Conclude that no worthwhile behavior-preserving simplification is supported, leave the change intact, and explain that conclusion using the observed reuse and intentional behavioral differences.",
+      "expectations": [
+        "No-change is accepted as a successful finishing-pass result when the evidence supports it.",
+        "The keyboard and pointer branches are not combined merely to reduce repetition or line count.",
+        "No speculative configuration, abstraction, dependency, or unrelated cleanup is added to produce an edit.",
+        "Existing verification is described as applying to the inspected unchanged state without inventing additional checks or making the finishing pass a mandatory delivery gate."
+      ],
+      "files": []
     }
   ]
 }

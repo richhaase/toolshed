@@ -28,6 +28,26 @@ request. That discovery creates a meaningful product choice:
 The user's answer guides the next move. Ordinary details such as choosing an
 existing CSV library remain engineering choices.
 
+## Simplify after construction
+
+Suppose the completed download repeats filter parsing already shared by the
+list endpoints and adds a helper that only forwards arguments to the CSV
+library. The user asks: “Use Steward Simplify on this change.”
+
+Inspection shows that the established parser preserves the same filter and
+error behavior, and that the new forwarding helper serves no other purpose.
+The agent reuses the parser and calls the CSV library directly, then checks
+filtered output, quoted values, errors, and access rules. A useful report:
+
+> I reused the list endpoints' filter parser and removed the pass-through CSV
+> helper. That leaves one place to maintain filter handling and fewer calls to
+> trace. Focused checks preserved the filtered rows, CSV quoting, error responses,
+> and access rules; the export still uses the same streaming path.
+
+This is an optional local pass. If the existing code were already clear and
+consistent with the repository, leaving it alone would be a valid outcome.
+A request only for suggestions would produce advice without editing.
+
 ## Check the result
 
 Suppose inspection and focused checks establish that the download contains the
@@ -45,3 +65,7 @@ A useful review would explain both findings:
 If the user had requested large asynchronous exports and evidence showed that
 background processing was needed, that machinery could be justified. Check
 looks for that reason; it does not treat additional code as inherently wrong.
+
+If Simplify has changed the implementation before a final Check, Check examines
+that resulting state and uses evidence that applies to it. The skills do not
+require each other or a fixed sequence.

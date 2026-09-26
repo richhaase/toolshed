@@ -1,27 +1,28 @@
 {
   "name": "steward",
-  "version": "0.6.0",
-  "description": "Stay aligned as software work evolves, then check that the result solves the problem and its scope and complexity are justified.",
+  "version": "0.7.0",
+  "description": "Stay aligned as software work evolves, simplify completed changes in repository context, and check that the result solves the problem with justified complexity.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["alignment", "goals", "scope", "complexity", "review", "software-delivery"],
+  "keywords": ["alignment", "goals", "scope", "simplification", "refactoring", "complexity", "review", "software-delivery"],
   "skills": "./skills/",
   "interface": {
     "composerIcon": "./assets/icon.png",
     "logo": "./assets/icon.png",
     "displayName": "Steward",
     "shortDescription": "Stay aligned, build what matters",
-    "longDescription": "Keep the agent's understanding current as discoveries and feedback change software work. Align helps resolve consequential choices; Check examines whether the actual result solves the user's problem and whether its scope and complexity are justified. Both work from the current conversation and codebase without a required artifact or legacy contract support.",
+    "longDescription": "Keep the agent's understanding current as discoveries and feedback change software work. Align helps resolve consequential choices, Simplify makes completed changes easier to maintain in their repository, and Check examines goal fulfillment and justified complexity. Each skill works from the current conversation and codebase without a required artifact, mandatory sequence, or legacy contract support.",
     "developerName": "Rich Haase",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://github.com/richhaase/toolshed",
     "defaultPrompt": [
       "Use Steward Align with my latest feedback and the current work.",
+      "Use Steward Simplify to make this completed change easier to maintain.",
       "Use Steward Check: does this solve my problem, and have we overbuilt it?"
     ]
   }
