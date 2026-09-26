@@ -46,7 +46,7 @@ and repair affected links rather than leaving contradictory guidance behind.
 
 Keep canonical instructions in their owning skill or `AGENTS.md`; link to them
 instead of duplicating workflow details. If no documentation change is needed,
-say why in the PR description. `CLAUDE.md` must contain only `[AGENTS.md](AGENTS.md)`.
+say why in the PR description. `CLAUDE.md` must contain only `@AGENTS.md`.
 
 ## Commands
 
