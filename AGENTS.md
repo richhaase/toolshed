@@ -20,11 +20,33 @@ Skills follow the [Agent Skills](https://agentskills.io) open format.
 
 ## Workflow
 
-This repo and `~/src/dotfiles` are Rich's personal cross-machine tooling repos.
-They do not use the normal PR workflow. When a fix is complete, verified, and
-docs are current, commit directly and push the branch. Before every push, run
-the repository validation and privacy gates explicitly; the pre-push hook is a
-second line of defense, not the only place these checks run.
+Use pull requests for changes to this repository:
+
+1. Start a focused `codex/<topic>` branch from up-to-date `main`. Do not commit
+   or push changes directly to `main`.
+2. Make the change and update affected documentation in the same branch. Run
+   checks appropriate to the change. Before every push, explicitly run the
+   repository validation and privacy gates below; the pre-push hook is a second
+   line of defense, not a substitute.
+3. Commit and push the feature branch, then open a pull request against `main`.
+   Describe the problem, resulting behavior, validation performed, and relevant
+   documentation updates. Use a draft PR while work or verification is incomplete.
+4. Review the diff, address review feedback, and resolve CI failures. Keep the
+   PR description and documentation current as the implementation changes.
+5. Leave the PR open for review. Merge only when the user authorizes it and
+   required checks and reviews are satisfied; do not bypass branch protections.
+
+### Keep documentation current
+
+Documentation is part of completing a change. Review affected skill instructions,
+references, examples, plugin READMEs, and the root README for changes to behavior,
+usage, names, paths, configuration, or requirements. Update `AGENTS.md` when
+repository workflows or its plugin summaries change. Remove stale instructions
+and repair affected links rather than leaving contradictory guidance behind.
+
+Keep canonical instructions in their owning skill or `AGENTS.md`; link to them
+instead of duplicating workflow details. If no documentation change is needed,
+say why in the PR description. `CLAUDE.md` must contain only `@AGENTS.md`.
 
 ## Commands
 
