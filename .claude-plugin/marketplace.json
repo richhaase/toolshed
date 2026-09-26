@@ -22,7 +22,7 @@
     {
       "name": "steward",
       "source": "./plugins/steward",
-      "description": "Create, critique, freeze, and assess portable software intent contracts.",
+      "description": "Frame lightweight software goals, critique their boundaries, and assess results while leaving builders room to adapt.",
       "category": "Developer Tools"
     },
     {

@@ -89,16 +89,14 @@ skill uses a deterministic analyzer for portable L1 and structural L2 evidence,
 then applies ranked L3 craft judgment. An optional privacy review reports
 disclosure risks without producing a release or task-success verdict.
 
-### <img src="plugins/steward/assets/icon.png" width="48" height="48" align="middle" alt=""> [Steward](plugins/steward/) — Intent and Assurance Contracts
+### <img src="plugins/steward/assets/icon.png" width="48" height="48" align="middle" alt=""> [Steward](plugins/steward/) — Goal Agreements
 
-Separate software intent and assurance from an interchangeable builder.
-`frame` freezes the minimum decision-complete intent delta for explicit human
-approval, `critique` conditionally challenges material ambiguity without
-expanding scope, and `assess` binds proportionate post-build evidence to the
-frozen contract and immutable change identity. Any agent, bundled workflow, or
-human process may construct the change. The dependency-free CLI maintains the
-single local contract lifecycle without a remote ticket store or builder
-adapter.
+Keep software work aligned without prescribing how to build it. `frame`
+captures a short goal agreement, `critique` checks for material gaps and
+needless restrictions, and `assess` judges the result using proportionate
+evidence. Agents can adapt their approach; material changes to the goal or
+boundaries return to the user. Agreements live in conversation or Markdown,
+with no freezing, command-line lifecycle, or additional approval ceremony.
 
 ### <img src="plugins/ostrich/assets/icon.png" width="48" height="48" align="middle" alt=""> [Ostrich](plugins/ostrich/) — Deliberate Distraction
 

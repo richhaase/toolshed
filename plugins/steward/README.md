@@ -1,87 +1,67 @@
-# <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> Steward — the outer intent and assurance loop
+# <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> Steward — clear goals with room to adapt
 
-Steward freezes the minimum decision-complete intent delta, delegates
-construction to an arbitrary inner loop, and assesses the resulting immutable
-change.
+Steward helps software agents stay aligned with the user's goal while leaving
+them room to discover a good solution. An agreement captures the desired result,
+a few success conditions, and essential boundaries.
 
-It deliberately does not own planning, architecture, implementation, testing
-strategy, or remediation. A builder may use any agent, bundled workflow, or
-human process. The approved contract defines outcomes and load-bearing
-boundaries; the target codebase remains the source of implementation context.
+- `frame` writes the agreement, reusing decisions and authorization already given.
+- `critique` checks for material gaps and unnecessary restrictions when needed.
+- `assess` judges the result using proportionate evidence.
 
-The lifecycle is:
+Any construction workflow can do the work. Builders own implementation choices
+and can revise their approach as they learn. Material changes to the goal,
+success conditions, or boundaries return to the user.
 
-1. `frame` drafts the smallest contract that distinguishes success from
-   failure.
-2. `critique` conditionally challenges material ambiguity or an endangered
-   boundary without expanding scope.
-3. A human explicitly approves and freezes one integrity-checked revision.
-4. Any inner workflow constructs the change.
-5. `assess` judges the immutable result claim by claim using proportionate
-   evidence selected after construction.
+## An ordinary agreement
 
-Steward stores no centralized state and has no Jira or builder adapter.
-Contracts and assessments are ordinary local Markdown files. Their hashes
-detect later edits; Steward does not make files physically immutable or
-authenticate the identity supplied to `--by` or `--assessor`.
+> Goal: People returning from employee details can resume their list work.
+>
+> Success: Browser Back restores their search, filters, and sort selection.
+>
+> Boundaries: Direct employee-detail links still work. Existing access controls
+> remain effective.
 
-## Contract format
+The builder can choose URL state, cached state, or another suitable mechanism.
+There is no need to select that mechanism before starting or amend the agreement
+when it changes. Dropping filter restoration or weakening access controls would
+require a user decision.
 
-The format keeps the outer loop cheap enough for ordinary work:
+A copy edit may need only a sentence. Larger work may need several bullets.
+Success can be qualitative when concrete evidence supports a reasoned judgment.
+Boundaries are assessed directly, without copying them into numbered claims.
 
-- `Outcome` and `Acceptance` are the only required body sections.
-- Only `AC<n>` identifiers are mandatory.
-- Context, scope, constraints, examples, and open questions are optional.
-- A boundary that can make delivery fail belongs in an acceptance claim;
-  optional sections clarify claims but are not scored separately.
-- There is no mandatory intent/requirement/evidence/probe graph.
-- Evidence is chosen after construction rather than predicted during framing.
-- Critique is risk-triggered, bounded to three contract defects, and converges
-  on later delta-only passes.
-- Structural checks report their limited guarantee honestly and expose
-  nonblocking size/growth signals.
+## Working with Steward
 
-Post-build input may provide missing evidence for the frozen meaning. If it
-would change what counts as passing, Steward routes through a successor
-contract rather than redefining the approved revision.
+Agreements live in conversation or ordinary Markdown. A clear authorized request
+needs no extra approval round. A framing-only request still stops at the draft;
+Steward does not create authority to implement, delegate, or publish.
 
-## Runtime
+Critique is useful for a real unresolved tradeoff or when the user requests a
+second opinion. It is not a mandatory stage. Several acceptable solutions are
+not a defect, and implementation preferences should not become requirements.
 
-The bundled CLI requires Node.js and has no third-party dependencies:
+Assessment can inspect current uncommitted work. It reports pass, fail, or
+inconclusive, explains the observed evidence, and identifies meaningful gaps.
+Unavailable operator evidence stays unverified; a demonstrated violation of a
+requirement fails. The assessor cannot waive a requirement to make the work pass.
 
-```bash
-node resources/scripts/steward --help
-```
+When discoveries require an owner decision, ask for that decision and keep
+unaffected work moving. Record an authorized change in the agreement itself,
+with a brief explanation. No successor artifact is needed.
 
-Typical lifecycle:
+## Format and validation
 
-```bash
-node resources/scripts/steward create ticket.r1.md \
-  --id delivery-status --title "Explain failed deliveries"
-node resources/scripts/steward check ticket.r1.md
-node resources/scripts/steward approve ticket.r1.md --by "Scope owner"
+Steward 0.5 removes the former frozen-contract CLI, hashes, revision lifecycle,
+and fixed assessment schema. There is no runtime dependency. Existing contracts
+can still provide goal and boundary context; their explicit requirements remain
+requirements until the owner changes them.
 
-node resources/scripts/steward assessment ticket.r1.md \
-  --output assessment.md \
-  --change-id git:0123456789abcdef0123456789abcdef01234567 \
-  --environment "Node 24; macOS; clean checkout; synthetic fixtures" \
-  --assessor "Independent assessor"
-node resources/scripts/steward assessment-check assessment.md
-node resources/scripts/steward assessment-complete assessment.md
-```
+The shared rules are in
+[`goal-agreements.md`](resources/references/goal-agreements.md).
+See [the delivery-status example](examples/delivery-status.contract.md) for a
+complete Markdown agreement.
 
-See `resources/references/contract-format.md` for the exact portable format.
-`examples/delivery-status.contract.md` is a complete example.
-
-Create a successor revision with `create NEW --from APPROVED`; use `compare`
-to inspect section and size changes before approval.
-
-Run deterministic lifecycle tests with:
-
-```bash
-node --test tests/steward-cli.test.js
-```
-
-Behavioral framing, critique, convergence, and assessment expectations live in
-`evals/evals.json`. They are specification cases, not recorded Claude or Codex
-runs, and repository CI does not claim cross-model behavioral validation.
+Behavioral cases in [`evals/evals.json`](evals/evals.json) cover concise framing,
+builder discretion, scope changes, and honest assessment. They describe expected
+behavior, not recorded cross-model results. Repository validation checks skill
+and distribution structure; it does not prove behavioral quality.

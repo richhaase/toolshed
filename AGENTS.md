@@ -121,13 +121,11 @@ the explicit validation and privacy commands required by the workflow above.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.
-- **steward** — Portable intent-and-assurance contracts for software work.
-  A thin outer loop around arbitrary construction workflows: `frame` freezes
-  the minimum decision-complete intent delta for explicit human approval,
-  `critique` conditionally challenges material ambiguity without expanding
-  scope, and `assess` judges immutable changes claim by claim using
-  proportionate post-build evidence. A dependency-free local CLI owns the
-  single deterministic contract and assessment lifecycle.
+- **steward** — Lightweight goal agreements for software work. `frame` captures
+  the goal, success conditions, and essential boundaries; `critique` checks for
+  material gaps and needless restrictions; `assess` judges the result using
+  proportionate evidence. Builders can adapt their approach while owner
+  decisions control changes to the goal or boundaries. No freezing or CLI.
 - **ostrich** — Deliberate context-break workflow (`head-in-sand`).
   Silently excludes the active work cluster, uses optional random domain
   prompts to widen a quality-ranked candidate pool, and delivers one coherent,

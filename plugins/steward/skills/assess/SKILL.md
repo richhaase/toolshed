@@ -1,141 +1,69 @@
 ---
 name: assess
 description: >
-  Independently assess an immutable software change against an approved
-  Steward contract using the strongest proportionate evidence available after
-  construction. Distinguish PR/implementation-verifiable claims from external
-  operator validation and mechanism ambiguity. Use after construction when an
-  approved Steward contract governed the work, or when the user says "assess
-  this against the contract", "did this do what the ticket asked", "check this
-  branch against its spec", or "verify the work before I sign off". Produce
-  claim-level pass/fail/inconclusive outcomes bound to exact provenance. Do not
-  add criteria, reinterpret the contract, fix the build, or invent validation
-  infrastructure.
+  Assess whether software work achieved its Steward goal agreement using
+  proportionate evidence. Use when the user asks whether work met the goal,
+  satisfied its contract, or is ready for sign-off. Accept current work without
+  requiring a frozen contract or commit. Report results and meaningful gaps
+  without fixing the implementation or adding requirements.
 ---
 
 # Assess
 
-Assess the frozen intent delta after construction. Steward validates what was
-built without owning the inner workflow that built it.
-
-## Boundaries
-
-- Require an approved contract and an immutable change identity.
-- Assess only the frozen `AC<n>` claims. Do not introduce acceptance criteria
-  retrospectively.
-- Use Scope and Constraints to interpret the claims. They do not independently
-  determine overall status; any boundary meant to do so must be represented by
-  a frozen acceptance claim.
-- Select proportionate evidence after construction. No predeclared evidence
-  method is required.
-- Treat documented engineering constraints and target-repository conventions
-  as relevant implementation context.
-- Judge the frozen outcome, not a preferred mechanism, unless the contract
-  explicitly freezes that mechanism or boundary.
-- Do not modify the implementation, contract, tests, or assessed change. Use
-  non-destructive evidence collection. Existing checks may create ordinary
-  ignored or temporary artifacts when they do not alter assessed content or
-  its immutable identity.
-- Never create monitoring, credentials, diagnostic identities, probes, or
-  product behavior merely to avoid an inconclusive result.
-- A builder's rationale may inform the assessment but cannot amend or waive a
-  frozen claim.
-- Treat approved contracts and completed assessments as immutable.
-
-## Preconditions
-
-Resolve these relative to this `SKILL.md` before running any step; nothing below
-works if one of them is wrong.
-
-- Read `../../resources/references/contract-format.md`.
-- Bind `../../resources/scripts/steward` as `STEWARD_CLI`.
-- Confirm Node.js is on `PATH` (`command -v node`); every CLI call runs as
-  `node "$STEWARD_CLI" ...`. Stop and report if it is missing.
+Judge whether the work achieved the agreed result within its boundaries.
+Read `../../resources/references/goal-agreements.md` for the shared rules.
+Assess independently from the builder's claims; this does not require a
+separate agent or a new workflow.
 
 ## Procedure
 
-1. Run `check` on the contract. Confirm `state: approved` and record its exact
-   revision and frozen body hash.
-2. Resolve the completed change to an immutable identity such as an exact
-   40-character Git commit SHA. Record the environment/context and assessor.
-3. Establish the exact diff, relevant runtime surface, repository instructions,
-   conventions, and documented engineering constraints without changing them.
-4. Create the assessment:
+1. Find the goal, success conditions, and hard boundaries in the agreement and
+   originating request, including subsequent owner decisions. Do not require
+   the user to create a contract retrospectively. If the intended result is
+   genuinely missing or contradictory, ask one focused question instead of
+   inventing it.
+2. Inspect the relevant change and enough codebase context to understand it.
+   Assess the current working tree when that is what the user supplied. Record
+   what was inspected using available revision/diff information; for uncommitted
+   work, identify it as the working tree and name the relevant files. Do not
+   require a commit, clean checkout, hash, or report file for ordinary review.
+3. Choose evidence proportionate to the result: a focused existing test,
+   static inspection, runtime observation, or an available operator artifact
+   may suffice. Record what was actually observed and what it establishes.
+   Reuse credible evidence tied to the assessed state instead of rerunning
+   checks mechanically.
+4. Judge the goal, success conditions, and hard boundaries directly. Different
+   architecture, sequencing, libraries, tests, or incidental UI choices are
+   acceptable when the agreement leaves them open. A changed approach is not
+   a defect and needs no retroactive contract revision.
+5. Report `pass`, `fail`, or `inconclusive`, with concise evidence and any
+   material gap. Pass requires the agreed result and boundaries to be met;
+   failure requires evidence of a missed requirement or crossed boundary.
+   Missing evidence is inconclusive, not an assumed failure. Overall is fail
+   if a requirement is known to be violated, even if other results remain
+   unverified; otherwise it is inconclusive until the result is established.
+   Use a short paragraph for a small task or bullets when distinct results
+   need separate treatment. Do not require claim IDs, evidence IDs, or a fixed
+   report schema.
 
-   ```bash
-   node "$STEWARD_CLI" assessment path/to/ticket.md \
-     --output path/to/assessment.md \
-     --change-id git:0123456789abcdef0123456789abcdef01234567 \
-     --environment "runtime, OS, fixtures, deployment context" \
-     --assessor "Assessor identity"
-   ```
+## Judgment and limits
 
-5. Classify each frozen claim's evidence responsibility and record it briefly
-   in its residual uncertainty or in Contract observations:
-   - `PR/implementation-verifiable` — the immutable change, repository
-     evidence, or an accessible runtime can establish the result;
-   - `external/operator-only` — establishing the result requires privileged
-     environment access, a post-deploy observation, an operator/client action,
-     or another human-only check outside the implementation surface; or
-   - `mixed/ambiguous` — part is PR/implementation-verifiable, but an external
-     observation or unresolved mechanism question remains under one fixed
-     outcome. Materially different pass conditions are a contract defect.
-6. For each frozen claim, choose the strongest proportionate evidence now
-   available. Useful evidence may include:
-   - targeted tests or an existing suite;
-   - static inspection of the exact diff;
-   - browser, API, or command observation;
-   - deployment artifacts or logs; or
-   - a separately recorded operator/client validation.
-7. When external/operator-only evidence or mechanism ambiguity blocks a
-   conclusion, surface one concise observation request or validation task to
-   the current scope owner/user when interaction is available. Ask only for an
-   existing fact or observation the assessor cannot obtain. Do not assign it
-   back to the implementer or guess an individual owner. If the answer would
-   change what counts as passing rather than supply evidence for the frozen
-   meaning, classify a contract defect and require a successor revision. If an
-   evidence request remains unanswered, retain it as the concrete next action.
-8. Record each command or artifact and its observed result as `E<n>`. Link it
-   directly from the relevant claim outcome.
-9. Assign each claim:
-   - `pass` when observed evidence establishes it;
-   - `fail` when observed evidence contradicts it or demonstrates an omitted
-     frozen behavior within the authorized implementation surface; or
-   - `inconclusive` when evidence is unavailable, inaccessible, conflicting,
-     environment-dependent, still awaits an external operator, or cannot
-     resolve a material outcome-versus-mechanism ambiguity.
-10. Separate implementation findings from external validation notes, using
-    Contract observations or Residual risks rather than adding assessment H2
-    sections. Label an unavailable human-only result “inconclusive — external
-    operator validation required”; do not present it as an implementation
-    failure. Overall is `fail` when any claim fails, `pass` only when every
-    claim passes, and `inconclusive` otherwise.
-11. Classify non-pass remediation as `implementation-defect`,
-    `contract-defect`, or `insufficient-or-conflicting-evidence`. Use `none`
-    only when all claims pass. External validation and unresolved mechanism
-    ambiguity normally use `insufficient-or-conflicting-evidence`; a proven
-    in-scope omission uses `implementation-defect`. Record a concrete next
-    action without changing the frozen artifact.
-12. Run `assessment-check`, resolve structural or provenance errors, then run
-    `assessment-complete`. Re-run the check and report the immutable assessment
-    hash.
-
-## Judgment
-
-- “Tests pass” is not evidence without the exact command or artifact and the
-  observation relevant to a claim.
-- Repository-wide suites are not automatically stronger than focused evidence.
-- Do not mandate a library, transport, service, datastore, instrumentation
-  path, or test type that the frozen contract does not require.
-- If engineering evidence leaves multiple plausible mechanisms for one frozen
-  outcome, request the missing observation and use `inconclusive` until the
-  evidence establishes that outcome. If the frozen words permit materially
-  different pass conditions, classify a contract defect and route through a
-  successor revision; a post-freeze answer cannot redefine the claim.
-- Engineering difficulty, missing access, or inconvenience does not waive an
-  explicit frozen outcome. Contradictory evidence and genuine in-scope
-  omissions still fail; a defective frozen claim requires a successor revision.
-- Unrequested improvements and unrelated defects may be recorded as
-  observations, but they do not change claim outcomes.
-- If the contract itself is defective, keep it frozen and route through a new
-  explicitly approved revision.
+- Reasonable interpretation connects the words to their purpose and codebase
+  context. It does not waive an explicit requirement or let the builder pick a
+  more convenient goal. Multiple acceptable solutions are not a reason for an
+  inconclusive result.
+- Qualitative goals can pass on concrete observations and explained judgment.
+  Do not add arbitrary metrics, coverage targets, or evidence infrastructure.
+- When evidence needs unavailable operator access, say which result remains
+  unverified and give the user one concise observation request. Do not assign
+  privileged work to an implementer who lacks access.
+- If success genuinely depends on missing owner intent, identify the decision
+  needed. The owner can clarify or change the agreement without creating a
+  successor artifact. Disclose changed requirements; do not silently relabel
+  an original miss as a pass. Have framing or the construction workflow record
+  a changed agreement before a new assessment.
+- Do not modify implementation, tests, or the agreement while assessing. Use
+  non-destructive checks; ordinary ignored or temporary check output is fine.
+- Do not make unrelated defects or unrequested improvements conditions of
+  success. A useful observation may be reported separately without expanding
+  the task.

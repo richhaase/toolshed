@@ -1,115 +1,63 @@
 ---
 name: frame
 description: >
-  Turn an ordinary software request into the smallest Steward Markdown
-  contract that can distinguish success from failure. Use when the user asks
-  to frame, freeze, or approve software intent, or when repository instructions
-  require a Steward contract before construction. It applies to small fixes,
-  refactors, features, migrations, and broad requests that may need splitting.
-  Add ceremony only for a material product decision, load-bearing boundary, or
-  preserved invariant. Draft and freeze intent; do not plan or implement the
-  change.
+  Frame software work as a short goal agreement that leaves agents room to
+  adapt. Use when the user asks to frame a task, clarify success and boundaries,
+  or use Steward before building. Reuse existing authorization without adding
+  approval rounds, frozen revisions, or implementation prescriptions.
 ---
 
 # Frame
 
-Steward freezes the minimum decision-complete intent delta, delegates
-construction to an arbitrary inner loop, and later assesses the resulting
-immutable change. The contract defines outcomes and load-bearing boundaries;
-the target codebase remains the source of implementation context.
+Capture what the user wants to accomplish and the few conditions that make the
+result acceptable. Leave the builder free to discover and change the approach.
 
-## Boundaries
-
-- Own intent and authorization, not design or construction.
-- Treat the contract plus the target codebase as the builder interface. Do not
-  turn the contract into a self-contained implementation manual.
-- Record only the requested behavior delta and boundaries plausibly endangered
-  by that delta.
-- Do not copy repository conventions, architecture, API inventories,
-  implementation plans, or test plans into the contract.
-- Do not invent monitoring, credentials, diagnostics, migrations,
-  compatibility promises, or product surfaces merely to make assessment easy.
-- Use only local Markdown paths. Do not add a service, database, issue-tracker
-  adapter, or orchestration layer.
-- Never approve on the user's behalf. Never edit an approved revision.
-
-## Preconditions
-
-Resolve these relative to this `SKILL.md` before running any step; nothing below
-works if one of them is wrong.
-
-- Read `../../resources/references/contract-format.md`.
-- Bind `../../resources/scripts/steward` as `STEWARD_CLI`.
-- Confirm Node.js is on `PATH` (`command -v node`); every CLI call runs as
-  `node "$STEWARD_CLI" ...`. Stop and report if it is missing.
+Read `../../resources/references/goal-agreements.md` for the shared agreement
+and adaptation rules. Framing owns intent; the builder owns planning,
+implementation, and verification strategy.
 
 ## Procedure
 
-1. Inspect the request and only enough target-codebase context to distinguish
-   current behavior, requested behavior, and material ambiguity. Existing
-   repository instructions remain implementation context rather than contract
-   content.
-2. Create a draft:
+1. Read the request and enough codebase context to understand the change. Reuse
+   decisions and authorization already present in the conversation. Ask only
+   about an unresolved choice that materially changes the goal, success
+   conditions, or a hard boundary; ordinary engineering uncertainty belongs
+   to the builder.
+2. Write a short agreement using the shape below. For ordinary work, a
+   paragraph and a few bullets are enough. Omit sections that add no useful
+   information. Use the conversation unless the user requests a file or the
+   repository has an established location.
 
-   ```bash
-   node "$STEWARD_CLI" create path/to/ticket.md \
-     --id short-ticket-id --title "Ticket title"
+   ```markdown
+   Goal: <the result the user wants>
+
+   Success:
+   - <how to recognize that the goal was achieved>
+
+   Boundaries: <only essential limits or endangered behavior, if any>
    ```
 
-   Use `create --from` for a successor that copies the approved body, preserves
-   lineage, and clears approval metadata for deliberate revision.
-3. State one concise `Outcome`: the requested user or business result.
-4. Write the fewest independently assessable `AC<n>` claims that distinguish
-   success from failure. Keep each claim on one line and preserve stable claim
-   ids across revisions. If
-   violating a Scope or Constraints boundary would make delivery unacceptable,
-   express that failure boundary in an acceptance claim; optional prose may
-   clarify claims but is not scored separately during assessment.
-5. Add optional Context, Scope, Constraints, Examples, or Open questions only
-   when the section records information that changes a material outcome:
-   - Scope may name the change, an endangered invariant to preserve, or an
-     important adjacent outcome explicitly excluded.
-   - Constraints are genuine non-negotiable boundaries, not implementation
-     preferences.
-   - Examples disambiguate a claim; they are not a test inventory.
-   - A material open question blocks approval. Ask the user instead of
-     manufacturing a safe-looking default.
-6. Leave unspecified implementation choices to the builder. Evidence methods
-   are selected after construction and do not belong in the contract.
-7. If the request contains independently valuable outcomes or the draft grows
-   beyond roughly eight claims or 1,200 words, first delete implementation
-   detail. If it is still broad, recommend a small outcome-oriented split
-   rather than multiplying traceability. These are guidance signals, not
-   structural validity gates.
-8. Recommend `critique` only when a trigger exists:
-   - reasonable interpretations produce materially different outcomes;
-   - the delta crosses an authorization, security, privacy, data-loss,
-     migration, or compatibility boundary;
-   - an acceptance claim may not distinguish pass from failure; or
-   - the requested outcomes are unusually coupled.
-9. Apply only accepted `contract-defect` findings. Keep builder discretion,
-   follow-up work, and residual uncertainty out of the contract unless the
-   scope owner explicitly expands intent.
-10. Run `check`. Treat `STRUCTURALLY OK` as a syntax, lifecycle, and integrity
-    result—not proof of semantic completeness.
-11. Present the exact path, revision, concise claim summary, optional
-    complexity warnings, and material open questions. Ask for explicit approval
-    of that exact revision.
-12. After explicit approval only, run:
+3. Keep only distinctions that affect whether the result is acceptable. Usually
+   one to three success conditions suffice. Do not turn each interaction,
+   edge case, invariant, or implementation step into a separate claim. Do not
+   repeat boundaries in Success merely to make them assessable.
+4. Keep implementation plans, candidate mechanisms, and test inventories out
+   of the agreement. Preserve an exact mechanism, number, or wording when the
+   user actually requires it; do not promote a suggestion or an example into
+   a requirement. Let the builder choose proportionate evidence later.
+5. Use critique when the user requests it or a concrete unresolved tradeoff
+   merits an independent challenge. Touching permissions, migrations, or
+   another sensitive area alone does not require a critique cycle. Several
+   valid solutions are healthy latitude, not a defect to eliminate.
+6. Deliver the agreement and any material question. A faithful summary of an
+   already authorized request needs no new approval. If the user asked only
+   for framing, finish here. If they also authorized construction, continue
+   through the available construction workflow. Framing does not itself
+   authorize implementation, delegation, or external actions.
 
-    ```bash
-    node "$STEWARD_CLI" approve path/to/ticket.md --by "Approver"
-    ```
+When work is too broad to judge usefully, suggest a few outcome-oriented slices.
+Do not split merely because a goal admits several implementation approaches.
 
-    Re-run `check` and report the frozen body hash.
-
-## Judgment
-
-- “Everything else remains unchanged” is not an invitation to inventory the
-  system. Name only behavior the requested delta plausibly threatens.
-- An external operator or client may be the honest validation boundary. Do not
-  create synthetic infrastructure to replace it.
-- If a claim cannot currently be observed, assessment may later be
-  `inconclusive`; evidence inconvenience does not authorize new product scope.
-- A more detailed contract is not necessarily safer. Prefer deletion, local
-  clarification, or splitting over expansion.
+When discoveries change what the user wants or will accept, ask for the
+smallest necessary decision and update the agreement accordingly. An approach
+change that still meets the agreement needs no amendment or approval cycle.
