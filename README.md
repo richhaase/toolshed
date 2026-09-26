@@ -40,7 +40,6 @@ Add the marketplace:
 codex plugin marketplace add richhaase/toolshed
 codex plugin add memento@toolshed
 codex plugin add actuary@toolshed
-codex plugin add steward@toolshed
 codex plugin add ostrich@toolshed
 ```
 
@@ -88,22 +87,6 @@ and Codex profiles, and evidence-backed authoring criteria. The `skill-audit`
 skill uses a deterministic analyzer for portable L1 and structural L2 evidence,
 then applies ranked L3 craft judgment. An optional privacy review reports
 disclosure risks without producing a release or task-success verdict.
-
-### <img src="plugins/steward/assets/icon.png" width="48" height="48" align="middle" alt=""> [Steward](plugins/steward/) — Stay Aligned, Build What Matters
-
-Keep software work aligned with what you want as it evolves. `align` helps
-agents respond to discoveries and feedback without losing the purpose of the
-work. `simplify` makes worthwhile local edits so completed work fits the
-repository and costs less to maintain, while preserving behavior. `check`
-reviews whether the result solves the current problem and whether its scope
-and complexity are justified, without changing the work. All three use the
-conversation and codebase, with no required sequence, Steward artifact, or
-support for old contract formats.
-
-Ask “Use Steward Align with my latest feedback,” “Use Steward Simplify on this
-completed change,” or “Use Steward Check: does this solve my problem, and have
-we overbuilt it?” See the
-[usage examples](plugins/steward/README.md#use-it).
 
 ### <img src="plugins/ostrich/assets/icon.png" width="48" height="48" align="middle" alt=""> [Ostrich](plugins/ostrich/) — Deliberate Distraction
 

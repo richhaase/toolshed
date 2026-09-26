@@ -20,12 +20,6 @@
       "category": "Developer Tools"
     },
     {
-      "name": "steward",
-      "source": "./plugins/steward",
-      "description": "Stay aligned, simplify completed changes in repository context, and check that the result solves the problem with justified complexity.",
-      "category": "Developer Tools"
-    },
-    {
       "name": "ostrich",
       "source": "./plugins/ostrich",
       "description": "Escape unwanted work through one fresh, unrelated tangent chosen and led by the agent.",
