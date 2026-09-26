@@ -1,5 +1,1 @@
-# Claude Entrypoint
-
-@AGENTS.md
-
-Claude-specific local configuration may remain under `.claude/`.
+[AGENTS.md](AGENTS.md)
