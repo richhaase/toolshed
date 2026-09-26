@@ -27,6 +27,10 @@ Use case: logo-brand. Generate one finished square plugin icon, a sibling of the
 
 ## Steward
 
+The original generation prompt below predates Steward 0.5. Its approval imagery
+records the existing asset's design; the current workflow uses lightweight
+[goal agreements](../plugins/steward/README.md) without freezing.
+
 Use case: logo-brand. Generate one finished square plugin icon, a sibling of the supplied Memento book icon. The supplied image is STYLE REFERENCE ONLY, not a subject to copy. Match its charming chunky illustrated badge style, bold rounded dark-brown outlines, simple shapes, warm restrained solid colors, subtle tactile finish, and optical weight. One large centered coherent symbol, about 68 percent canvas occupancy, generous even padding. Square canvas. True transparent background outside the symbol, no checkerboard painted into the image. Designed to stay recognizable at 32px. No words, letters, numbers, labels, wordmark, sparkles, mockup, outer tile frame, busy details, or surrounding decorative objects. Output a single actual icon asset, not a grid. Plugin: Steward, which frames reviewable software intent and assesses delivery against a contract. Subject: a cream-colored contract sheet held within a sturdy muted-blue square framing device, with a single large gold check mark on the paper. The blue frame visually sets the scope boundary around the paper, with simple thick corners. This should read as a framed approved agreement. Keep it extremely simple and compact: one framed document, two broad short dark strokes near its top, one large check mark below. No seal, shield, padlock, clipboard clip, fountain pen, signatures, or tiny handwriting.
 
 ## Ostrich

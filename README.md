@@ -98,6 +98,10 @@ evidence. Agents can adapt their approach; material changes to the goal or
 boundaries return to the user. Agreements live in conversation or Markdown,
 with no freezing, command-line lifecycle, or additional approval ceremony.
 
+Start with “Use Steward to frame this task,” or ask it to critique an agreement
+or assess current changes. See the [usage examples](plugins/steward/README.md#try-it)
+and [guide for existing contracts](plugins/steward/README.md#moving-from-frozen-contracts).
+
 ### <img src="plugins/ostrich/assets/icon.png" width="48" height="48" align="middle" alt=""> [Ostrich](plugins/ostrich/) — Deliberate Distraction
 
 The `head-in-sand` skill offers a break from overwhelming or unwanted work
