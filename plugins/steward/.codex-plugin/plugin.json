@@ -1,29 +1,28 @@
 {
   "name": "steward",
-  "version": "0.5.0",
-  "description": "Lightweight goal agreements for software work. Frame the result and essential boundaries, critique material gaps or needless restrictions, and assess outcomes while leaving builders room to adapt.",
+  "version": "0.6.0",
+  "description": "Stay aligned as software work evolves, then check that the result solves the problem and its scope and complexity are justified.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["contracts", "tickets", "intent", "scope", "assurance", "assessment", "software-delivery"],
+  "keywords": ["alignment", "goals", "scope", "complexity", "review", "software-delivery"],
   "skills": "./skills/",
   "interface": {
     "composerIcon": "./assets/icon.png",
     "logo": "./assets/icon.png",
     "displayName": "Steward",
-    "shortDescription": "Clear goals with room to adapt",
-    "longDescription": "Keep software work aligned through short goal agreements. Frame the desired result and essential boundaries, critique material gaps or unnecessary restrictions, and assess the work using proportionate evidence. Builders can change their approach while user decisions control changes to the goal. Agreements live in conversation or Markdown with no freezing or command-line lifecycle.",
+    "shortDescription": "Stay aligned, build what matters",
+    "longDescription": "Keep the agent's understanding current as discoveries and feedback change software work. Align helps resolve consequential choices; Check examines whether the actual result solves the user's problem and whether its scope and complexity are justified. Both work from the current conversation and codebase without a required artifact or legacy contract support.",
     "developerName": "Rich Haase",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://github.com/richhaase/toolshed",
     "defaultPrompt": [
-      "Frame this request as a short goal agreement.",
-      "Critique this agreement for gaps and needless restrictions.",
-      "Assess whether this work achieved the agreed goal."
+      "Use Steward Align with my latest feedback and the current work.",
+      "Use Steward Check: does this solve my problem, and have we overbuilt it?"
     ]
   }
 }

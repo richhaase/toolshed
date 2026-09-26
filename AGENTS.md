@@ -121,11 +121,11 @@ the explicit validation and privacy commands required by the workflow above.
 - **actuary** — Audit and evaluate Agent Skills against agentskills.io spec
   and authoring best practices. First skill: `skill-audit` (read-only L1/L2/L3
   layered report). Designed to grow with additional evaluator skills.
-- **steward** — Lightweight goal agreements for software work. `frame` captures
-  the goal, success conditions, and essential boundaries; `critique` checks for
-  material gaps and needless restrictions; `assess` judges the result using
-  proportionate evidence. Builders can adapt their approach while owner
-  decisions control changes to the goal or boundaries. No freezing or CLI.
+- **steward** — Alignment and proportionate solutions for software work.
+  `align` keeps the agent's understanding current as discoveries and user
+  feedback change the work. `check` examines whether the result solves the
+  current problem and whether its scope and complexity are justified. Both
+  use the conversation and codebase; no prior artifact or legacy contract support.
 - **ostrich** — Deliberate context-break workflow (`head-in-sand`).
   Silently excludes the active work cluster, uses optional random domain
   prompts to widen a quality-ranked candidate pool, and delivers one coherent,

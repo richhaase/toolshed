@@ -3,168 +3,133 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Use Steward Frame: On the empty Sources page, change the title from 'No sources found' to 'No sources yet.' Nothing else changes. Draft only; do not implement.",
-      "expected_output": "A sentence or very short agreement preserving the exact requested copy, with no additional approval ceremony.",
+      "prompt": "Use Steward Align. I asked for a CSV download of the employee list with current filters. The agent's plan now includes scheduled delivery, a format registry, and saved export presets. I never requested those. What should happen next?",
+      "expected_output": "Recognize the agent's scope drift and recommend returning to the requested download without requiring approval of every simplification.",
       "expectations": [
-        "The requested copy change is exact and no unrelated changes are invented.",
-        "The agreement adds no metadata, freeze step, claim IDs, evidence inventory, or mandatory critique.",
-        "The agent stops after framing because implementation was not authorized."
+        "The current user goal is distinguished from the agent's invented plan.",
+        "Speculative capabilities are trimmed from the proposed direction rather than promoted into user requirements.",
+        "No agreement, acceptance checklist, or approval ritual is generated."
       ],
       "files": []
     },
     {
       "id": 2,
-      "prompt": "Use Steward Frame: Consolidate two duplicate role-expression parsers into one shared implementation. Supported inputs, parsed results, and error behavior must remain unchanged. Draft only.",
-      "expected_output": "A short refactor agreement preserving the behavioral boundary while leaving implementation choices open.",
+      "prompt": "Use Steward Align. I asked for returning from employee details to restore search, filters, and sorting. The agent planned URL parameters, but inspection shows existing cached state can achieve the same result while direct links still work. Continue the authorized work.",
+      "expected_output": "Accept the implementation discovery and continue without asking the user to choose a mechanism.",
       "expectations": [
-        "The agreement preserves supported inputs, results, and error behavior.",
-        "It does not prescribe module names, function signatures, dependency direction, rollout mechanics, or test filenames.",
-        "The same preservation boundary is not repeated across multiple sections just for assessment."
+        "An implementation-only change is handled with engineering judgment.",
+        "The requested result and direct-link behavior remain intact.",
+        "There is no unnecessary owner question or document revision."
       ],
       "files": []
     },
     {
       "id": 3,
-      "prompt": "Use Steward Critique. Goal: Division administrators can export employees in their administered divisions. Success: An administrator can download the employee CSV for an administered division. Boundaries: No employee data from a division they do not administer may be exposed. Produce findings only.",
-      "expected_output": "A ready recommendation without demanding a duplicate acceptance claim for the existing boundary.",
+      "prompt": "Use Steward Align. I originally said the employee page felt cluttered. The agent planned a minimal list that hides secondary fields. I have now clarified: keep every field visible; use grouping and spacing to make it easier to scan. We have not built it yet. Help with the next direction.",
+      "expected_output": "Use the latest clarification to replace the agent's assumption and recommend a direction with every field visible.",
       "expectations": [
-        "The named access boundary counts as part of the agreement directly.",
-        "The critique does not require numbered claims or invent unrelated security work.",
-        "The critique produces no contract file or edits."
+        "The agent's earlier interpretation is not treated as a binding user decision.",
+        "The user's correction is carried forward without an amendment or reapproval ceremony.",
+        "No layout is mandated beyond the user's actual preference."
       ],
       "files": []
     },
     {
       "id": 4,
-      "prompt": "Use Steward Frame: Show integration status in admin. Use configuration and route-health information only when it already exists. Label configured state 'Configured,' not 'Connected.' Do not add synthetic monitoring, credentials, or live probes. Real authenticated usability is validated separately by an operator. Draft only.",
-      "expected_output": "A short agreement covering honest status labels and the available evidence boundary.",
+      "prompt": "Use Steward Align. Our CSV-download work has revealed that the largest exports cannot finish during an ordinary request. Supporting them would add a background download flow. The user has not said whether those large exports matter for this task. Advise only.",
+      "expected_output": "Explain the tradeoff, recommend a direction conditional on the user's need, and ask one focused question about that need.",
       "expectations": [
-        "The exact required label is preserved and configuration is not treated as authenticated usability.",
-        "The agreement adds no monitoring, credentials, diagnostic identity, live API call, or background job.",
-        "Unavailable route-health evidence is not treated as proof of failure.",
-        "Separate operator validation does not become a requirement to build more infrastructure."
+        "The question concerns the useful result or cost, not a low-level implementation choice.",
+        "The agent does not silently add asynchronous export scope or silently exclude the large lists.",
+        "Advice does not trigger implementation."
       ],
       "files": []
     },
     {
       "id": 5,
-      "prompt": "Use Steward Frame: Replace the admin application with a new design system, migrate every page, redesign navigation, improve performance, preserve all permissions, add analytics, and clean up routing. Draft only.",
-      "expected_output": "A few outcome-oriented slices and a focused owner question where necessary, rather than an exhaustive contract.",
+      "prompt": "Use Steward Align. The user wants Back to restore search, filters, and sorting. The current approach cannot restore sorting, so the builder proposes dropping it. The user has not relaxed that request.",
+      "expected_output": "Recognize that dropping sorting changes the requested result; pursue another approach or surface the owner decision before relaxing it.",
       "expectations": [
-        "The agent identifies a material missing decision such as the intended performance result or analytics purpose.",
-        "It does not fabricate thresholds, an analytics taxonomy, a rollout mechanism, or component APIs.",
-        "Any suggested split follows independently useful goals rather than implementation steps."
+        "Engineering difficulty does not authorize silently dropping an explicit user request.",
+        "The agent can keep unaffected authorized work moving.",
+        "No old contract or formal agreement is required to recognize the user's intent."
       ],
       "files": []
     },
     {
       "id": 6,
-      "prompt": "Write a Steward contract for making the employee list easier to scan, with clearer grouping and hierarchy. Keep all current information and actions available. Choose the visual approach yourself. Draft only.",
-      "expected_output": "A brief qualitative goal agreement that preserves the delegated visual latitude.",
+      "prompt": "Use Steward Check. The current goal is an on-demand CSV download of the filtered employee list. Focused checks show correct filtered rows, quoted-value handling, and access rules. Inspection also shows a new scheduler, export-template database, and format-plugin registry. There are no current callers for those capabilities, and the user did not request scheduled or multi-format exports. Review only.",
+      "expected_output": "Explain that the requested download works while identifying the unsupported additions and their concrete maintenance or operational cost.",
       "expectations": [
-        "The word contract does not cause metadata, freezing, a CLI dependency, or formal approval.",
-        "The agent does not demand a layout decision or invent a numerical usability target.",
-        "The preservation boundary is explicit and no redesign of unrelated workflows is added."
+        "Meeting the happy path does not erase the excess-scope finding.",
+        "The review names the unnecessary additions and a simpler direction that preserves the download.",
+        "No implementation or test files are changed."
       ],
       "files": []
     },
     {
       "id": 7,
-      "prompt": "Use Steward Critique. Original request: Browser Back should restore employee-list search, filters, and sorting; direct links must work. URL state was suggested as one possible approach. Draft: Goal: Resume list work after detail. Success: Restore search, filters, and sort. Boundaries: Preserve direct links and permissions; implement URL parameters via ListStateCoordinator; add at least six browser tests. Produce findings only.",
-      "expected_output": "A minimal revision removing unjustified implementation and test prescriptions while preserving the goal and real boundaries.",
+      "prompt": "Use Steward Check. The user requested reliable exports of several million filtered records. Measurements show synchronous requests time out. The implementation reuses the existing job queue and object store for background downloads; targeted checks show completion and authorization. There is no new scheduler or format registry. Review the complexity.",
+      "expected_output": "Recognize the demonstrated need and existing architecture as justification for background processing.",
       "expectations": [
-        "The critique identifies restrictions unsupported by the request.",
-        "The resolution removes those mandates instead of replacing them with another mechanism.",
-        "The requested restoration and direct-link behavior remain binding."
+        "Background machinery is not automatically labeled overbuilt.",
+        "The reasoning uses the user's scale requirement and observed timeout rather than hypothetical needs.",
+        "The reviewer does not recommend a smaller solution that cannot meet the request."
       ],
       "files": []
     },
     {
       "id": 8,
-      "prompt": "Use Steward Assess. Agreement: Back restores search, filters, and sorting; direct detail links still work. The builder originally planned URL state but used existing cached state. Current uncommitted-work evidence includes a browser trace showing restoration and an existing route test showing direct links work. Assess only.",
-      "expected_output": "A passing assessment when the supplied evidence establishes the agreement, accepting the changed implementation approach.",
+      "prompt": "Use Steward Check. The goal is to export only records from a division the administrator controls. A targeted observation of the current change shows an administrator of synthetic Division A receiving Division B's employee rows. The builder says the happy path works and permission handling was deferred.",
+      "expected_output": "Identify the observed access violation as a real problem preventing the requested result from being considered complete.",
       "expectations": [
-        "A valid alternative mechanism does not trigger contract revision or owner approval.",
-        "The assessor verifies the evidence applies to the assessed working state without demanding a commit or frozen contract.",
-        "No new cross-browser, analytics, performance, or test-count conditions are added."
+        "A demonstrated violation is not downgraded to uncertainty.",
+        "Builder rationale does not waive the user need.",
+        "The report uses plain language and evidence without requiring numbered claims or formal verdicts."
       ],
       "files": []
     },
     {
       "id": 9,
-      "prompt": "Use Steward Assess. Goal: Explain and enable the new archive feature. Success: Settings explains its behavior and every production workspace has it enabled. The change and a focused test establish the explanation. Verifying production enablement requires privileged access neither assessor nor implementer has. Assess only.",
-      "expected_output": "An inconclusive overall result distinguishing established implementation behavior from unavailable operator evidence.",
+      "prompt": "Use Steward Check. The change emits the established event intended to increment a downstream delivery counter. Inspection verifies the event, but the downstream counter cannot be observed without operator access. The user's goal is that failed deliveries increment that counter. Review only.",
+      "expected_output": "Explain the established implementation behavior and the unverified downstream result, with a concise request for the missing observation.",
       "expectations": [
-        "The implemented explanation is recognized as established.",
-        "Missing production access is not classified as an implementation defect or assigned back to an implementer who lacks it.",
-        "The report gives the user one concise operator observation request.",
-        "No diagnostic infrastructure is invented to replace the unavailable evidence."
+        "Event emission alone is not presented as proof of the counter result.",
+        "The check does not require a new metrics client or diagnostic system merely to obtain evidence.",
+        "The report distinguishes missing evidence from a demonstrated implementation problem."
       ],
       "files": []
     },
     {
       "id": 10,
-      "prompt": "Use Steward Assess. Agreement: Each failed delivery increments an operational counter grouped only by channel. The change emits the repository's established structured event for log-derived counters. No direct metrics client exists. Evidence establishes the event but not the downstream counter. The agreement did not prescribe transport. Assess only.",
-      "expected_output": "An inconclusive counter result with an observation request for the downstream outcome, without mandating a different transport.",
+      "prompt": "Use Steward Check. The user wants an employee list that is easier to scan while keeping current fields and actions visible. Before-and-after screenshots show department grouping, consistent alignment, and clear action placement. Inspection confirms all fields and actions remain. The change uses an existing layout component and focused regression tests. Review only.",
+      "expected_output": "A reasoned qualitative conclusion from the observations, without invented numerical criteria or objections to ordinary tests.",
       "expectations": [
-        "The builder's engineering rationale does not by itself establish the counter outcome.",
-        "The assessor does not require a direct metrics client or listener.",
-        "It requests existing evidence of the agreed result and does not relax the requirement to event emission without an owner decision."
+        "The visual goal can be judged from concrete observations.",
+        "No arbitrary scanning-time benchmark or preferred layout is invented.",
+        "Existing components and useful regression tests are not treated as excess merely because they add code."
       ],
       "files": []
     },
     {
       "id": 11,
-      "prompt": "Use Steward Assess. Goal: Division administrators can export their division's employee rows. Boundaries: No other division's employee data may be exposed. A targeted check on the assessed change shows an administrator of Division A obtaining Division B's rows. The builder says enforcing this is difficult. Assess only.",
-      "expected_output": "A failed assessment because the observed result violates an explicit boundary.",
+      "prompt": "Use Steward Check. The current change implements the user-requested behavior using four small modules and focused tests. The initial agent plan proposed one file. No extra capability, dependency, configuration, or operational obligation is apparent. The modules follow the repository's existing organization. Is this overbuilt?",
+      "expected_output": "Explain that the file count and departure from an initial plan do not establish overbuilding; judge the work against its actual purpose and context.",
       "expectations": [
-        "A boundary violation fails even without numbered acceptance claims.",
-        "Engineering difficulty does not waive the boundary or turn contradictory evidence into uncertainty.",
-        "No unrelated requirements are added."
+        "No unsupported excess finding is manufactured from file counts.",
+        "The agent's initial plan is not an acceptance requirement.",
+        "The response states the limits of the supplied evidence rather than claiming unobserved runtime correctness."
       ],
       "files": []
     },
     {
       "id": 12,
-      "prompt": "Use Steward Assess. The original agreement said to preserve existing freshness-setting behavior during migration. A prior assessment could not determine whether this meant configured duration or next refresh time. The owner has now said: 'Preserve the next scheduled refresh time, even if that changes the remaining duration; that is the requirement I want.' Framing recorded that clarification in the same agreement. A check on the current work confirms preservation of the next scheduled time. Assess only.",
-      "expected_output": "An assessment against the clarified agreement that discloses the changed basis, without requiring frozen revisions.",
+      "prompt": "Use Steward Check on the old Steward contract at legacy.contract.md. It is the only description of the task I have supplied.",
+      "expected_output": "State that old Steward contract formats are unsupported and ask for the current goal and relevant user choices in ordinary language.",
       "expectations": [
-        "The owner decision is accepted without a successor artifact or reapproval cycle.",
-        "The report identifies the clarified success condition and ties its conclusion to the observed check.",
-        "The assessor does not claim the original ambiguous requirement had already been established or modify implementation."
-      ],
-      "files": []
-    },
-    {
-      "id": 13,
-      "prompt": "Use Steward to frame and make this change in a supplied local page: replace the visible title 'No sources found' with 'No sources yet.' Nothing else changes.",
-      "expected_output": "A tiny agreement followed by the authorized edit and proportionate verification.",
-      "expectations": [
-        "The agent does not stop to ask approval of its faithful restatement.",
-        "The edit preserves the exact requested wording and leaves adjacent behavior alone.",
-        "No contract file, CLI, freeze, or critique cycle is created unless separately requested."
-      ],
-      "files": []
-    },
-    {
-      "id": 14,
-      "prompt": "Use Steward Frame during construction. Our agreement requires Back to restore search, filters, and sorting, with direct links preserved. The builder discovered its chosen router cannot preserve sorting using the current approach and proposes dropping sort restoration. What should happen next?",
-      "expected_output": "A focused owner decision about relaxing the requirement or continued exploration of an approach that meets it.",
-      "expectations": [
-        "Dropping sort restoration is treated as a requirement change, not ordinary implementation discretion.",
-        "The agent does not approve the relaxation itself.",
-        "Unaffected authorized work may continue without freezing or creating successor artifacts."
-      ],
-      "files": []
-    },
-    {
-      "id": 15,
-      "prompt": "Use Steward Assess. Agreement: Make the employee list easier to scan through clearer grouping and hierarchy while retaining all current information and actions. The user delegated visual choices. Before-and-after screenshots show department headings and a consistent alignment of names, roles, and actions; inspection confirms all prior information and actions remain available. Assess only.",
-      "expected_output": "A reasoned qualitative assessment tied to the observations, without retroactive metrics or preferred layouts.",
-      "expectations": [
-        "Concrete visual observations can support a pass on the qualitative goal.",
-        "The assessor does not demand a numerical scanning-time benchmark or a layout the user did not require.",
-        "The preservation boundary is assessed using the available inspection evidence."
+        "The agent does not open, interpret, convert, validate, or score the legacy contract.",
+        "No compatibility mode or migration artifact is offered.",
+        "The clarification asks for current intent rather than a rewrite of a legacy schema."
       ],
       "files": []
     }

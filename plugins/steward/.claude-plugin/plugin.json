@@ -1,13 +1,13 @@
 {
   "name": "steward",
-  "version": "0.5.0",
-  "description": "Lightweight goal agreements for software work. Frame the result and essential boundaries, critique material gaps or needless restrictions, and assess outcomes while leaving builders room to adapt.",
+  "version": "0.6.0",
+  "description": "Stay aligned as software work evolves, then check that the result solves the problem and its scope and complexity are justified.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
   },
   "repository": "https://github.com/richhaase/toolshed",
   "license": "MIT",
-  "keywords": ["contracts", "tickets", "intent", "scope", "assurance", "assessment", "software-delivery"],
+  "keywords": ["alignment", "goals", "scope", "complexity", "review", "software-delivery"],
   "skills": "./skills/"
 }

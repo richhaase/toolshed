@@ -89,18 +89,17 @@ skill uses a deterministic analyzer for portable L1 and structural L2 evidence,
 then applies ranked L3 craft judgment. An optional privacy review reports
 disclosure risks without producing a release or task-success verdict.
 
-### <img src="plugins/steward/assets/icon.png" width="48" height="48" align="middle" alt=""> [Steward](plugins/steward/) — Goal Agreements
+### <img src="plugins/steward/assets/icon.png" width="48" height="48" align="middle" alt=""> [Steward](plugins/steward/) — Stay Aligned, Build What Matters
 
-Keep software work aligned without prescribing how to build it. `frame`
-captures a short goal agreement, `critique` checks for material gaps and
-needless restrictions, and `assess` judges the result using proportionate
-evidence. Agents can adapt their approach; material changes to the goal or
-boundaries return to the user. Agreements live in conversation or Markdown,
-with no freezing, command-line lifecycle, or additional approval ceremony.
+Keep software work aligned with what you want as it evolves. `align` helps
+agents respond to discoveries and feedback without losing the purpose of the
+work. `check` verifies that the result solves the current problem and examines
+unnecessary scope or complexity. Both use the conversation and codebase, with
+no required Steward artifact or support for its old contract formats.
 
-Start with “Use Steward to frame this task,” or ask it to critique an agreement
-or assess current changes. See the [usage examples](plugins/steward/README.md#try-it)
-and [guide for existing contracts](plugins/steward/README.md#moving-from-frozen-contracts).
+Ask “Use Steward Align with my latest feedback” or “Use Steward Check: does this
+solve my problem, and have we overbuilt it?” See the
+[usage examples](plugins/steward/README.md#use-it).
 
 ### <img src="plugins/ostrich/assets/icon.png" width="48" height="48" align="middle" alt=""> [Ostrich](plugins/ostrich/) — Deliberate Distraction
 
