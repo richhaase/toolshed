@@ -74,9 +74,11 @@ demand) -> L3 (sources, cold storage). Claude Code uses a thin `CLAUDE.md`
 entrypoint that imports `AGENTS.md`. Includes setup, compilation, read-only
 health checks, session capture, active interview, and follow-up queue review.
 
-Memento can be installed globally while the actual wiki lives in one configured
-data root. Set `MEMENTO_ROOT=/path/to/memento` or add a `.memento-root` file to
-a project repo; the bundled `skills/_shared/scripts/memento-root` and
+Memento can be installed globally while shared policy and memory live in one
+configured data root. Setup creates thin global Claude/Codex entrypoints;
+existing instructions require a reviewed migration. Native memories are not
+automatically rewritten or synchronized. Explicit `MEMENTO_ROOT` and project
+`.memento-root` overrides remain supported; the bundled `skills/_shared/scripts/memento-root` and
 `skills/_shared/scripts/memento-run` helpers make each skill operate from the
 resolved root instead of assuming the current repo is the Memento.
 

@@ -13,6 +13,7 @@ Resolution order:
   1. MEMENTO_ROOT environment variable
   2. nearest .memento-root file walking upward from the current directory
   3. current directory, if it already looks like a Memento
+  4. global Memento entrypoints installed by memento-config (requires Node.js)
 
 .memento-root may contain an absolute path, a ~ path, or a path relative to
 the directory containing the marker file. Blank lines and # comments are
@@ -191,6 +192,18 @@ cwd="$(pwd -P)"
 if [[ -d "$cwd/sources" && -d "$cwd/wiki" && -f "$cwd/AGENTS.md" ]]; then
   printf '%s\n' "$cwd"
   exit 0
+fi
+
+if command -v node >/dev/null 2>&1; then
+  set +e
+  global_root="$(node "$(dirname "${BASH_SOURCE[0]}")/global-entrypoints" resolve)"
+  global_rc=$?
+  set -e
+  if [[ $global_rc -eq 0 ]]; then
+    print_root "$global_root"
+  elif [[ $global_rc -ne 69 ]]; then
+    exit "$global_rc"
+  fi
 fi
 
 cat >&2 <<'EOF'

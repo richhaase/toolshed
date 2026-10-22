@@ -16,6 +16,14 @@ Resolution order (see `../_shared/scripts/memento-root --help`):
 2. nearest `.memento-root` file walking upward from the current directory
 3. current directory, if it already looks like a Memento (`sources/`,
    `wiki/`, and `AGENTS.md` all present)
+4. global single-line Memento entrypoints installed by `memento-config`
+   (Node.js required for this fallback)
+
+Global discovery respects `CODEX_HOME` and `CLAUDE_CONFIG_DIR`. When both
+entrypoints exist they must identify the same Memento; disagreement fails
+instead of guessing. An explicit environment value or project marker still
+takes precedence. Loading shared memory does not change the application's
+working directory or make the Memento its repository context.
 
 The script exits non-zero with a clear message when no root is configured.
 

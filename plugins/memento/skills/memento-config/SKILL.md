@@ -3,11 +3,11 @@ name: memento-config
 description: >
   Set up a new Memento or reconfigure an existing one. Use when the user asks
   to create/scaffold a Memento knowledge base, initialize its wiki and canonical
-  AGENTS.md context, repair missing structure, or change entity types, profile,
+  AGENTS.md context and global harness entrypoints, repair missing structure, or change entity types, profile,
   nicknames, or labels. Detects new versus existing state and applies targeted,
   idempotent updates. This is the Memento entry point, not the workflow for
   compiling, capturing a session, triaging follow-ups, or running diagnostics.
-compatibility: Requires Bash and Git. Works in Claude Code and Codex repositories that support AGENTS.md context.
+compatibility: Requires Bash and Git; Node.js for global entrypoint configuration. Supports Claude Code and Codex.
 allowed-tools: Bash Read Write Edit Glob Grep AskUserQuestion
 ---
 
@@ -17,11 +17,18 @@ Idempotent setup-and-update surface for the Memento. On a fresh directory,
 scaffolds and interviews. On an existing Memento, detects current state and
 offers a targeted update menu.
 
+The Memento is shared memory outside either harness's native memory system.
+For global setup, its `AGENTS.md` is the single canonical instruction source;
+the selected global harness files contain only a reference to it. Use
+`references/global-entrypoints.md` for setup and reviewed migration. Do not
+change live configuration when the user authorized only plugin development.
+
 ## Gotchas
 
-- **Never overwrite `AGENTS.md`, `CLAUDE.md`, `.gitignore`, or `wiki/` content.**
+- **Never overwrite Memento-root `AGENTS.md`, `CLAUDE.md`, `.gitignore`, or `wiki/` content.**
   Edits are surgical — add what's missing, amend what the user changes, never
-  replace a file wholesale. This is what makes the skill safe to re-run.
+  replace a file wholesale. Global harness files have a separate reviewed
+  migration procedure in `references/global-entrypoints.md`.
 - **Idempotent by design.** Re-running detects current state (Phase 0: `MODE=new`
   vs `update`) and only backfills what's absent — setup and update are the same
   entry point.
@@ -53,10 +60,12 @@ If the user gives a target directory, use that as `MEMENTO_ROOT`. If they ask fo
 global Memento and do not give a path, ask for the location. If they just ask to set
 up the current repo, use the current working directory.
 
-For global plugin use, support either configuration method:
+Root resolution supports:
 
 - `MEMENTO_ROOT=/path/to/memento` in the user's shell environment.
 - A `.memento-root` file in any project repo containing `/path/to/memento` or a relative path.
+- Global entrypoints installed by this skill, discovered by the resolver when
+  no explicit environment value, project marker, or local Memento applies.
 
 After choosing `MEMENTO_ROOT`, run filesystem and git commands against that directory
 with absolute paths or `git -C "$MEMENTO_ROOT" ...`. Script paths are shown relative
@@ -71,6 +80,7 @@ contracts, not optional background:
 - Before the first write in any phase: `references/commit-safety.md` (index
   preflight, `MEMENTO_TOUCHED` list, exact-path staging, staged-diff
   verification).
+- Before global setup or migration: `references/global-entrypoints.md`.
 - Before Phase 1's directory creation: `references/scaffold-layout.md`
   (canonical tree and what each directory holds).
 - Before Phase 1's starter context files: `references/agents-md-template.md`
@@ -103,7 +113,7 @@ fi
   missing directories. Then enter the **Update branch** below instead
   of the full interview.
 
-In any mode, never overwrite existing `AGENTS.md`, `CLAUDE.md`,
+In any mode, never overwrite existing Memento-root `AGENTS.md`, `CLAUDE.md`,
 `.gitignore`, or wiki content. Edits are surgical — add what's missing,
 amend what the user changes — never replace the file wholesale.
 
@@ -138,6 +148,9 @@ Write `CLAUDE.md` only as a thin harness entrypoint whose first content is the
 bare `@AGENTS.md` import. Do not merely tell a future agent to read the file;
 the import is what makes Claude Code load it deterministically. Do not duplicate the Memento operating model, Entity Types
 registry, or hot set into that file.
+
+Resolve relative paths in the shared context against `MEMENTO_ROOT`, since
+global entrypoints also load it during work in unrelated repositories.
 
 If setting up a legacy repo that already has a full `CLAUDE.md` but no
 `AGENTS.md`, preserve the full Memento context by moving or copying it into
@@ -273,6 +286,10 @@ git -C "$MEMENTO_ROOT" commit -m "Customize Memento: <brief summary of entity ty
 
 #### Tell the user what's next
 
+For global setup, configure the selected harness entrypoints using
+`references/global-entrypoints.md` after canonical context is ready. Preview
+existing global rules and obtain migration approval before replacing them.
+
 Suggest they:
 - Add notes to `sources/`
 - Use `/save` at end of sessions to capture value (decisions, research,
@@ -314,6 +331,9 @@ ask one concise plain chat question:
 - **Re-scaffold missing directories** — run the idempotent `mkdir -p`
   pass against the canonical structure. No-op if everything is
   already present.
+- **Configure global entrypoints or migrate shared rules** — follow
+  `references/global-entrypoints.md`. Inspect and preview existing rules;
+  do not replace global files until the user approves that migration.
 
 After the targeted edit, commit:
 
@@ -330,7 +350,7 @@ they're done, exit.
 
 - **Surgical, not destructive.** Existing wiki pages, sources, and
   hot set tables stay intact. Updates touch only the registry, profile,
-  or nickname/label tables they target.
+  nickname/label tables, or shared rules and entrypoints the user requested.
 - **Show before applying.** For modifications, show the current entity
   type definition and the proposed change side-by-side before
   editing. Confirm with the user.

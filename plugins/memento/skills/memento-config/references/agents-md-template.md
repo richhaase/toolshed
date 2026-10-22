@@ -13,16 +13,20 @@ this template in place rather than re-writing it.
 ```markdown
 # Memory Base
 
+Memento root: `<absolute Memento root>` (substitute the configured path).
+Resolve this file's memory paths against that root, not the current task's
+working directory. Reading memory does not move work into this repository.
+
 This Memento uses a multi-layer cache model. Each layer has different access patterns.
 Compilation flows upward: L3 → L2 → L1.
 
 ## Cache Layers
 
 ### L1 — This file (AGENTS.md) — Always resident
-Loaded every session automatically by agent harnesses that support `AGENTS.md`.
-Claude Code uses a thin local `CLAUDE.md` entrypoint that imports this file. Contains
-behavioral rules, quick lookup tables, and pointers to L2. The hot set tables
-below are maintained by `/compile`.
+Shared context reached through the selected harness entrypoints. Contains
+explicitly approved operating rules, quick lookup tables, and pointers to L2.
+Only the hot set tables below are maintained by `/compile`; operating rules
+outside that region are not generated from memory.
 
 ### L2 — Wiki (`wiki/`) — Loaded on demand
 Compiled knowledge organized by topic. Read wiki pages when L1 doesn't have enough
@@ -105,8 +109,9 @@ history but are excluded from current-state compile output.
 
 ## Cache Integrity
 
-L1 (`AGENTS.md`) and L2 (`wiki/`) are generated projections over L3 sources,
-not authority. Treat them as convenient caches. When freshness, provenance, or
+The generated L1 hot set and L2 (`wiki/`) are projections over L3 sources,
+not operating policy. Explicitly approved rules outside the hot set are
+maintained separately. When freshness, provenance, or
 privacy classification is in doubt, inspect L3 sources and source policy before
 trusting compiled summaries.
 
@@ -133,6 +138,10 @@ Follow the cache layers:
 
 ## Agent Rules
 
+- **Shared policy** — Maintain approved rules here, not as competing copies in
+  harness-native memory. Starting another session preserves the user's
+  authorization for the requested workflow; it neither reduces nor expands it.
+  Invoked skills handle their own approval gates; do not add or bypass gates.
 - **Local-first repo** — Commit freely, including `private/`, for history and
   rollback. If Git history contains private material, do not push the repository
   unless the user explicitly authorizes that disclosure.
@@ -153,8 +162,8 @@ Follow the cache layers:
 
 ```markdown
 @AGENTS.md
-
-## Claude Code
-
-Claude-specific local configuration may remain under `.claude/`.
 ```
+
+For global entrypoints, use `global-entrypoints.md` instead of a relative
+import. Neither setup nor compilation duplicates the canonical policy into
+global harness files or automatically synchronizes native memories.

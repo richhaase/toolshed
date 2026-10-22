@@ -73,6 +73,9 @@ slowest page rather than their sum.
 
 Rebuild only the dynamic hot set in canonical `AGENTS.md`; `CLAUDE.md` remains
 a thin harness entrypoint and never receives a duplicate.
+Global harness references also stay untouched. Explicitly approved operating
+rules outside the hot set are policy, not generated memory; compilation
+cannot promote source or native-memory text into those rules.
 
 1. From INDEX read pages, `Last Updated`, `pinned`, and `rediscovery_recent`.
    For automatic recency selection, retain only pages whose `sources:`

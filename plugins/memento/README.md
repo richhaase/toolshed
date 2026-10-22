@@ -1,7 +1,9 @@
 # <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> memento — Personal Memory Base Plugin
 
-A multi-layer cache memory base with automated compilation from sources to
-wiki to canonical `AGENTS.md` context.
+A harness-independent notes and memory base with automated compilation from
+sources to wiki to a shared `AGENTS.md` hot set. Explicitly approved operating
+rules live outside that generated region; native agent memory is not another
+policy authority.
 
 The plugin can be installed globally. Its skills resolve the Memento data root before
 reading or writing, so the wiki can live in one configured directory while the
@@ -13,7 +15,8 @@ skills are invoked from any project.
 - Git is required for local-history workflows and commit-backed incremental
   detection. Compile also supports non-Git Mementos with mtime detection.
 - Node.js is required for compile's evidence reconciliation, connection graph,
-  and deterministic eval gate, and for the corresponding health diagnostics.
+  and deterministic eval gate, the corresponding health diagnostics, and global
+  entrypoint configuration/discovery.
 
 Claude Code and Codex do not by themselves guarantee that `node` is installed or
 available on `PATH`; the skills preflight it before Node-backed work.
@@ -27,10 +30,10 @@ measuring activation; they are evidence data, not a claimed behavioral pass.
 The Memento treats knowledge like a CPU cache hierarchy. The full chain is
 **L1 -> L2 -> L3 -> source of truth**:
 
-- **L1 — `AGENTS.md`** (always resident where supported): Hot set tables with
-  pointers to wiki pages. `CLAUDE.md` is a thin harness entrypoint that
-  points to the same canonical context. Maintained automatically by
-  `/compile`.
+- **L1 — the generated `AGENTS.md` hot set:** Pointers to wiki pages, maintained
+  by `/compile`. The rest of `AGENTS.md` holds curated operating policy and
+  context, not generated instructions. Global harness entrypoints refer to
+  this one canonical file rather than maintaining competing copies.
 - **L2 — Wiki** (loaded on demand): Compiled topic pages. Read when L1 doesn't have enough detail.
 - **L3 — Sources** (cold storage): Raw ingestion. **L3 is not uniformly
   authority** — it holds two kinds of source:
@@ -67,6 +70,12 @@ customizing entity types, profile, and nicknames. On an existing Memento,
 it detects current state and offers a targeted update branch (add an entity
 type, modify an entity type, update profile, update nicknames).
 
+For global setup, select Claude Code, Codex, or both. Setup creates only a
+single-line reference in each selected global instruction file. Existing rules
+are previewed for a user-approved migration, never silently overwritten. See
+[global entrypoints and migration](skills/memento-config/references/global-entrypoints.md).
+This does not disable or synchronize harness-native automatic memory.
+
 ## Memento root configuration
 
 Skills resolve the Memento root in this order:
@@ -74,8 +83,14 @@ Skills resolve the Memento root in this order:
 1. `MEMENTO_ROOT` environment variable
 2. nearest `.memento-root` file walking upward from the current directory
 3. current directory, if it already looks like a Memento
+4. the global entrypoints installed by `memento-config` (Node.js required)
 
-For a global Memento, either export `MEMENTO_ROOT`:
+If both global entrypoints exist, they must refer to the same Memento. A
+conflict is reported rather than choosing one silently. A global memory
+reference does not change the application's working directory.
+
+Global entrypoints are configured through `/memento-config`. To override root
+discovery explicitly, export `MEMENTO_ROOT`:
 
 ```bash
 export MEMENTO_ROOT=~/src/memento
@@ -89,6 +104,9 @@ Or add a `.memento-root` file to a project:
 
 Bundled scripts:
 
+- `skills/_shared/scripts/global-entrypoints` previews and installs missing
+  one-line harness references; it refuses existing conflicting files. Tests:
+  `node --test skills/memento-config/scripts/global-entrypoints.test.cjs`.
 - `skills/_shared/scripts/memento-root` prints the resolved Memento root.
 - `skills/_shared/scripts/memento-root --self-test` verifies environment,
   marker, relative, tilde, fallback, allow-missing, and failure behavior.
@@ -154,7 +172,7 @@ out to be a real commitment that belongs in the issue tracker).
 
 ## Health and eval discipline
 
-L1 and L2 are generated projections over L3 sources, not authority — and a
+The L1 hot set and L2 are generated projections over L3 sources, not policy — and a
 *projected* L3 source (a provider sync) is itself a projection over its upstream
 system, not authority. Use
 `health-check` before adding retrieval machinery: it audits cache freshness,

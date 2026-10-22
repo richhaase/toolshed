@@ -157,8 +157,11 @@ the explicit validation and privacy commands required by the workflow above.
   the same conceptual context. In this repo, `AGENTS.md` is canonical and
   `CLAUDE.md` is a thin pointer to it.
 - For Memento consumer repos, treat `AGENTS.md` as the canonical shared
-  Memento context. `CLAUDE.md` should be a thin harness entrypoint that
-  routes to it, not a duplicated copy of the same Memento state.
+  Memento context and approved operating policy. Global harness files contain
+  only a reference to it; existing instructions require a reviewed migration.
+  `CLAUDE.md` uses a native import; Codex's global `AGENTS.md` explicitly asks
+  the agent to read the canonical file. Compile owns only the generated hot
+  set, not operating rules or harness-native memory.
 - Prefer generic wording in skills: "agent entrypoint" rather than only
   `CLAUDE.md`, unless the instruction is explicitly Claude-specific.
 - Memento should use harness-native background-agent primitives where

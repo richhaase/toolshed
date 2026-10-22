@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+
+const args = process.argv.slice(2);
+const mode = args.shift();
+const options = {};
+try {
+  while (args.length) {
+    const key = args.shift();
+    if (key === '--apply') options.apply = true;
+    else if (['--root', '--codex-home', '--claude-home'].includes(key) && args.length) options[key.slice(2)] = args.shift();
+    else throw new Error(`Unknown or incomplete option: ${key}`);
+  }
+  if (!['configure', 'resolve'].includes(mode)) throw new Error('Usage: node global-entrypoints configure --root PATH [--codex-home PATH] [--claude-home PATH] [--apply] | resolve [--codex-home PATH] [--claude-home PATH]');
+  const homes = mode === 'resolve' ? {
+    'codex-home': options['codex-home'] || process.env.CODEX_HOME || path.join(os.homedir(), '.codex'),
+    'claude-home': options['claude-home'] || process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+  } : options;
+  const targets = ['codex-home', 'claude-home'].filter(key => homes[key]).map(key => ({
+    harness: key.split('-')[0],
+    file: path.join(path.resolve(homes[key]), key === 'codex-home' ? 'AGENTS.md' : 'CLAUDE.md')
+  }));
+  if (mode === 'resolve') {
+    const roots = new Set();
+    for (const target of targets) {
+      if (!fs.existsSync(target.file)) continue;
+      const body = fs.readFileSync(target.file, 'utf8').trim();
+      const match = target.harness === 'codex'
+        ? body.match(/^Read and follow \[Memento\]\(<(\/[^\n<>]+\/AGENTS\.md)>\)\.$/)
+        : body.match(/^@(\/[^\n]+\/AGENTS\.md)$/);
+      if (!match) continue;
+      const file = target.harness === 'claude' ? match[1].replace(/\\ /g, ' ') : match[1];
+      roots.add(fs.realpathSync(path.dirname(file)));
+      if (!fs.statSync(file).isFile()) throw new Error(`Missing canonical instructions: ${file}`);
+      for (const dir of ['sources', 'wiki']) {
+        if (!fs.statSync(path.join(path.dirname(file), dir)).isDirectory()) throw new Error(`Not a Memento root: ${path.dirname(file)}`);
+      }
+    }
+    if (roots.size > 1) throw new Error('Global entrypoints reference different Mementos; select MEMENTO_ROOT explicitly or reconcile them.');
+    if (!roots.size) process.exit(69);
+    process.stdout.write([...roots][0] + '\n');
+    process.exit(0);
+  }
+  if (!options.root || !targets.length) throw new Error('Configure requires --root and at least one harness home.');
+  const root = fs.realpathSync(options.root);
+  const canonical = path.join(root, 'AGENTS.md');
+  if (!fs.statSync(canonical).isFile()) throw new Error(`Missing canonical instructions: ${canonical}`);
+  for (const dir of ['sources', 'wiki']) {
+    if (!fs.statSync(path.join(root, dir)).isDirectory()) throw new Error(`Not a Memento root: ${root}`);
+  }
+  if (/[\n\r\t<>\\`]/.test(canonical)) throw new Error('The Memento path contains characters unsupported by the single-line entrypoints.');
+  const plan = targets.map(target => {
+    if (path.resolve(target.file) === canonical) throw new Error('A global entrypoint cannot replace the canonical Memento file.');
+    const override = path.join(path.dirname(target.file), 'AGENTS.override.md');
+    if (target.harness === 'codex' && fs.existsSync(override) && fs.readFileSync(override, 'utf8').trim()) throw new Error(`Codex override shadows the entrypoint: ${override}`);
+    const body = target.harness === 'codex'
+      ? `Read and follow [Memento](<${canonical}>).\n`
+      : `@${canonical.replace(/ /g, '\\ ')}\n`;
+    const stat = fs.lstatSync(target.file, { throwIfNoEntry: false });
+    const current = stat?.isFile() ? fs.readFileSync(target.file, 'utf8') : null;
+    return { ...target, body, status: current === body ? 'unchanged' : stat ? 'migration-required' : 'create' };
+  });
+  if (options.apply && plan.some(item => item.status === 'migration-required')) throw new Error('Existing instructions require a reviewed migration; no entrypoints were changed.');
+  if (options.apply) {
+    for (const item of plan.filter(item => item.status === 'create')) {
+      fs.mkdirSync(path.dirname(item.file), { recursive: true });
+      fs.writeFileSync(item.file, item.body, { flag: 'wx', mode: 0o600 });
+    }
+  }
+  process.stdout.write(JSON.stringify({ applied: Boolean(options.apply), entrypoints: plan }, null, 2) + '\n');
+} catch (error) {
+  process.stderr.write(`global-entrypoints: ${error.message}\n`);
+  process.exit(1);
+}
