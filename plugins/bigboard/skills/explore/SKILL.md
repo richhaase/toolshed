@@ -1,120 +1,100 @@
 ---
 name: explore
-description: Open and discuss BigBoard Activity, People, and Pull requests views, inspect supporting evidence, discuss or review selected PRs, or explore repository filters and comparisons.
+description: Open and discuss BigBoard Activity, People, and organization-wide Pull requests, inspect evidence, find PRs needing attention, and discuss or review an exact selected PR batch.
 ---
 
 # BigBoard exploration
 
-Invoke this workflow as `bigboard:explore`, or ask naturally to open or discuss
-BigBoard.
+Invoke `bigboard:explore`, or ask naturally to open or discuss BigBoard.
+Use the bundled tools. Activity and People use configured local clones;
+Pull requests has an independent organization scope and needs no clones.
+For settings changes, use [`bigboard:configure`](../configure/SKILL.md).
 
-Use the bundled BigBoard tools. The collection selection is shared; each board
-keeps independent viewing filters. Git activity, PR merges, and current open
-PRs describe different events. Merged does not establish deployed.
+## Open a board
 
-## Sources and freshness
+Call `open_board` without `board_id` for a new independent board, or with the
+exact existing ID to reopen it. `view` is `activity`, `people`, or
+`pull_requests`. For an organization PR queue, pass the requested GitHub
+`organization`. Resolve an ambiguous board from the user's selection or ask
+for its ID; create another board only when requested.
 
-Use `list_sources` to inspect the saved collection. For configuration requests,
-use [`bigboard:configure`](../configure/SKILL.md).
-It handles shared source selection and per-board viewing settings, including
-natural requests to change BigBoard's configuration.
+The view argument chooses the opening tab. Reading or updating saved scope
+does not switch tabs. Keep the existing panel for follow-up questions.
 
-The rendered Pull requests view calls `refresh_sources` automatically when it
-becomes active, including direct opening. It reuses an in-flight refresh. Do
-not start a second refresh just to open that view. Activity and People read
-saved data; call `refresh_sources` when fresh data is requested there or no
-collection exists. It can take up to 150 seconds; allow sufficient tool timeout.
-It reads existing remote-tracking default branches without fetching or modifying the
-clones and collects GitHub open and merged PRs with GitHub CLI authentication.
-Review its coverage result before describing findings as complete. Do not
-repair authentication or modify clones as a recovery step.
+## Organization PR queue
 
-GitHub repositories collect with bounded concurrency. Supply a progress token
-when the host supports MCP progress notifications. An open app also shows the
-saved `refresh` status returned by `read_board`, including separate Git and
-GitHub repository counts. Counts describe work processed, including failures;
-inspect coverage before claiming collection is complete. Polling progress does
-not start another refresh. A stale running status expires after three minutes.
+Read `read_pull_request_queue` with `board_id`. Its PR `revision`, `snapshotId`,
+query, verified account, coverage, and refresh status are independent of
+Activity/People. App context includes `pullRequestQuery` and `reviewer` when
+this queue is active; use that scope and the PR snapshot for follow-ups.
 
-After server restart, a refresh must revalidate GitHub access before using
-cached PR evidence. Activating the PR view does this automatically. Displayed
-Git activity still comes from the saved local scan. Collection time and scanned
-revisions are part of the answer.
+Call `query_pull_requests` with `board_id` and that exact `snapshot_id`.
+Choose `pull_request_state:open` or `merged`; pass `pull_request_id` for an
+inspected row. Open PRs have no age cutoff. Merged uses the queue's own 7, 14,
+or 30-day window, not Activity's interval or comparison. Merged does not
+establish deployed.
 
-## Open, inspect, and discuss
+Default Open ordering is `pull_request_sort:attention`, `sort_direction:asc`:
+personal review requests, re-reviews, feedback and assignments lead, followed
+by waiting/ready/other authored PRs, organization review work, and other PRs.
+Within a group, oldest activity leads. Other sorts are `updated`, `created`,
+`number`, `title`, `author`, and `repository`. Sorting covers the complete
+collected inventory before pagination; group counts are not just loaded rows.
+Follow `nextCursor` with the same query, snapshot, state, and sorting.
 
-Call `open_board` without `board_id` for a new independent board, or with an
-exact existing ID to reopen it. Set `view` to `activity`, `people`, or
-`pull_requests` to open directly into that view. These are views of the same
-board and share its repository and date filters. Use app selection context to
-identify the board, snapshot, active view, and selected interval, person, or PRs. If the intended board is
-ambiguous, ask the user to select it or supply its ID.
+Use each PR's `attention.label`, `attention.reason`, and `incomplete` flag to
+explain its position. Unknown or truncated review history cannot establish
+that nobody needs to act. Team requests do not establish the user's team
+membership. A ready-to-merge group describes observed approvals and checks;
+normal repository gates and authorization still apply.
 
-Call `read_board`, then `query_evidence` with the exact board and snapshot IDs.
-For Activity use `kind:activity` and its selected `bucket_start` when present.
-For Pull requests use `kind:pull_requests`, its `pull_request_state` (open or
-merged), and selected `pull_request_id` when present. Do not carry a hidden
-Activity interval into a PR query. For People, use `query_people` with its
-`source` (`git` or `github`); inspect a selected person's evidence with
-`query_evidence` and its exact `person_id`, without a hidden Activity interval.
-Git contributors and GitHub authors are separate identities; do not link them
-by similar names. Git statistics and merged PRs follow the board period, while
-open PRs are current as of collection time. If no view context exists, use the user's
-question to choose the evidence kind. If the selection's snapshot differs
-from the current board, disclose that change and refresh the selection before
-attributing records. Follow `nextCursor` with the same snapshot, bucket, kind,
-and filters to inspect more evidence. PR sorting uses `pull_request_sort`
-(`updated`, `created`, `number`, `title`, `author`, or `repository`) and
-`sort_direction` (`asc` or `desc`). Sorting applies before paging. Shortened
-record IDs or file lists are not exhaustive.
+The rendered PR view calls `refresh_pull_requests` on activation, including
+direct opening, and reuses an in-flight refresh. Do not start a second refresh
+just to open it. For a headless request needing fresh evidence, call that tool
+once, allowing up to 150 seconds. It collects GitHub data only. Read queue
+progress instead of refreshing while one is running; progress does not replace
+the completed evidence snapshot. A server restart needs a refresh to verify
+GitHub access before cached PRs become visible. Report coverage limits and
+collection time; do not repair authentication as a recovery step.
 
-Explain commits using their author dates and exact links. Merged PRs follow
-the selected interval and default branch; open PRs remain current context as
-of collection time, including older drafts. Keep incomplete coverage and
-unknown line counts visible; zero under incomplete coverage is not absence.
+## Activity and People
 
-## Selected PRs and code reviews
+Use `list_sources` for shared clone selection. Call `refresh_sources` when
+fresh history is requested or no collection exists, allowing up to 150
+seconds. It reads existing remote-tracking default branches without fetching
+or modifying clones and collects the configured repositories' GitHub evidence.
+Read `read_board` for progress and coverage; do not duplicate a running refresh.
 
-Checkbox selections are in `selectedPullRequests` in the app context. Each
-record identifies its repository, number, URL, and collected head SHA. A
-separate `pullRequestId` is the row whose details are open; it does not replace
-the checkbox selection. Use the explicit batch when the user says “these PRs.”
-Do not expand it to every loaded PR or the whole board.
+Use `read_board`, then `query_evidence` with the history board's `snapshotId`.
+Activity uses `kind:activity` and the selected `bucket_start` when present.
+People uses `query_people` with `source:git` or `github`; a selected person's
+supporting evidence uses `query_evidence` and exact `person_id`. Git identities
+are mailmapped emails; GitHub authors are logins. Do not link identities by
+similar display names. These views retain their configured repository/date
+scope and do not inherit the organization queue's controls.
 
-App navigation updates background model context; it does not send a chat turn.
-Explicit app actions send brief requests such as “Explain the selected Activity
-interval” or “Review the 3 pull requests selected in BigBoard.” Resolve their
-exact scope from the latest app context. Do not ask the user to paste the JSON
-or repeat it into the chat. Retrieve supporting evidence through the tools.
+The legacy `query_evidence` PR route remains for configured-source historical
+context. Use it only with the history snapshot; never pass an organization
+queue snapshot to that tool. Keep author dates, merge dates, scanned revisions,
+unknown line counts, and incomplete coverage explicit. Zero under partial
+coverage is not absence. On any snapshot mismatch, refresh the selection before
+attributing records; cursors belong to their exact snapshot and filters.
 
-The PR table shows author, draft/open/merged state, GitHub's review decision,
-pending review, and account relationships. Optional `review` metadata travels
-with each selected PR. A missing review object or `decision:unknown` means the
-review state is unavailable; `decision:none` means GitHub returned no decision.
-Requested users, teams, and assignees have explicit completeness flags. Do not
-turn incomplete empty lists into claims that nobody needs to act. Account
-badges distinguish author, assignee, and direct reviewer; team membership is
-not inferred. Review status is as of collection time and may need a refresh.
+## Selected PRs and reviews
 
-Selecting checkboxes updates context without requesting reviews. **Share
-selection** sends the selection for discussion; **Request code reviews** sends
-the user's review request for that exact set. When reviews are requested,
-follow the host agent's applicable review workflow and repository instructions.
-BigBoard supplies context; it does not execute reviews. Check current PR state
-and head before reviewing, since the collected snapshot may be older. If the
-selection is missing or its snapshot changed, ask for a fresh selection rather
-than guessing the batch.
+Checkbox selections are `selectedPullRequests` in background app context.
+Each record identifies repository, number, URL, and collected head SHA.
+`pullRequestId` is the separately inspected row, not the checked batch. Use the
+explicit checked set when the user says “these PRs”; do not expand it to every
+loaded PR or the organization. Sorting preserves the set; scope or snapshot
+changes clear it. If context is missing or stale, obtain a fresh selection.
 
-## Change the board scope
+Ordinary navigation updates background context without posting a chat turn.
+Explicit Explain, Share selection, and Request code reviews actions send brief
+human requests. Resolve exact records from the latest context and tools; do
+not ask the user to paste a context blob. Checkboxes alone do not request work.
 
-Call `read_board`, then `update_board` with its `board_id` and current
-`expected_revision`. Controls are `days` (7 or 14), `repository` (`all` or an ID
-returned by `list_sources`), and `compare`. These do not change collected
-sources or start network requests. Reconcile revision conflicts with the
-latest state before retrying.
-
-Activity, People, and Pull requests are display tabs in the app. `update_board` changes
-the shared board query, not the active tab; do not claim to switch tabs with
-that tool. The existing panel reads the same saved board. Subsequent reads
-and updates need no new panel. Report the resulting scope and revision without claiming a
-rendered change unless observed. Open a new board only when requested.
+When reviews are requested, follow the host agent's applicable review workflow
+and repository instructions. Verify current PR state and head before reviewing
+because the collected snapshot may be older. BigBoard provides evidence and
+selection context; it does not execute reviews or authorize merges.

@@ -11,6 +11,32 @@ that icon as a style reference, with the prompts below. To revise this set,
 preserve the rounded dark outlines, warm restrained colors, generous padding,
 and distinct silhouettes. Keep lettering out of the artwork.
 
+## Desktop icon surfaces
+
+Every plugin packages its PNG under `assets/icon.png`. Codex plugin metadata
+uses that asset for both `interface.composerIcon` and `interface.logo`. Each
+skill also declares `icon_small` and `icon_large` in `agents/openai.yaml`, using
+`../../assets/icon.png` to reuse the plugin's shared asset without overriding
+the generated skill title. Codex's [plugin asset resolver](https://github.com/openai/codex/blob/rust-v0.169.0/codex-rs/skills/src/interface.rs)
+supports these paths when they resolve inside the plugin's `assets` directory.
+
+BigBoard additionally embeds its PNG as a data URI in the self-contained MCP
+app HTML and server bundle. The rendered app uses it directly; MCP icon
+metadata makes it available to hosts that display server or UI-resource icons.
+The pinned SDK's high-level tool registration does not forward tool icons, so
+BigBoard does not add an unsupported tool-icon field. The
+[MCP icon schema](https://modelcontextprotocol.io/specification/2025-11-25/schema#icon)
+supports PNG data URIs, so these icons need no external image request or local
+file URL. Host-controlled card headers can still choose a generic fallback.
+
+Claude Code's [manifest reference](https://code.claude.com/docs/en/plugins-reference#directory-listing-fields)
+documents `icon` as an Anthropic directory-listing field and states that
+Claude Code ignores it at load time. Toolshed does not add unsupported desktop
+icon fields to Claude manifests. The MCP app's embedded image can render in a
+Claude desktop host with MCP Apps support; skill-chip and card-header artwork
+depends on that host's support. Protocol and bundle checks do not establish
+that a desktop host has rendered a particular icon.
+
 ## Toolshed
 
 Uses the Memento and Actuary icons as style references.

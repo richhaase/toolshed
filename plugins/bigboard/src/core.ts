@@ -5,6 +5,11 @@ import { isAbsolute, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { collectGitHistory, describeRepository, importNativeSources } from "./sources/git";
 import { collectGitHub } from "./sources/github";
+import { BoardError } from "./errors";
+import { PullRequestQueueStore } from "./pr-queue";
+import { collectOrganizationPullRequests } from "./sources/organization";
+import type { PullRequestQueueFilter, PullRequestQueueProgress, PullRequestQueueQuery } from "./pr-queue-types";
+export { BoardError } from "./errors";
 import type { ActivityRecord, BoardQuery, BoardSnapshot, CollectedWorkspace, ConfiguredRepository, EvidenceFilter, EvidenceResult, GitCollectionResult, GitHubCollectionResult, PeopleResult, PeopleSource, PersonSummary, PullRequestRecord, PullRequestSort, RefreshProgress, RepositoryCoverage, SortDirection, SourceConfiguration } from "./shared";
 
 export type { EvidenceResult } from "./shared";
@@ -25,9 +30,6 @@ function comparePullRequests(a: PullRequestRecord, b: PullRequestRecord, sort: P
   return (direction === "asc" ? order : -order) || a.id.localeCompare(b.id);
 }
 
-export class BoardError extends Error {
-  constructor(public readonly code: string, message: string) { super(message); this.name = "BoardError"; }
-}
 interface SavedBoard { version: 2; boardId: string; revision: number; updatedAt: string; query: BoardQuery }
 interface Dependencies {
   now?: () => Date;
@@ -35,6 +37,7 @@ interface Dependencies {
   importNativeSources?: typeof importNativeSources;
   collectGitHistory?: typeof collectGitHistory;
   collectGitHub?: typeof collectGitHub;
+  collectOrganizationPullRequests?: typeof collectOrganizationPullRequests;
 }
 export interface RefreshResult { collectionId: string; collectedAt: string; configurationRevision: number; repositoryCount: number; complete: boolean; note: string }
 
@@ -60,9 +63,10 @@ export class BoardStore {
   private verifiedCollection: string | null = null;
   private verifiedEpoch: number | null = null;
   private deps: Required<Dependencies>;
+  private queue?: PullRequestQueueStore;
 
   constructor(public readonly directory = stateDirectory(), dependencies: Dependencies = {}) {
-    this.deps = { now: () => new Date(), describeRepository, importNativeSources, collectGitHistory, collectGitHub, ...dependencies };
+    this.deps = { now: () => new Date(), describeRepository, importNativeSources, collectGitHistory, collectGitHub, collectOrganizationPullRequests, ...dependencies };
   }
   private db(): DatabaseSync {
     if (!this.database) {
@@ -78,6 +82,35 @@ export class BoardStore {
     const row = this.db().prepare("SELECT configuration FROM workspace WHERE id = 1").get()!;
     return JSON.parse(String(row.configuration)) as SourceConfiguration;
   }
+  private prQueue(): PullRequestQueueStore {
+    this.queue ??= new PullRequestQueueStore(this.db(), { now: this.deps.now, collect: this.deps.collectOrganizationPullRequests, onAccessChange: account => {
+      const workspace = this.workspace();
+      if (workspace.collection?.github.account && workspace.collection.github.account.id !== account?.id) {
+        workspace.collection.github = blankGitHub(workspace.configuration.repositories, "GitHub account access changed. Refresh sources to verify access again.");
+        this.db().prepare("UPDATE workspace SET collection=?,verification=verification+1 WHERE id=1").run(JSON.stringify(workspace.collection));
+        this.verifiedCollection = null;
+        this.verifiedEpoch = null;
+      }
+    }, onAccessDenied: (organization,repositories) => {
+      const workspace = this.workspace();
+      const affected = workspace.collection?.github.repositories.some(repo => repositories ? repositories.some(id => id.toLowerCase() === repo.id.toLowerCase()) : repo.id.split("/")[0].toLowerCase() === organization);
+      if (affected && workspace.collection) {
+        workspace.collection.github = blankGitHub(workspace.configuration.repositories, "GitHub repository access changed. Refresh sources to verify access again.");
+        this.db().prepare("UPDATE workspace SET collection=?,verification=verification+1 WHERE id=1").run(JSON.stringify(workspace.collection));
+        this.verifiedCollection = null;
+        this.verifiedEpoch = null;
+      }
+    } });
+    return this.queue;
+  }
+  private inferredOrganization(): string | null {
+    const owners = [...new Set(this.sources().repositories.map(repo => repo.id.split("/")[0].toLowerCase()))];
+    return owners.length === 1 && /^[a-z0-9][a-z0-9-]{0,38}$/i.test(owners[0]) ? owners[0] : null;
+  }
+  readPullRequestQueue(boardId: string) { this.load(boardId); return this.prQueue().read(boardId, this.inferredOrganization()); }
+  updatePullRequestQueue(boardId: string, revision: number, patch: Partial<PullRequestQueueQuery>) { this.load(boardId); return this.prQueue().update(boardId, this.inferredOrganization(), revision, patch); }
+  refreshPullRequests(boardId: string, signal?: AbortSignal, onProgress?: (progress: PullRequestQueueProgress) => void) { this.load(boardId); this.prQueue().ensure(boardId, this.inferredOrganization()); return this.prQueue().refresh(boardId, this.inferredOrganization(), signal, onProgress); }
+  queryPullRequests(boardId: string, snapshotId: string, filter: PullRequestQueueFilter = {}) { this.load(boardId); return this.prQueue().evidence(boardId, this.inferredOrganization(), snapshotId, filter); }
   async configure(paths: string[] | undefined, importNative: boolean, expectedRevision?: number): Promise<SourceConfiguration> {
     const current = this.sources();
     if (expectedRevision !== undefined && expectedRevision !== current.revision) throw new BoardError("configuration_conflict", "Source settings changed. Call list_sources before updating them.");
@@ -125,6 +158,8 @@ export class BoardStore {
     if (this.refreshing) throw new BoardError("refresh_in_progress", "A source refresh is already running. Read the board after it finishes.");
     const configuration = this.sources();
     if (!configuration.repositories.length) throw new BoardError("sources_required", "Configure repository paths or import the native BigBoard selection before refreshing.");
+    let prAccessEpoch = this.prQueue().accessEpoch();
+    let prAccessSuperseded = false;
     const until = this.deps.now().toISOString();
     const progress: RefreshProgress = { id: randomUUID(), status: "running", startedAt: until, updatedAt: until, finishedAt: null, git: { completedRepositories: 0, totalRepositories: configuration.repositories.length }, github: { completedRepositories: 0, totalRepositories: configuration.repositories.length, requests: 0 }, message: "Collecting Git history and GitHub pull requests." };
     let generation: number, verification: number;
@@ -168,7 +203,19 @@ export class BoardStore {
         progress.github.completedRepositories = Math.max(progress.github.completedRepositories, Math.min(configuration.repositories.length, value.completedRepositories));
         progress.github.requests = Math.max(progress.github.requests, value.requests);
         publishProgress();
-      } }).catch(() => blankGitHub(configuration.repositories, "GitHub collection could not complete. Refresh to retry."));
+      } }).catch(() => blankGitHub(configuration.repositories, "GitHub collection could not complete. Refresh to retry.")).then(github => {
+        this.db().exec("BEGIN IMMEDIATE");
+        try {
+          const current = this.db().prepare("SELECT revision,generation,verification FROM workspace WHERE id=1").get()!;
+          if (Number(current.revision) === configuration.revision && Number(current.generation) === generation && Number(current.verification) === verification && this.prQueue().accessEpoch() === prAccessEpoch) {
+            prAccessEpoch = this.prQueue().observeAccountInTransaction(github.account,prAccessEpoch);
+            if (github.repositories.some(repository => repository.accessDenied)) prAccessEpoch = this.prQueue().invalidateEvidenceInTransaction(prAccessEpoch);
+          }
+          else prAccessSuperseded = true;
+          this.db().exec("COMMIT");
+        } catch { this.db().exec("ROLLBACK"); prAccessSuperseded = true; }
+        return github;
+      });
       await Promise.all(Array.from({ length: Math.min(4, queue.length) }, async () => {
         for (let repo = queue.shift(); repo; repo = queue.shift()) {
           boundedSignal.throwIfAborted();
@@ -183,9 +230,14 @@ export class BoardStore {
       const github = await githubPromise;
       boundedSignal.throwIfAborted();
       const collection: CollectedWorkspace = { id: randomUUID(), configRevision: configuration.revision, generatedAt: this.deps.now().toISOString(), since, until, git: git.sort((a,b) => a.repository.id.localeCompare(b.repository.id)), github };
-      const result = this.db().prepare("UPDATE workspace SET collection=?,generation=generation+1 WHERE id=1 AND revision=? AND generation=? AND verification=?")
-        .run(JSON.stringify(collection), configuration.revision, generation, verification);
-      if (Number(result.changes) !== 1) throw new BoardError("refresh_superseded", "Source settings or collected data changed while refreshing. Read the board and refresh again if needed.");
+      this.db().exec("BEGIN IMMEDIATE");
+      try {
+        if (prAccessSuperseded || this.prQueue().accessEpoch() !== prAccessEpoch) throw new BoardError("refresh_superseded", "GitHub access changed while refreshing. Refresh sources using the current account.");
+        const result = this.db().prepare("UPDATE workspace SET collection=?,generation=generation+1 WHERE id=1 AND revision=? AND generation=? AND verification=?")
+          .run(JSON.stringify(collection), configuration.revision, generation, verification);
+        if (Number(result.changes) !== 1) throw new BoardError("refresh_superseded", "Source settings or collected data changed while refreshing. Read the board and refresh again if needed.");
+        this.db().exec("COMMIT");
+      } catch (error) { this.db().exec("ROLLBACK"); throw error; }
       this.verifiedCollection = collection.id;
       this.verifiedEpoch = verification;
       const coverage = this.coverage(configuration.repositories, collection, true);
@@ -258,12 +310,19 @@ export class BoardStore {
     });
     const needsRefresh = !collection || collection.configRevision !== config.revision || !verified;
     const note = !config.repositories.length ? "Configure repository paths or import the native BigBoard selection, then refresh sources." : !collection ? "Sources are configured. Refresh sources to collect Git history and GitHub PRs." : `Git author-date activity from local remote-tracking default branches; GitHub PRs as of ${collection.generatedAt}. Local clones are read without fetching. ${complete ? "Coverage is complete for this collection." : "Coverage is incomplete; zero values do not establish absence of activity."}${!verified ? " Refresh to verify GitHub access for this session." : ""}`;
-    return { refresh: workspace.refresh, boardId: saved.boardId, revision: saved.revision, snapshotId: `${collection?.id ?? "uncollected"}:${config.revision}:${verified ? "verified" : "unverified"}:${workspace.verification}:${saved.boardId}:${saved.revision}`, updatedAt: saved.updatedAt, query: saved.query, scope: { since, until, timezone: "UTC" }, coverage: { source: "git+github", complete, note, repositories: coverage }, configuration: { revision: config.revision, repositories: config.repositories.map(repo => repo.id), needsRefresh }, account: verified ? collection!.github.account : null, collectedAt: collection?.generatedAt ?? null, buckets, totals: { commits: current.length, additions: current.reduce((sum,r) => sum + (r.additions ?? 0),0), deletions: current.reduce((sum,r) => sum + (r.deletions ?? 0),0), unknownLineCommits: current.filter(r => r.additions === null || r.deletions === null).length, previousCommits: previous?.length ?? null, mergedPRs: merged.length, openPRs: prs.filter(pr => pr.state === "open").length } };
+    return { pullRequestQueue: this.prQueue().read(saved.boardId, this.inferredOrganization()), refresh: workspace.refresh, boardId: saved.boardId, revision: saved.revision, snapshotId: `${collection?.id ?? "uncollected"}:${config.revision}:${verified ? "verified" : "unverified"}:${workspace.verification}:${saved.boardId}:${saved.revision}`, updatedAt: saved.updatedAt, query: saved.query, scope: { since, until, timezone: "UTC" }, coverage: { source: "git+github", complete, note, repositories: coverage }, configuration: { revision: config.revision, repositories: config.repositories.map(repo => repo.id), needsRefresh }, account: verified ? collection!.github.account : null, collectedAt: collection?.generatedAt ?? null, buckets, totals: { commits: current.length, additions: current.reduce((sum,r) => sum + (r.additions ?? 0),0), deletions: current.reduce((sum,r) => sum + (r.deletions ?? 0),0), unknownLineCommits: current.filter(r => r.additions === null || r.deletions === null).length, previousCommits: previous?.length ?? null, mergedPRs: merged.length, openPRs: prs.filter(pr => pr.state === "open").length } };
   }
-  async open(boardId?: string): Promise<BoardSnapshot> {
-    if (boardId !== undefined) return this.read(boardId);
+  async open(boardId?: string, organization?: string): Promise<BoardSnapshot> {
+    if (boardId !== undefined) {
+      this.load(boardId);
+      this.prQueue().ensure(boardId, this.inferredOrganization());
+      if (organization !== undefined) this.updatePullRequestQueue(boardId, this.readPullRequestQueue(boardId).revision, { organization });
+      return this.read(boardId);
+    }
     const saved: SavedBoard = { version: 2, boardId: randomUUID(), revision: 1, updatedAt: this.deps.now().toISOString(), query: { ...DEFAULT_QUERY } };
     this.db().prepare("INSERT INTO boards (id,revision,state) VALUES (?,?,?)").run(saved.boardId,saved.revision,JSON.stringify(saved));
+    this.prQueue().ensure(saved.boardId, this.inferredOrganization());
+    if (organization !== undefined) this.updatePullRequestQueue(saved.boardId, 0, { organization });
     return this.snapshot(saved);
   }
   async read(boardId: string): Promise<BoardSnapshot> { return this.snapshot(this.load(boardId)); }

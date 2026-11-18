@@ -1,3 +1,5 @@
 interface:
+  icon_small: "../../assets/icon.png"
+  icon_large: "../../assets/icon.png"
   short_description: "Inspect and change BigBoard configuration"
   default_prompt: "Use $bigboard:configure to help me change BigBoard configuration."

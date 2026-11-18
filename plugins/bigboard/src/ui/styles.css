@@ -40,7 +40,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .bigboard { max-width: 1120px; min-width: 300px; margin: 0 auto; padding: 23px 28px 28px; }
 .board-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-bottom: 18px; }
 .wordmark { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; letter-spacing: -.4px; }
-.wordmark svg { color: var(--blue); }
 .source-controls { position: relative; display: flex; align-items: center; gap: 13px; }
 .refresh-sources, .load-more button { background: var(--surface); border: 1px solid var(--line); padding: 7px 9px; font-size: 11px; white-space: nowrap; }
 .source-status { position: static; }
@@ -259,4 +258,36 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
   .person-numbers strong { font-size: 11px; }
   .pr-sort-controls { gap: 8px; }
   .pr-selection-actions > button { flex: 1; }
+}
+.wordmark img { display: block; object-fit: contain; flex-shrink: 0; }
+.queue-controls { gap: 14px; align-items: flex-end; }
+.queue-controls > label, .organization-control label { display: flex; flex-direction: column; gap: 6px; font-size: 10px; color: var(--muted); }
+.organization-control { display: flex; align-items: flex-end; gap: 6px; }
+.organization-control input { width: 155px; min-height: 31px; padding: 6px 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; font-size: 12px; }
+.organization-control button { min-height: 31px; padding: 6px 9px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); font-size: 11px; }
+.queue-reviewer { margin: 0 0 6px auto; color: var(--muted); font-size: 10px; }
+.queue-reviewer strong { color: var(--ink); font-weight: 550; }
+.queue-table { min-width: 720px; }
+.queue-table th:nth-child(2) { width: 29%; }
+.queue-table th:nth-child(3) { width: 12%; }
+.queue-table th:nth-child(4) { width: 8%; }
+.queue-table th:nth-child(5) { width: 13%; }
+.queue-table th:nth-child(6) { width: 25%; }
+.queue-table th:nth-child(7) { width: 8%; }
+.queue-table .pr-attention-group th { position: static; padding: 15px 12px 9px; border-bottom: 1px solid var(--line); background: var(--canvas); color: var(--muted); font-size: 11px; cursor: default; white-space: normal; }
+.queue-table .pr-attention-group:first-child th { padding-top: 11px; }
+.queue-table .pr-attention-group strong { font-weight: 650; }
+.queue-table .pr-attention-group span { margin-left: 8px; font-weight: 450; font-variant-numeric: tabular-nums; }
+.queue-table .pr-attention-group.action-needed th { color: var(--ink); box-shadow: inset 3px 0 var(--blue); }
+.pr-attention-reason { color: var(--ink); font-size: 10px; }
+.pr-attention-reason > span { display: block; color: var(--attention); font-size: 9px; margin-top: 5px; }
+.pr-attention-reason .pr-relationship-list { margin-top: 7px; gap: 4px; }
+@media (max-width: 650px) {
+  .queue-controls { align-items: stretch; gap: 12px; }
+  .organization-control { flex: 1 1 100%; }
+  .organization-control label { flex: 1; }
+  .organization-control input { width: 100%; }
+  .queue-controls > label { flex: 1; }
+  .queue-controls select { width: 100%; max-width: none; }
+  .queue-reviewer { flex: 1 1 100%; margin: 2px 0; }
 }

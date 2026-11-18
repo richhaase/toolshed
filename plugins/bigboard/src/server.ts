@@ -4,10 +4,13 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { z } from "zod";
 import { BoardError, BoardStore } from "./core";
 import { APP_VERSION, BOARD_RESOURCE_URI, type BoardSnapshot, type EvidenceResult, type PeopleResult } from "./shared";
+import { BIGBOARD_ICON_DATA_URL } from "./branding";
+import type { PullRequestQueueEvidence, PullRequestQueueSnapshot } from "./pr-queue-types";
 
 const boardId = z.string().uuid();
 const annotations = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 function boardText(board: BoardSnapshot): string {
+  if (board.initialView === "pullRequests" && board.pullRequestQueue) return queueText(board.pullRequestQueue);
   return `BigBoard ${board.boardId}, revision ${board.revision}, snapshot ${board.snapshotId}. ${board.query.repository}, ` +
     `[${board.scope.since}, ${board.scope.until}) UTC: ${board.totals.commits} recorded non-merge commits, ${board.totals.mergedPRs} observed merged PRs, ${board.totals.openPRs} observed open PRs. ` +
     `${board.totals.unknownLineCommits} commits have unknown line counts. ${board.initialView ? `Opening ${board.initialView}. ` : ""}${board.coverage.note}` +
@@ -27,7 +30,7 @@ function peopleText(people: PeopleResult): string {
 async function result(operation: () => Promise<unknown>): Promise<CallToolResult> {
   try {
     const value = await operation() as Record<string, unknown>;
-    const text = "records" in value ? evidenceText(value as unknown as EvidenceResult) : "people" in value ? peopleText(value as unknown as PeopleResult) : "boardId" in value ? boardText(value as unknown as BoardSnapshot) : JSON.stringify(value);
+    const text = "sort" in value && "pullRequests" in value ? queueEvidenceText(value as unknown as PullRequestQueueEvidence) : "needsRefresh" in value && "repositories" in value ? queueText(value as unknown as PullRequestQueueSnapshot) : "records" in value ? evidenceText(value as unknown as EvidenceResult) : "people" in value ? peopleText(value as unknown as PeopleResult) : "boardId" in value ? boardText(value as unknown as BoardSnapshot) : JSON.stringify(value);
     return { content: [{ type: "text", text }], structuredContent: value };
   } catch (error) {
     const code = error instanceof BoardError ? error.code : "source_error";
@@ -35,16 +38,39 @@ async function result(operation: () => Promise<unknown>): Promise<CallToolResult
     return { isError: true, content: [{ type: "text", text: message }], structuredContent: { error: { code, message } } };
   }
 }
+function queueText(queue: PullRequestQueueSnapshot): string {
+  return `BigBoard organization PR queue for ${queue.query.organization ?? "no organization selected"}, board ${queue.boardId}, PR revision ${queue.revision}, snapshot ${queue.snapshotId}. ${queue.totals.open} open and ${queue.totals.merged} merged PRs in the selected PR scope. ${queue.account ? `Verified account ${queue.account.login}. ` : "GitHub access has not been verified for this session. "}${queue.coverage.note}${queue.refresh ? ` Refresh ${queue.refresh.status}: ${queue.refresh.message}` : ""}`;
+}
+function queueEvidenceText(evidence: PullRequestQueueEvidence): string {
+  return `Organization ${evidence.query.organization} ${evidence.state} PRs, board ${evidence.boardId}, snapshot ${evidence.snapshotId}. ${evidence.pullRequests.length}/${evidence.totalPullRequests} on this page. Sort ${evidence.sort} ${evidence.direction}. ${evidence.needsRefresh ? "GitHub access requires a refresh in this session. " : ""}${evidence.coverage.note}\n${JSON.stringify({ pullRequests: evidence.pullRequests, groups: evidence.groups, nextCursor: evidence.nextCursor })}`;
+}
 export function createBigboardServer(html: string, store: BoardStore): McpServer {
-  const server = new McpServer({ name: "bigboard", version: APP_VERSION });
+  const icons = [{ src: BIGBOARD_ICON_DATA_URL, mimeType: "image/png", sizes: ["1254x1254"] }];
+  const server = new McpServer({ name: "bigboard", title: "BigBoard", version: APP_VERSION, icons });
   const resourceMeta = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true } };
   registerAppResource(server, "BigBoard", BOARD_RESOURCE_URI,
-    { description: "Git Activity, Pull requests, and People views", _meta: resourceMeta },
+    { description: "Git Activity, Pull requests, and People views", icons, _meta: resourceMeta },
     async () => ({ contents: [{ uri: BOARD_RESOURCE_URI, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: resourceMeta }] }));
   registerAppTool(server, "open_board", {
-    title: "Open BigBoard", description: "Open a Git/GitHub board in the activity (default), people, or pull_requests view. These are views of the same board. Omit board_id for an independent board or provide an existing ID to reopen its saved filters in a chosen view. The rendered Pull requests view refreshes sources on activation; Activity and People read saved data. If unconfigured, use list_sources then configure_sources to select local clone paths or import native BigBoard sources.",
-    inputSchema: { board_id: boardId.optional(), view: z.enum(["activity", "pull_requests", "people"]).optional() }, annotations: { ...annotations, readOnlyHint: false }, _meta: { ui: { resourceUri: BOARD_RESOURCE_URI, visibility: ["model", "app"] } },
-  }, ({ board_id,view }) => result(async () => ({ ...await store.open(board_id), initialView: view === "pull_requests" ? "pullRequests" : view ?? "activity" })));
+    title: "Open BigBoard", description: "Open Activity, People, or the organization-wide Pull requests queue. Omit board_id for an independent board or provide its exact ID to reopen it. Set organization to a GitHub organization login for the PR queue; no local clones are required. PRs refresh GitHub-only when activated and use independent organization/repository/attention controls. Activity and People read configured local Git sources. Opening a board does not itself collect data.",
+    inputSchema: { board_id: boardId.optional(), organization: z.string().regex(/^[a-z0-9][a-z0-9-]{0,38}$/i).optional(), view: z.enum(["activity", "pull_requests", "people"]).optional() }, annotations: { ...annotations, readOnlyHint: false }, _meta: { ui: { resourceUri: BOARD_RESOURCE_URI, visibility: ["model", "app"] } },
+  }, ({ board_id,view,organization }) => result(async () => ({ ...await store.open(board_id,organization), initialView: view === "pull_requests" ? "pullRequests" : view ?? "activity" })));
+  server.registerTool("read_pull_request_queue", {
+    title: "Read organization PR queue", description: "Read the board's independent organization PR query, verified reviewer, snapshot, full-inventory attention-group counts, and GitHub-only refresh progress without collecting.", inputSchema: { board_id: boardId }, annotations, _meta: { ui: { visibility: ["model", "app"] } },
+  }, ({ board_id }) => result(async () => store.readPullRequestQueue(board_id)));
+  server.registerTool("update_pull_request_queue", {
+    title: "Update organization PR scope", description: "Update only this board's PR organization, repository, attention filter, or merged-history window using its PR revision. This never changes Activity/People controls, local sources, or their snapshot. Changing the organization resets the PR repository filter; the active PR view refreshes a newly selected organization.",
+    inputSchema: { board_id: boardId, expected_revision: z.number().int().nonnegative(), organization: z.string().regex(/^[a-z0-9][a-z0-9-]{0,38}$/i).nullable().optional(), repository: z.string().min(1).optional(), attention: z.enum(["all", "mine", "review"]).optional(), days: z.union([z.literal(7),z.literal(14),z.literal(30)]).optional() }, annotations: { ...annotations, readOnlyHint: false }, _meta: { ui: { visibility: ["model", "app"] } },
+  }, ({ board_id,expected_revision,...patch }) => result(async () => store.updatePullRequestQueue(board_id,expected_revision,patch)));
+  server.registerTool("query_pull_requests", {
+    title: "Inspect organization PRs", description: "Page the full organization inventory for the exact PR snapshot. Attention sorting ranks personal action groups first and oldest activity within each group, before paging. Open PRs have no age cutoff. Merged PRs use this queue's independent history window. Unknown data remains visible. Exact PR IDs and cursors are bound to organization, account, query, snapshot, state, and sort.",
+    inputSchema: { board_id: boardId, snapshot_id: z.string(), pull_request_state: z.enum(["open", "merged"]).optional(), pull_request_sort: z.enum(["attention", "updated", "created", "number", "title", "author", "repository"]).optional(), sort_direction: z.enum(["asc", "desc"]).optional(), pull_request_id: z.string().min(1).max(256).optional(), cursor: z.string().optional() }, annotations, _meta: { ui: { visibility: ["model", "app"] } },
+  }, ({ board_id,snapshot_id,pull_request_state,pull_request_sort,sort_direction,pull_request_id,cursor }) => result(async () => store.queryPullRequests(board_id,snapshot_id,{ state: pull_request_state, sort: pull_request_sort, direction: sort_direction, pullRequestId: pull_request_id, cursor })));
+  server.registerTool("refresh_pull_requests", {
+    title: "Refresh organization PRs", description: "Refresh GitHub-only organization PR discovery and review history without collecting local Git or changing Activity/People snapshots. No clones required. Uses the active GitHub CLI account, bounded requests and concurrency, and honest partial coverage. Allow 150 seconds. Read queue progress or use MCP progress notifications. The app automatically refreshes on PR activation and joins an existing refresh.", inputSchema: { board_id: boardId }, annotations: { ...annotations, readOnlyHint: false, openWorldHint: true }, _meta: { ui: { visibility: ["model", "app"] } },
+  }, ({ board_id },extra) => result(() => store.refreshPullRequests(board_id,extra.signal,progress => {
+    if (extra._meta?.progressToken !== undefined) void extra.sendNotification({ method: "notifications/progress", params: { progressToken: extra._meta.progressToken, progress: progress.requests, message: progress.message } }).catch(() => {});
+  })));
   server.registerTool("read_board", {
     title: "Read BigBoard", description: "Read saved board state, collected evidence coverage, and current source refresh progress without opening a panel or refreshing sources. Progress updates do not change the evidence snapshot. Use before updating viewing filters.",
     inputSchema: { board_id: boardId }, annotations, _meta: { ui: { visibility: ["model", "app"] } },
