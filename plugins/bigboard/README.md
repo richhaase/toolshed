@@ -1,269 +1,221 @@
 # <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> BigBoard plugin
 
-Explore real Git history and GitHub pull requests in focused views. Activity
-opens with a chart and a small summary. Select an interval to reveal its
-supporting commits. People groups Git contributors and GitHub authors in
-separate lists. Pull requests has Open and Merged tables, sorting, and checkbox
-selection. Discuss evidence or request reviews for selected PRs with the agent.
+Explore Git activity, people, and organization-wide pull requests with an agent.
+Activity and People use your existing clones. Pull requests is a separate GitHub
+review queue: the whole organization stays visible, with your action groups
+first. Inspect evidence, select exact PRs, and share or request reviews in chat.
 
 ## Install or update
 
-BigBoard v0.1.1 is distributed from the toolshed marketplace. The native macOS
-app remains in [richhaase/bigboard](https://github.com/richhaase/bigboard).
+BigBoard v0.2.0 is distributed from toolshed. The original native macOS app is
+[archived](https://github.com/richhaase/bigboard); future development lives here.
 
-Requires Node.js 24 or later, Git, and GitHub CLI on the desktop host's PATH.
-Sign in to GitHub CLI with your usual account. The visual board requires a host
-with MCP Apps support. The self-contained package needs no `npm install` or
-build step when installed from the marketplace.
+Requires Node.js 24 or later and an authenticated GitHub CLI on the desktop
+host's PATH. Activity and People additionally need Git and existing local
+clones. Organization PRs need no clones. The visual board requires a host with
+MCP Apps support. Installation uses committed bundles and needs no compiler,
+`npm install`, or install script.
 
 ```sh
 codex plugin marketplace add richhaase/toolshed
 codex plugin add bigboard@toolshed
 ```
 
-For later published versions:
+For published updates:
 
 ```sh
 codex plugin marketplace upgrade toolshed
 codex plugin add bigboard@toolshed
 ```
 
-Start a new local chat after upgrading and select **BigBoard**, so its server
-and skills use the installed version. The skill IDs are `bigboard:explore` and
-`bigboard:configure`, with no custom title override.
+Start a fresh local chat after updating and select **BigBoard**. Skill IDs remain
+`bigboard:explore` and `bigboard:configure`, with generated namespace labels.
 
-### Move from the BigBoard development marketplace
+### Move from the earlier BigBoard marketplace
 
-Install `bigboard@toolshed` first, then verify it is installed and enabled:
-
-```sh
-codex plugin list --marketplace toolshed
-```
-
-After verification, remove whichever older plugin entries are installed to
-avoid duplicate tools and skills:
+Install `bigboard@toolshed` first. Verify it is installed and enabled with
+`codex plugin list --marketplace toolshed`, then remove whichever older entries
+are installed:
 
 ```sh
 codex plugin remove bigboard@bigboard-mcp
 codex plugin remove bigboard-mcp-app@bigboard-mcp
 ```
 
-Saved source settings, evidence, and boards remain in the existing state
-directory outside the plugin cache. Moving to toolshed and starting its version
-sequence at 0.1.0 do not move or reset that data.
+Saved sources, evidence, and boards remain outside the plugin cache in the
+existing state directory. The move to toolshed and its v0.1.0 version sequence
+preserved that data; this update adds independent PR queries and collections.
 
-## Configure and collect
+## Organization pull requests
 
-Ask the agent:
+Ask the agent to open Pull requests for a GitHub organization, or set the
+organization in the PR view. `open_board` accepts `view:pull_requests` and
+`organization`. A board's organization, PR repository, attention filter, and
+merged-history window are saved independently of its Activity/People settings.
 
-> Import my native BigBoard repository selection, refresh sources, and open an activity board.
+The default is **the whole organization, your actions first**. The verified
+GitHub CLI account determines who “you” means. Organization searches include
+accessible repositories beyond your selected clones. Open PRs have no age
+cutoff; authored discovery also runs separately to preserve the user's work
+when the general search is bounded. Drafts and incomplete review states remain
+visible. Merged history uses its own 7, 14, or 30-day window and includes target
+branches across the organization, rather than only clone default branches.
 
-`configure_sources` with `import_native:true` copies the selected repositories
-from native BigBoard settings. It discovers their existing clones under the
-native source folders and honors repository exclusions. Native settings and
-clones are not modified. Missing selected clones cause an actionable import
-error rather than quietly shrinking the selection.
+### Attention groups
 
-Alternatively, provide absolute existing clone paths through
-`configure_sources` with `paths`. `list_sources` returns the saved selection
-and its revision. Pass that revision when changing sources. Source settings
-are shared by boards; viewing filters remain independent for each board.
+Open PRs default to **Attention first**. Classification and sorting happen over
+the complete collected inventory before pagination; only grouping the loaded
+page would hide higher-priority PRs on later pages. Group order is:
 
-Use the `bigboard:configure` skill, or ask naturally: “Change BigBoard's
-configuration,” “Add this local clone to BigBoard,” or “Show two weeks on this
-board.” The skill inspects current settings, clarifies unspecified choices,
-and updates shared sources or this board's viewing filters through the
-existing tools. Explicit choices can be applied directly. Source details and
-the empty state point to this workflow; configuration stays in the agent.
+1. Awaiting your review.
+2. Awaiting your re-review.
+3. Respond to feedback on your PRs.
+4. Assigned to you.
+5. Awaiting reviewer on your PRs.
+6. Ready to merge.
+7. Other open PRs of yours, including drafts and unknown states.
+8. Needs review across the organization.
+9. Other organization PRs.
 
-Activating **Pull requests**, including opening directly into that view,
-automatically refreshes the saved sources. It uses the same collection and
-progress display as **Refresh sources** and joins an already-running refresh
-instead of starting a duplicate. Leaving and returning activates another
-refresh. Ordinary sorting, filtering, selection, and polling do not collect.
-Activity and People read the completed collection until you use **Refresh
-sources** or ask the agent to call `refresh_sources`. A refresh collects 28
-days of local Git history and GitHub PR evidence.
+Oldest activity leads within each group by default. Every row explains why it
+is there. Current-head reviews, explicit re-requests, dismissal history, author
+responses, and reported checks inform these groups. Aggregate approval outranks
+a later non-blocking comment; summary-only bot comments do not create author
+action. Assignment is shown as assignment, not an inferred review request.
 
-GitHub collection processes up to three repositories concurrently. Each
-repository's Open and Merged inventories and their pages stay in order; the
-existing global request, page, response-size, and time limits still apply.
-Git history continues to use up to four workers alongside GitHub collection.
+Unknown or truncated metadata remains marked incomplete. Team requests do not
+establish team membership. Ready to merge describes the approvals and checks
+seen at collection time; repository gates still apply. BigBoard never performs
+reviews or merges merely because a row is grouped or selected.
 
-The app shows separate Git and GitHub repository progress during collection,
-including refreshes started by the agent or another panel. Counts mean
-repositories processed and can include coverage failures. Completion reports
-coverage gaps separately from progress; it does not imply every source was
-available. The last outcome remains visible after completion or cancellation.
-Progress is available through `read_board` without changing the evidence
-snapshot for every progress update. Callers supplying an MCP progress token
-also receive progress notifications from `refresh_sources`.
+### Controls, refresh, and selection
 
-Progress is saved separately from collected evidence. A newer refresh or a
-source-configuration change prevents an older run from overwriting it. If a
-process disappears without finishing, its running status expires after three
-minutes and the app allows another explicit refresh. Collection still
-publishes one completed snapshot; a new server session still requires a
-refresh to verify GitHub access before displaying cached PR evidence.
+PR controls are organization, repository within that organization, attention
+(**All**, **My work**, or **Needs my review**), Open/Merged, and sorting. Merged
+also has its own history window. Activity's date range and comparison do not
+filter the PR queue. Column sorts and attention ordering cover the full
+collected list. Repository/attention filters, sorting, paging, and checkbox
+selection do not recollect GitHub data.
 
-## What the data means
+Activating Pull requests, including direct opening, starts a **GitHub-only**
+refresh and reuses an existing refresh. Changing organization while PRs is
+active starts collection for that organization. Returning to the view refreshes
+it again. Progress distinguishes discovery from review-detail enrichment.
+The queue has its own saved revision, evidence snapshot, progress, and account
+verification; a PR refresh does not replace Activity's snapshot or selection.
 
-- Git activity uses non-merge commits reachable from each clone's
-  remote-tracking default branch, with author dates in `[since, until)`.
-  Local feature branches and uncommitted files are excluded. Collection never
-  fetches or modifies clones. Update remote-tracking refs through your normal
-  Git workflow when needed; the board shows the exact scanned revision.
-  A commit present in multiple selected repositories counts once per repository.
-- Date windows are rolling 7 or 14 days ending at collection time. Chart bars
-  are consecutive 24-hour UTC intervals. A comparison uses the preceding
-  equal-length interval. Local history traversal and line-detail limits are
-  disclosed through repository coverage.
-- Merged PRs use GitHub's merge date and target default branch. Current open
-  PRs, including drafts, remain visible regardless of the historical window.
-  Activity selections narrow commit evidence to a chart interval. In Pull
-  requests, Open is independent of the Activity interval, while Merged follows
-  the board's date range. Merged does not establish deployed.
-- Git author email identities use the scanned revision's mailmap. Different
-  emails are not merged by display name. Line totals include tracked file
-  changes; binary files and unavailable details have unknown line counts,
-  and displayed totals are lower bounds when any counts are unknown.
-- GitHub uses a token obtained from `gh auth token` only in memory. Request,
-  page, response-size, and time limits bound collection. Failure, missing
-  permissions, shallow or partial clones, and truncated results remain
-  visible. Incomplete count totals carry a `+` marker and are lower bounds.
-  A zero with incomplete coverage does not prove no activity.
-- After a server restart, cached Git history is available; GitHub PR evidence
-  stays hidden until a refresh verifies access for the new session. Activating
-  Pull requests starts that refresh automatically.
-  Failed or denied refreshes do not keep old PRs under a different account.
+Select a row to inspect its exact PR. Checkboxes maintain a separate batch of
+up to 100 PRs. **Select loaded** adds only loaded rows; it does not include
+unseen pages. Sorting and paging preserve the checked set. Scope, state, account,
+or snapshot changes clear it. **Share selection** discusses that batch;
+**Request code reviews** sends a review request for the same set. Checkbox
+changes alone do not launch reviews. Background context carries exact PR URLs,
+head SHAs, organization, verified reviewer, and PR query/snapshot, so “review
+these” refers to the checked batch.
 
-## Views and supporting evidence
+### Coverage and limits
 
-**Activity** is the default overview. It shows repository/date controls, the
-commit chart, and a compact summary. Commit evidence is requested and shown
-after selecting an interval. Close its detail pane to return to the overview.
+Organization collection uses GitHub CLI authentication in memory, up to three
+concurrent requests, a 128-request budget, bounded search pages, 2 MiB response
+bodies, and a 120-second collector deadline inside a 150-second refresh window.
+Oversized review-detail batches split into smaller requests within those same
+limits. Merged-only batches omit the history needed for open-PR attention groups.
+Each open search is capped at 1,000 results; merged discovery covers the last
+30 days with a 400-result cap. Authored open discovery is separate and also
+bounded. Search truncation, changing pages, denied repositories, unavailable
+fields, and bounded review/comment connections produce honest partial
+coverage. Counts are lower bounds when incomplete; zero does not prove absence.
 
-**Pull requests** has Open and Merged tabs with their own paged tables. Open
-includes older drafts as of collection time; Merged uses the selected date
-range. Sort by update time, creation time, number, title, author, or repository,
-in either direction. Sorting applies to the full collected list before paging.
-Select a row to inspect that exact PR and explain it with the agent.
-Activity's selected interval does not filter this view.
+After a server restart, cached PR evidence is hidden until a refresh verifies
+GitHub access for that session. Access denial, an account change, or cancellation
+must not expose another account's cached PRs. Refresh progress is separate from
+the completed snapshot; stale running progress expires after three minutes.
 
-The table includes the PR and repository, author, open/merged and draft state,
-GitHub review decision, whether review is pending, your relationship to the PR,
-and update time. Sortable column headers use the same full-inventory sorting
-as the sort controls. Select a title to inspect details below the table;
-checkboxes keep their independent batch selection.
+## Activity and People
 
-Review decisions are GitHub's Approved, Changes requested, or Review required
-states. A returned null decision is **No decision**; missing or unavailable
-metadata is **Unknown**. Pending user or team requests count as needing review
-for a ready, open PR. Drafts show Draft, merged PRs have no pending-review
-indicator, and changes requested without a new request indicate author action.
-No decision with a complete empty request list means No request. These states
-describe the collection time. See the [GitHub review API reference](https://docs.github.com/en/graphql/reference/pulls#pullrequestreviewdecision).
+Configure existing clones through `bigboard:configure`. For example, ask the
+agent to import your native BigBoard selection, refresh sources, and open
+Activity. `configure_sources` with `import_native:true` copies selected
+repositories from native settings read-only, honors exclusions, and reports
+missing selected clones instead of silently shrinking the selection.
+Alternatively, pass absolute existing clone `paths`. Source settings are shared
+by history boards and require the revision returned by `list_sources` when
+updated. An add/remove save includes all retained paths.
 
-**Yours** distinguishes PRs you authored, PRs assigned to you, and direct review
-requests for the verified GitHub account. Team requests are shown separately;
-BigBoard does not infer your team membership. Missing or truncated reviewer and
-assignee lists remain marked incomplete. Existing collections lack the new
-metadata until the next refresh.
+**Activity** opens with a commit chart and compact summary. Selecting an interval
+reveals its supporting commits; closing details returns to the overview.
+**People** has separate Git contributors and GitHub authors. Select a person
+for supporting evidence. These views use the configured-source collection,
+not the organization PR queue, and retain independent repository/date controls.
+Use **Refresh sources** or `refresh_sources` for fresh history; it collects up
+to 28 days of local Git and configured repositories' GitHub evidence, with
+separate Git/GitHub repository progress. PR activation does not run this refresh.
 
-Refresh adds batched read-only GraphQL queries for review decisions, requests,
-and assignees, with up to 50 PRs per query and three concurrent requests. These
-share the existing request, body-size, and time budgets. Changed PR heads,
-unavailable fields, or exhausted limits remain unknown or incomplete. Review
-coverage is separate from complete Open/Merged inventory coverage.
+Git activity counts non-merge commits reachable from each clone's remote-tracking
+default branch, using author dates in half-open intervals. Collection never
+fetches or modifies clones, branches, the index, Git config, or maintenance
+state. Update your tracking refs through your normal Git workflow. Scanned
+revisions and shallow/partial coverage remain visible. A commit found in two
+selected repositories counts once per repository.
 
-Use checkboxes to select several PRs. **Select loaded** adds the currently
-loaded rows; it does not select unseen pages. Select up to 100 PRs per batch;
-larger selections are rejected without changing the existing set. The selected set survives sorting
-and paging within the same scope. It clears when the snapshot, repository,
-state tab, or view changes. **Share selection** sends those exact PRs to the
-conversation. **Request code reviews** sends a review request for the same set;
-the agent follows its normal review workflow. Checkboxes also update agent
-context directly, so you can select PRs and type “review these” in the chat.
-Opening a row's details and selecting a checkbox are independent actions.
+History windows are rolling 7 or 14 days; chart bars are consecutive 24-hour UTC
+intervals. Comparison uses the preceding equal window. Git authors use the
+scanned revision's mailmap; names do not merge distinct email identities.
+GitHub authors remain distinct logins. Unknown line counts and truncated file
+lists are explicit. Configured-source merged evidence targets default branches
+and follows the history window; merged does not establish deployed.
 
-On hosts advertising structured context, ordinary navigation and selection
-update background model context through
-`ui/update-model-context` using `structuredContent`. They do not post a user
-message or attach raw JSON to the composer. On hosts supporting only text
-context, the serialized fallback is marked for the assistant audience, following
-OpenAI's background-context extension. Rendering on other hosts depends on
-their support for that annotation. Explain,
-Share selection, and Request code reviews send short human-readable messages;
-exact board, snapshot, and PR records stay in background context. If context
-sharing is unsupported or fails, those actions stay disabled. This follows the
-[MCP Apps background-context pattern](https://github.com/openai/mcp-extensions/blob/main/docs/patterns.md#background-context).
+## Agent interaction and configuration
 
-**People** has Git contributors and GitHub authors tabs. Git contributors are
-grouped by the scanned revision's mailmapped author email; GitHub authors are
-grouped by login. These sources are not linked by display name. Commit and
-merged PR counts use the board's repository and date range; open PR counts are
-as of collection time. Select a person to inspect supporting evidence and
-discuss that exact identity with the agent. Counts retain the source coverage
-limits and describe observed activity within the collected scope.
+`bigboard:configure`, or a natural request to change BigBoard settings, handles
+both kinds of scope. It inspects current state, clarifies unspecified choices,
+and applies explicit choices directly. Configuration guidance stays in the
+agent; there is no configure-sources action added to the app.
 
-`open_board` accepts `view:activity`, `view:people`, or `view:pull_requests`.
-Pass an existing `board_id` to open another view of that board's saved scope,
-or omit it for a new independent board. The view argument chooses the opening
-tab; subsequent reads do not reset the user's active tab.
+For organization PRs, use `read_pull_request_queue`, then
+`update_pull_request_queue` with that queue's `revision` as `expected_revision`.
+Fields are `organization`, `repository`, `attention:all|mine|review`, and
+`days:7|14|30`. Verify with a fresh queue read. `refresh_pull_requests` refreshes
+GitHub only. `query_pull_requests` accepts its exact `snapshot_id`,
+`pull_request_state`, `pull_request_sort` (including `attention`),
+`sort_direction`, optional exact `pull_request_id`, and a snapshot-bound cursor.
 
-The compact source-status control exposes collection time, scanned refs,
-coverage gaps, and board/snapshot details. Pull requests refreshes on activation;
-the Refresh sources action is also available in every view. The
-agent receives the active view and selection, including selected PR records
-and a separate inspected PR ID. Changing views does not change collected sources.
+For history, use `read_board`, `update_board`, `query_people`, and
+`query_evidence` with the history revision/snapshot. `update_board` controls
+`days:7|14`, configured `repository`, and `compare`; it does not change PR scope.
+`query_evidence` retains its legacy configured-source PR route for historical
+and People evidence. Never interchange history and organization PR snapshots.
+`read_board` includes the independent `pullRequestQueue` for capable app clients;
+older board snapshots remain supported by the UI.
 
-Evidence tools accept `kind:activity` or `kind:pull_requests`. PR queries can
-include `pull_request_state`, `pull_request_id`, `pull_request_sort`, and
-`sort_direction`. People summaries use `query_people` with source `git` or
-`github`; `query_evidence` accepts an exact `person_id` for supporting records.
-Page cursors are bound to their filters, sorting, snapshot, and any selected
-interval. Shortened record-ID and file lists remain explicitly marked.
+Navigation and selection use background model context rather than posting a
+chat turn or inserting JSON into the composer. Structured context is used when
+the host supports it; text-only fallback is marked for the assistant audience.
+Explicit Explain, Share, and Review actions send brief human-readable messages.
+The agent follows its host's normal review workflow and verifies current PR
+state/head before reviewing an older selection. Reads and updates do not switch
+the app's active tab; `open_board` chooses a tab when opening.
 
-## Interaction acceptance test
+## Icons and desktop verification
 
-1. Open Activity. Confirm the chart and summary are visible without commit or
-   PR lists. Inspect the compact status control for source coverage.
-2. Select an interval. Its supporting commits should appear in a detail pane;
-   **Explain selection** should send that interval's exact context to the
-   agent. Close the pane and confirm the overview becomes quiet again.
-3. Switch to Pull requests and watch the automatic source refresh. Open should
-   include older drafts without the Activity interval filter. Switch to Merged
-   and check its date range. Returning from another view starts a new refresh;
-   sorting or selecting rows must not start another collection.
-4. Select a PR row. Its details and explanation should identify that exact PR
-   and snapshot. Check several PRs, sort, and load more. The selected count and
-   agent context must preserve that exact set. Share the selection or request
-   reviews; verify the chat receives only the checked PRs. Checkbox changes
-   alone must not start reviews.
-5. Open directly into People. Switch identity sources, select a person, and
-   inspect evidence. Confirm Git contributors and GitHub logins stay separate.
-6. Page through a list, switch views, and change the repository. Results from
-   a prior view or filter must not appear in the new view.
-7. Ask the agent to change the repository or Activity comparison. Confirm the
-   same board updates while source settings remain unchanged. Refresh sources
-   explicitly and verify old snapshot queries fail.
-8. Reopen an existing board and create another independent board. Their saved
-   queries must remain separate. After server restart, refresh once to verify
-   GitHub access before using PR evidence.
-9. Refresh sources and watch separate Git and GitHub progress before the
-   request completes. Check a refresh started by the agent too. Coverage gaps,
-   cancellation, and interruption must show an honest final outcome. Progress
-   updates alone must not reset evidence paging or checkbox selections.
-10. Check source details and an empty board for guidance to `bigboard:configure`.
-    Ask the agent to change source selection or board filters, and verify the
-    skill distinguishes shared collection settings from per-board viewing.
+The selected activity-easel PNG is packaged as the Codex plugin logo/composer
+icon and as both skills' small/large icon. It is also embedded as a data URI
+inside the app HTML and MCP server bundle. The app renders it without fetching
+an external image; server and UI-resource metadata advertise the same icon.
+The pinned SDK's high-level tool registration does not forward tool icons, so
+no unsupported tool-icon field is added. Host-controlled card headers may
+still show a generic icon. See the [shared icon guide](../../docs/icon-prompts.md)
+for supported Codex/Claude surfaces and generation prompts.
 
-Automated checks cover actual Git repositories in temporary test folders,
-mocked GitHub responses, the packaged stdio server, saved state, and the
-rendered app through the official MCP Apps bridge. Desktop-host acceptance
-is recorded separately from those tests.
+Actual desktop acceptance should check both an updated installed plugin and a
+fresh chat. Open Activity, People, and organization PRs; verify the easel in the
+app header, organization controls without clones, attention ordering across
+pages, independent refreshes and history filters, exact multi-selection after
+sorting, and truthful partial coverage. Test ordinary selection and explicit
+Share/Review separately. Record the desktop host and outcome; automated
+protocol and rendered-bridge checks do not establish desktop-host rendering.
 
-## Build and verify
+## Build and state
 
 ```sh
 cd plugins/bigboard
@@ -273,18 +225,15 @@ fnm exec npm run check
 ```
 
 `bundle/server.cjs`, `bundle/board.html`, and bundled third-party licenses are
-committed artifacts. CI rebuilds them and rejects drift. The SDK pair remains
-pinned to MCP SDK 1.32.2 and MCP Apps 1.7.5.
+committed. CI rebuilds and rejects drift. MCP SDK 1.32.2 and MCP Apps 1.7.5 remain
+pinned. Tests cover temporary Git repositories, mocked GitHub requests, the
+packaged stdio server, durable state, and the app through the official MCP Apps
+bridge; desktop-host verification is recorded separately.
 
-The server launches with `node bundle/server.cjs`. Its SQLite state is under
+The server starts with `node bundle/server.cjs`. SQLite state stays under
 `$XDG_STATE_HOME/bigboard-mcp-app`, or `~/.local/state/bigboard-mcp-app` when
-unset. This legacy directory name is retained across the move to toolshed to
-preserve existing data. `BIGBOARD_STATE_DIR` overrides it for isolated tests.
-It stores source settings, collected evidence, and board queries, separately
-from native data.
-The native settings import honors `BIGBOARD_CONFIG_ROOT` or the usual
-`$XDG_CONFIG_HOME/bigboard/config.json`. Tokens are never persisted.
-
-Early development demo boards migrate to the real-data model, retaining their board
-IDs and date/comparison controls while clearing synthetic repository filters.
-No fixture activity is returned by the production server.
+unset. The legacy name preserves saved sources and boards. `BIGBOARD_STATE_DIR`
+provides isolated state for tests. Native import honors `BIGBOARD_CONFIG_ROOT`
+or `$XDG_CONFIG_HOME/bigboard/config.json`; native data remains separate and
+tokens are never persisted. Early fixture boards keep their IDs/date controls
+while synthetic scope is cleared; production collection returns no demo data.

@@ -13,7 +13,7 @@ for (const directory of [".codex-plugin", ".claude-plugin"]) {
 }
 const outdir = join(root, "bundle");
 await mkdir(outdir, { recursive: true });
-const common = { absWorkingDir: root, bundle: true, minify: true, legalComments: "none", metafile: true };
+const common = { absWorkingDir: root, bundle: true, minify: true, legalComments: "none", metafile: true, loader: { ".png": "dataurl" } };
 const server = await build({ ...common, entryPoints: ["src/main.ts"], outfile: "bundle/server.cjs", platform: "node", format: "cjs", target: "node24" });
 const ui = await build({ ...common, entryPoints: ["src/ui/index.tsx"], outfile: "bundle/activity.js", platform: "browser", format: "iife", target: "es2022", write: false, define: { "process.env.NODE_ENV": '"production"' } });
 const js = ui.outputFiles.find(file => file.path.endsWith(".js")).text.replaceAll("</script", "<\\/script");

@@ -153,14 +153,16 @@ the explicit validation and privacy commands required by the workflow above.
   self-contained five-to-ten-minute tangent. Learns broad preferences through a bounded
   ledger without retaining the work context that prompted the escape.
 
-- **bigboard** — Local Git and GitHub evidence with Activity, People, and Pull
-  requests views in an MCP app. `explore` opens and discusses boards; `configure`
-  changes shared source settings or independent board filters. Git collection
-  reads existing clones without fetching or modifying them; GitHub access uses
-  GitHub CLI authentication. Preserve cancellation, access invalidation,
-  incomplete coverage, and snapshot-bound evidence paging. The native macOS app
-  remains in `richhaase/bigboard`. See the [plugin guide](plugins/bigboard/README.md)
-  for setup, data semantics, and the desktop-host interaction checklist.
+- **bigboard** — Activity and People use configured local clones; Pull requests
+  is an independent organization-wide GitHub queue with personal action groups
+  first. `explore` opens and discusses boards; `configure` changes history
+  sources, history filters, or separate PR scope. PR refreshes are GitHub-only
+  and preserve history snapshots. Keep revisions, cursors, and selection context
+  bound to the correct collection and verified account. Preserve cancellation,
+  access invalidation, incomplete coverage, and exact selected PR heads. Git
+  collection never fetches or modifies clones. The native app repository is
+  archived; future development lives here. See the [plugin guide](plugins/bigboard/README.md)
+  and [plugin instructions](plugins/bigboard/AGENTS.md).
 
 ## Portability rules
 
@@ -176,6 +178,9 @@ the explicit validation and privacy commands required by the workflow above.
   `CLAUDE.md`, unless the instruction is explicitly Claude-specific.
 - Memento should use harness-native background-agent primitives where
   available and degrade cleanly when no delegation surface exists.
+- Reuse packaged plugin icons through supported host metadata; keep rendering
+  claims specific to observed hosts. See the [desktop icon guide](docs/icon-prompts.md#desktop-icon-surfaces)
+  for shared skill assets and embedded MCP app artwork.
 
 ## Public-repo hygiene
 

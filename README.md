@@ -64,9 +64,10 @@ available and falls back to `grep`.
 The host agent may use its own configured tools for workflow steps, including
 network access described by a skill. Bundled helper scripts do not install
 packages or make network requests on their own. BigBoard includes a local MCP
-server that collects Git history and reads GitHub PR data. It requires Node.js
-24 or later, Git, and an authenticated GitHub CLI; its visual board requires
-a host with MCP Apps support. See the [BigBoard guide](plugins/bigboard/).
+server that reads Git history and organization-wide GitHub PR data. It requires
+Node.js 24 or later and an authenticated GitHub CLI; history views also need Git
+and existing clones. Its visual board requires a host with MCP Apps support.
+See the [BigBoard guide](plugins/bigboard/).
 
 ## Plugins
 
@@ -104,11 +105,13 @@ break.
 
 ### <img src="plugins/bigboard/assets/icon.png" width="48" height="48" align="middle" alt=""> [BigBoard](plugins/bigboard/) — Repository Activity and Pull Requests
 
-Explore Git activity, people, and pull requests in an MCP app, inspect supporting
-evidence, and share selected PRs with an agent for discussion or review. Use
-`bigboard:explore` to open a board and `bigboard:configure` to change sources
-or board filters. Version 0.1.0 moves the plugin from the native BigBoard repo
-into toolshed, retaining existing saved sources and boards.
+Explore Git activity, people, and organization-wide pull requests in an MCP app.
+The PR queue shows the whole organization with your review requests, re-reviews,
+feedback, and assignments first, using its own controls and GitHub-only refresh.
+Inspect evidence and share exact selected PRs with an agent for discussion or
+review. Use `bigboard:explore` to open a board and `bigboard:configure` to change
+organization PR scope, history sources, or viewing filters. Toolshed is the home
+for future BigBoard development; the original native app repository is archived.
 
 ## Distribution layout
 
@@ -120,6 +123,10 @@ into toolshed, retaining existing saved sources and boards.
 Keep plugin behavior in `SKILL.md`; keep wrappers thin. For Memento consumer repos,
 `AGENTS.md` is the canonical shared context and vendor entrypoints should only
 adapt their harness to it.
+
+Plugin and skill icons reuse packaged assets. BigBoard also embeds its artwork
+in the app bundle and MCP server metadata. See the [desktop icon guide](docs/icon-prompts.md#desktop-icon-surfaces)
+for supported surfaces and host limitations.
 
 ## License
 

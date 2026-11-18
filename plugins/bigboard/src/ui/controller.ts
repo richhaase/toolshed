@@ -1,3 +1,4 @@
+import type { PullRequestQueueEvidence, PullRequestQueueQuery, PullRequestQueueSnapshot, QueueSort } from "../pr-queue-types";
 import type { ActivityRecord, BoardQuery, BoardSnapshot, BoardViewMode, EvidenceResult, PeopleResult, PersonSummary, PullRequestRecord, PullRequestSort, SelectionContext, SortDirection } from "../shared";
 
 export type { BoardViewMode } from "../shared";
@@ -23,7 +24,7 @@ export interface BoardViewState {
   snapshot: BoardSnapshot | null;
   view: BoardViewMode;
   pullRequestState: PullRequestState;
-  pullRequestSort: PullRequestSort;
+  pullRequestSort: QueueSort;
   sortDirection: SortDirection;
   selectedBucket: string | null;
   selectedPullRequestId: string | null;
@@ -43,6 +44,9 @@ export interface BoardViewState {
   busy: boolean;
   sourceRefreshing: boolean;
   sourceRefreshPreviousId: string | null;
+  queueRefreshing: boolean;
+  queueRefreshPreviousId: string | null;
+  queueGroups: PullRequestQueueEvidence["groups"];
   evidenceLoading: boolean;
   contextReady: boolean;
   contextFailed: boolean;
@@ -81,13 +85,23 @@ export function snapshotFromResult(result: ToolResult): BoardSnapshot {
   return value;
 }
 
+function queueFromResult(result: ToolResult): PullRequestQueueSnapshot {
+  toolError(result);
+  const queue = result.structuredContent as PullRequestQueueSnapshot | undefined;
+  if (!queue || typeof queue.boardId !== "string" || typeof queue.snapshotId !== "string" || typeof queue.revision !== "number" ||
+      !queue.query || !queue.coverage || !queue.totals || !Array.isArray(queue.repositories)) {
+    throw new Error("BigBoard returned an unreadable PR queue. Reopen it from the conversation.");
+  }
+  return queue;
+}
+
 export class BoardController {
   private state: BoardViewState = {
     snapshot: null, view: "activity", pullRequestState: "open", pullRequestSort: "updated", sortDirection: "desc",
     selectedBucket: null, selectedPullRequestId: null, selectedPullRequests: [],
     peopleSource: "git", selectedPersonId: null, people: [], totalPeople: 0, peopleNextCursor: null, peopleLoading: false,
     records: [], pullRequests: [], totalRecords: 0, totalPullRequests: 0, nextCursor: null,
-    phase: "connecting", busy: false, sourceRefreshing: false, sourceRefreshPreviousId: null, evidenceLoading: false,
+    phase: "connecting", busy: false, sourceRefreshing: false, sourceRefreshPreviousId: null, queueRefreshing: false, queueRefreshPreviousId: null, queueGroups: [], evidenceLoading: false,
     contextReady: false, contextFailed: false, error: null, notice: null,
   };
   private listeners = new Set<() => void>();
@@ -107,6 +121,9 @@ export class BoardController {
   private contextQueue: Promise<void> = Promise.resolve();
   private poll: ReturnType<typeof setInterval> | null = null;
   private refreshError: string | null = null;
+  private queueSortChosen = false;
+  private queueReadSequence = 0;
+  private activeQueueOrganization: string | null = null;
 
   constructor(private bridge: BoardBridge, private pollMilliseconds = 2000) {}
 
@@ -131,7 +148,7 @@ export class BoardController {
 
   private clearEvidence(patch: Partial<BoardViewState> = {}): void {
     this.evidenceSequence += 1;
-    this.setState({ records: [], pullRequests: [], totalRecords: 0, totalPullRequests: 0, nextCursor: null, evidenceLoading: false, ...patch });
+    this.setState({ records: [], pullRequests: [], totalRecords: 0, totalPullRequests: 0, nextCursor: null, queueGroups: [], evidenceLoading: false, ...patch });
   }
 
   private clearPeople(): void {
@@ -144,7 +161,7 @@ export class BoardController {
     if (!snapshot) return null;
     return {
       ...selectionContext(snapshot, this.state.selectedBucket, this.state.view, this.state.pullRequestState, this.state.selectedPullRequestId),
-      ...(this.state.view === "pullRequests" ? { selectedPullRequests: this.state.selectedPullRequests, pullRequestSort: this.state.pullRequestSort, sortDirection: this.state.sortDirection } : {}),
+      ...(this.state.view === "pullRequests" ? { selectedPullRequests: this.state.selectedPullRequests, pullRequestSort: this.state.pullRequestSort, sortDirection: this.state.sortDirection, ...(snapshot.pullRequestQueue ? { snapshotId: snapshot.pullRequestQueue.snapshotId, revision: snapshot.pullRequestQueue.revision, pullRequestQuery: snapshot.pullRequestQueue.query, reviewer: snapshot.pullRequestQueue.account } : {}) } : {}),
       ...(this.state.view === "people" ? { personId: this.state.selectedPersonId, peopleSource: this.state.peopleSource } : {}),
     };
   }
@@ -188,15 +205,27 @@ export class BoardController {
           incoming.git.completedRepositories < prior.git.completedRepositories ||
           incoming.github.completedRepositories < prior.github.completedRepositories || incoming.github.requests < prior.github.requests))) return;
     }
+    const priorQueue = previous?.pullRequestQueue;
+    const incomingQueue = snapshot.pullRequestQueue;
+    if (priorQueue && incomingQueue && (incomingQueue.revision < priorQueue.revision ||
+        (incomingQueue.query.organization === priorQueue.query.organization && incomingQueue.refresh && priorQueue.refresh && (incomingQueue.refresh.startedAt < priorQueue.refresh.startedAt ||
+          (incomingQueue.refresh.id === priorQueue.refresh.id && (incomingQueue.refresh.updatedAt < priorQueue.refresh.updatedAt ||
+            incomingQueue.refresh.completed < priorQueue.refresh.completed || incomingQueue.refresh.requests < priorQueue.refresh.requests ||
+            (priorQueue.refresh.status !== "running" && incomingQueue.refresh.status === "running"))))))) {
+      snapshot = { ...snapshot, pullRequestQueue: priorQueue };
+    }
     const openingView = (!previous && this.viewChosen) || !["activity", "pullRequests", "people"].includes(snapshot.initialView ?? "") ? undefined : snapshot.initialView;
-    if (previous?.snapshotId === snapshot.snapshotId) {
-      if (JSON.stringify(previous.refresh ?? null) !== JSON.stringify(snapshot.refresh ?? null)) this.setState({ snapshot });
+    const view = openingView ?? this.state.view;
+    const queue = snapshot.pullRequestQueue;
+    const sameScope = view === "pullRequests" && queue ? priorQueue?.snapshotId === queue.snapshotId && JSON.stringify(priorQueue?.query) === JSON.stringify(queue.query) && JSON.stringify(priorQueue?.account) === JSON.stringify(queue.account) : previous?.snapshotId === snapshot.snapshotId;
+    if (sameScope) {
+      if (JSON.stringify(previous?.refresh ?? null) !== JSON.stringify(snapshot.refresh ?? null) ||
+          JSON.stringify(previous?.pullRequestQueue ?? null) !== JSON.stringify(queue ?? null) || previous?.snapshotId !== snapshot.snapshotId) this.setState({ snapshot });
       if (openingView && openingView !== this.state.view) void this.setView(openingView);
       return;
     }
     const selectedBucket = snapshot.buckets.some((bucket) => bucket.start === this.state.selectedBucket) ? this.state.selectedBucket : null;
-    const view = openingView ?? this.state.view;
-    const sourcesBecameAvailable = view === "pullRequests" && previous?.configuration.repositories.length === 0 && snapshot.configuration.repositories.length > 0;
+    const sourcesBecameAvailable = view === "pullRequests" && (queue ? Boolean(queue.query.organization && priorQueue?.query.organization !== queue.query.organization) : previous?.configuration.repositories.length === 0 && snapshot.configuration.repositories.length > 0);
     const activated = !previous || view !== this.state.view || sourcesBecameAvailable;
     if (activated) {
       this.viewActivation += 1;
@@ -204,7 +233,7 @@ export class BoardController {
     }
     const clearedSelection = this.state.selectedPullRequests.length > 0;
     this.clearPeople();
-    this.clearEvidence({ snapshot, view, selectedBucket, selectedPullRequestId: null, selectedPullRequests: [], phase: "ready", contextReady: false, contextFailed: false, ...(clearedSelection ? { notice: "PR selection cleared because the board snapshot changed." } : {}) });
+    this.clearEvidence({ snapshot, view, selectedBucket, ...(!this.queueSortChosen && queue ? { pullRequestSort: this.state.pullRequestState === "open" ? "attention" : "updated", sortDirection: this.state.pullRequestState === "open" ? "asc" : "desc" } : {}), selectedPullRequestId: null, selectedPullRequests: [], phase: "ready", contextReady: false, contextFailed: false, ...(clearedSelection ? { notice: "PR selection cleared because the board snapshot changed." } : {}) });
     if (this.connected && this.viewReady) {
       if (activated) void this.activateView(this.viewActivation);
       else {
@@ -217,7 +246,21 @@ export class BoardController {
   private async activateView(activation: number): Promise<void> {
     if (!this.connected || !this.viewReady || this.destroyed || activation !== this.viewActivation) return;
     const sharing = this.shareSelection();
-    if (this.state.view === "pullRequests" && this.state.snapshot?.configuration.repositories.length) {
+    const queue = this.state.snapshot?.pullRequestQueue;
+    if (this.state.view === "pullRequests" && queue?.query.organization) {
+      if (this.state.queueRefreshing && this.activeQueueOrganization !== queue.query.organization) {
+        this.pendingPullRequestActivation = activation;
+        await sharing;
+        return;
+      }
+      if (!this.state.queueRefreshing && queue.refresh?.status !== "running") {
+        if (this.state.busy) {
+          this.pendingPullRequestActivation = activation;
+          await sharing;
+        } else await Promise.all([this.refreshPullRequests(), sharing]);
+        return;
+      }
+    } else if (this.state.view === "pullRequests" && !queue && this.state.snapshot?.configuration.repositories.length) {
       if (!this.state.sourceRefreshing && this.state.snapshot.refresh?.status !== "running") {
         if (this.state.busy) {
           this.pendingPullRequestActivation = activation;
@@ -244,7 +287,7 @@ export class BoardController {
       this.setState({ error: this.refreshError });
     } finally {
       this.syncing = false;
-      if (readSucceeded && this.appliedBoardReadSequence === this.boardReadSequence && this.pendingPullRequestLoad && !this.state.sourceRefreshing && this.state.view === "pullRequests") {
+      if (readSucceeded && this.appliedBoardReadSequence === this.boardReadSequence && this.pendingPullRequestLoad && !this.state.sourceRefreshing && !this.state.queueRefreshing && this.state.view === "pullRequests") {
         this.pendingPullRequestLoad = false;
         if (!this.state.pullRequests.length && !this.state.evidenceLoading) await Promise.all([this.loadView(), this.shareSelection()]);
       }
@@ -265,6 +308,7 @@ export class BoardController {
   }
 
   async refreshSources(): Promise<void> {
+    if (this.state.view === "pullRequests" && this.state.snapshot?.pullRequestQueue) return this.refreshPullRequests();
     if (!this.connected || this.state.busy || this.destroyed || this.state.snapshot?.refresh?.status === "running") return;
     this.pendingPullRequestActivation = null;
     this.pendingPullRequestLoad = false;
@@ -289,6 +333,66 @@ export class BoardController {
         if (this.appliedBoardReadSequence !== this.boardReadSequence) this.pendingPullRequestLoad = true;
         else await Promise.all([this.loadView(), this.shareSelection()]);
       }
+    }
+  }
+
+  private acceptQueue(queue: PullRequestQueueSnapshot): void {
+    const snapshot = this.state.snapshot;
+    if (!snapshot || queue.boardId !== snapshot.boardId || this.destroyed) return;
+    this.acceptSnapshot({ ...snapshot, initialView: undefined, pullRequestQueue: queue });
+  }
+
+  async changePullRequestQuery(patch: Partial<PullRequestQueueQuery>): Promise<void> {
+    const snapshot = this.state.snapshot;
+    const queue = snapshot?.pullRequestQueue;
+    if (!snapshot || !queue || this.state.busy || !this.connected || this.destroyed) return;
+    const sequence = ++this.queueReadSequence;
+    this.boardReadSequence += 1;
+    this.setState({ busy: true, error: null, notice: null });
+    try {
+      const next = queueFromResult(await this.bridge.callTool("update_pull_request_queue", { board_id: snapshot.boardId, expected_revision: queue.revision, ...patch }));
+      if (sequence === this.queueReadSequence) this.acceptQueue(next);
+    } catch (error) {
+      if (sequence === this.queueReadSequence) {
+        this.setState({ error: this.errorMessage(error) });
+        await this.refresh();
+      }
+    } finally {
+      this.setState({ busy: false });
+    }
+  }
+
+  async refreshPullRequests(): Promise<void> {
+    const snapshot = this.state.snapshot;
+    const queue = snapshot?.pullRequestQueue;
+    if (!snapshot || !queue?.query.organization || !this.connected || this.destroyed || this.state.busy || this.state.queueRefreshing || queue.refresh?.status === "running") return;
+    this.pendingPullRequestActivation = null;
+    this.pendingPullRequestLoad = false;
+    const organization = queue.query.organization;
+    this.activeQueueOrganization = organization;
+    const sequence = ++this.queueReadSequence;
+    this.boardReadSequence += 1;
+    this.evidenceSequence += 1;
+    this.setState({ queueRefreshing: true, queueRefreshPreviousId: queue.refresh?.id ?? null, evidenceLoading: false, error: null, notice: null });
+    try {
+      const latest = queueFromResult(await this.bridge.callTool("refresh_pull_requests", { board_id: snapshot.boardId }));
+      if (sequence === this.queueReadSequence && this.state.snapshot?.pullRequestQueue?.query.organization === organization) this.acceptQueue(latest);
+    } catch (error) {
+      if (sequence === this.queueReadSequence) {
+        this.setState({ error: this.errorMessage(error) });
+        try {
+          const latest = queueFromResult(await this.bridge.callTool("read_pull_request_queue", { board_id: snapshot.boardId }));
+          if (sequence === this.queueReadSequence) this.acceptQueue(latest);
+        } catch {}
+      }
+    } finally {
+      this.activeQueueOrganization = null;
+      this.setState({ queueRefreshing: false });
+      if (this.pendingPullRequestActivation !== null) {
+        const activation = this.pendingPullRequestActivation;
+        this.pendingPullRequestActivation = null;
+        await this.activateView(activation);
+      } else if (this.state.view === "pullRequests" && !this.state.evidenceLoading) await Promise.all([this.loadEvidence(), this.shareSelection()]);
     }
   }
 
@@ -340,11 +444,13 @@ export class BoardController {
 
   async setPullRequestState(pullRequestState: PullRequestState): Promise<void> {
     if (pullRequestState === this.state.pullRequestState || this.destroyed) return;
-    this.clearEvidence({ pullRequestState, selectedPullRequestId: null, selectedPullRequests: [], contextReady: false, contextFailed: false, error: null, notice: null });
+    this.clearEvidence({ pullRequestState, ...(this.state.snapshot?.pullRequestQueue ? { pullRequestSort: pullRequestState === "open" ? "attention" : "updated", sortDirection: pullRequestState === "open" ? "asc" : "desc" } : {}), selectedPullRequestId: null, selectedPullRequests: [], contextReady: false, contextFailed: false, error: null, notice: null });
     await Promise.all([this.loadEvidence(), this.shareSelection()]);
   }
 
-  async setPullRequestSort(pullRequestSort: PullRequestSort, sortDirection = this.state.sortDirection): Promise<void> {
+  async setPullRequestSort(pullRequestSort: QueueSort, sortDirection = this.state.sortDirection): Promise<void> {
+    if (pullRequestSort === "attention" && !this.state.snapshot?.pullRequestQueue) return;
+    this.queueSortChosen = true;
     if ((pullRequestSort === this.state.pullRequestSort && sortDirection === this.state.sortDirection) || this.destroyed) return;
     this.clearEvidence({ pullRequestSort, sortDirection, selectedPullRequestId: null, contextReady: false, contextFailed: false, error: null, notice: null });
     await Promise.all([this.loadEvidence(), this.shareSelection()]);
@@ -433,6 +539,7 @@ export class BoardController {
   private async loadEvidence(append = false): Promise<void> {
     const snapshot = this.state.snapshot;
     const view = this.state.view;
+    if (snapshot?.pullRequestQueue && view === "pullRequests") return this.loadQueueEvidence(append);
     const bucketStart = view === "activity" ? this.state.selectedBucket : null;
     const personId = view === "people" ? this.state.selectedPersonId : null;
     const pullRequestState = this.state.pullRequestState;
@@ -461,6 +568,36 @@ export class BoardController {
       const records = append ? [...this.state.records, ...evidence.records] : evidence.records;
       const pullRequests = append ? [...this.state.pullRequests, ...evidence.pullRequests] : evidence.pullRequests;
       this.setState({ records: [...new Map(records.map(record => [record.id, record])).values()], pullRequests: [...new Map(pullRequests.map(record => [record.id, record])).values()], totalRecords: evidence.totalRecords, totalPullRequests: evidence.totalPullRequests, nextCursor: evidence.nextCursor, evidenceLoading: false });
+    } catch (error) {
+      if (sequence === this.evidenceSequence) this.setState({ error: this.errorMessage(error), evidenceLoading: false });
+    }
+  }
+
+  private async loadQueueEvidence(append = false): Promise<void> {
+    const snapshot = this.state.snapshot;
+    const queue = snapshot?.pullRequestQueue;
+    const pullRequestState = this.state.pullRequestState;
+    const sort = this.state.pullRequestSort;
+    const direction = this.state.sortDirection;
+    if (!snapshot || !queue || !queue.query.organization || !queue.collectedAt || !this.connected || this.destroyed ||
+        this.state.queueRefreshing || queue.refresh?.status === "running" || this.pendingPullRequestActivation !== null) return;
+    const cursor = append ? this.state.nextCursor : null;
+    const sequence = ++this.evidenceSequence;
+    this.setState({ evidenceLoading: true });
+    try {
+      const result = await this.bridge.callTool("query_pull_requests", {
+        board_id: snapshot.boardId, snapshot_id: queue.snapshotId, pull_request_state: pullRequestState,
+        pull_request_sort: sort, sort_direction: direction, ...(cursor ? { cursor } : {}),
+      });
+      if (sequence !== this.evidenceSequence || this.destroyed) return;
+      toolError(result);
+      const evidence = result.structuredContent as PullRequestQueueEvidence | undefined;
+      if (evidence?.snapshotId !== queue.snapshotId || evidence.state !== pullRequestState || evidence.sort !== sort || evidence.direction !== direction ||
+          !Array.isArray(evidence.pullRequests) || !Array.isArray(evidence.groups) || evidence.query.organization !== queue.query.organization ||
+          evidence.account?.id !== queue.account?.id) throw new Error("The PR queue changed. Refresh it and select the pull requests again.");
+      const pullRequests = append ? [...this.state.pullRequests, ...evidence.pullRequests] : evidence.pullRequests;
+      this.setState({ records: [], totalRecords: 0, pullRequests: [...new Map(pullRequests.map(record => [record.id, record])).values()],
+        totalPullRequests: evidence.totalPullRequests, nextCursor: evidence.nextCursor, queueGroups: evidence.groups, evidenceLoading: false });
     } catch (error) {
       if (sequence === this.evidenceSequence) this.setState({ error: this.errorMessage(error), evidenceLoading: false });
     }
@@ -519,6 +656,7 @@ export class BoardController {
     this.pendingPullRequestActivation = null;
     this.pendingPullRequestLoad = false;
     this.boardReadSequence += 1;
+    this.queueReadSequence += 1;
     this.evidenceSequence += 1;
     this.peopleSequence += 1;
     this.contextSequence += 1;

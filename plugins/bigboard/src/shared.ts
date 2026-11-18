@@ -1,4 +1,5 @@
 import { version } from "../package.json";
+import type { PullRequestAttention, PullRequestQueueQuery, PullRequestQueueSnapshot, QueueSort } from "./pr-queue-types";
 
 export const APP_VERSION = version;
 export type RepositoryFilter = string;
@@ -61,6 +62,7 @@ export interface PullRequestRecord {
   baseBranch: string;
   headSha: string;
   review?: PullRequestReview;
+  attention?: PullRequestAttention;
 }
 
 export interface PullRequestReview {
@@ -140,6 +142,7 @@ export interface RefreshProgress {
 }
 
 export interface BoardSnapshot {
+  pullRequestQueue?: PullRequestQueueSnapshot;
   initialView?: BoardViewMode;
   refresh?: RefreshProgress | null;
   boardId: string;
@@ -214,6 +217,8 @@ export interface EvidenceResult {
 }
 
 export interface SelectionContext {
+  pullRequestQuery?: PullRequestQueueQuery;
+  reviewer?: { id: string; login: string } | null;
   boardId: string;
   revision: number;
   snapshotId: string;
@@ -228,7 +233,7 @@ export interface SelectionContext {
   personId?: string | null;
   peopleSource?: PeopleSource;
   selectedPullRequests?: PullRequestRecord[];
-  pullRequestSort?: PullRequestSort;
+  pullRequestSort?: QueueSort;
   sortDirection?: SortDirection;
 }
 
