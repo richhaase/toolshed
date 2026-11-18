@@ -24,6 +24,12 @@
       "source": "./plugins/ostrich",
       "description": "Escape unwanted work through one fresh, unrelated tangent chosen and led by the agent.",
       "category": "Productivity"
+    },
+    {
+      "name": "bigboard",
+      "source": "./plugins/bigboard",
+      "description": "Explore Git activity, people, and pull requests with an interactive MCP app and shared agent context.",
+      "category": "Developer Tools"
     }
   ]
 }

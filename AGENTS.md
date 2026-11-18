@@ -57,6 +57,7 @@ codex plugin marketplace add .          # Smoke-test Codex marketplace discovery
 bash scripts/validate-manifests.sh       # Validate both harness surfaces + skills
 node scripts/privacy-scan --self-test    # Prove privacy detectors still fire
 node scripts/privacy-scan                # Scan the tracked public tree
+(cd plugins/bigboard && fnm exec npm run check) # Build and test BigBoard
 ```
 
 ## Adding a plugin
@@ -114,6 +115,9 @@ bodies after `/plugin update` (Claude) or a Codex marketplace refresh.
 If a plugin gains a new harness manifest later, this rule extends to it —
 keep all per-harness `plugin.json` versions identical for a given release.
 
+BigBoard also has bundled runtime artifacts and package versions; follow its
+[development instructions](plugins/bigboard/AGENTS.md) when changing that plugin.
+
 README and LICENSE edits don't need a bump.
 
 ### Local validation (enable once per clone)
@@ -148,6 +152,15 @@ the explicit validation and privacy commands required by the workflow above.
   prompts to widen a quality-ranked candidate pool, and delivers one coherent,
   self-contained five-to-ten-minute tangent. Learns broad preferences through a bounded
   ledger without retaining the work context that prompted the escape.
+
+- **bigboard** — Local Git and GitHub evidence with Activity, People, and Pull
+  requests views in an MCP app. `explore` opens and discusses boards; `configure`
+  changes shared source settings or independent board filters. Git collection
+  reads existing clones without fetching or modifying them; GitHub access uses
+  GitHub CLI authentication. Preserve cancellation, access invalidation,
+  incomplete coverage, and snapshot-bound evidence paging. The native macOS app
+  remains in `richhaase/bigboard`. See the [plugin guide](plugins/bigboard/README.md)
+  for setup, data semantics, and the desktop-host interaction checklist.
 
 ## Portability rules
 

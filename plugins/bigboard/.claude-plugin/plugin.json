@@ -1,0 +1,13 @@
+{
+  "name": "bigboard",
+  "version": "0.1.0",
+  "description": "Explore Git activity, people, and pull requests, and share selected PRs with your agent.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "skills": "./skills/",
+  "mcpServers": "./mcp.claude.json"
+}
