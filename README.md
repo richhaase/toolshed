@@ -102,7 +102,7 @@ self-contained five-to-ten-minute diversion. It learns broad preferences
 through a bounded ledger without retaining the work context that prompted the
 break.
 
-### [BigBoard](plugins/bigboard/) — Repository Activity and Pull Requests
+### <img src="plugins/bigboard/assets/icon.png" width="48" height="48" align="middle" alt=""> [BigBoard](plugins/bigboard/) — Repository Activity and Pull Requests
 
 Explore Git activity, people, and pull requests in an MCP app, inspect supporting
 evidence, and share selected PRs with an agent for discussion or review. Use

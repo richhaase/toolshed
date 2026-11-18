@@ -1,4 +1,4 @@
-# BigBoard plugin
+# <img src="assets/icon.png" width="64" height="64" align="middle" alt=""> BigBoard plugin
 
 Explore real Git history and GitHub pull requests in focused views. Activity
 opens with a chart and a small summary. Select an interval to reveal its
@@ -8,7 +8,7 @@ selection. Discuss evidence or request reviews for selected PRs with the agent.
 
 ## Install or update
 
-BigBoard v0.1.0 is distributed from the toolshed marketplace. The native macOS
+BigBoard v0.1.1 is distributed from the toolshed marketplace. The native macOS
 app remains in [richhaase/bigboard](https://github.com/richhaase/bigboard).
 
 Requires Node.js 24 or later, Git, and GitHub CLI on the desktop host's PATH.

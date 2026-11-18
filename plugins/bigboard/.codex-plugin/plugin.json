@@ -1,6 +1,6 @@
 {
   "name": "bigboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Explore Git activity, people, and pull requests, and share selected PRs with your agent.",
   "author": {
     "name": "Rich Haase",
@@ -11,6 +11,8 @@
   "skills": "./skills/",
   "mcpServers": "./mcp.codex.json",
   "interface": {
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
     "displayName": "BigBoard",
     "shortDescription": "Explore activity together with your agent",
     "longDescription": "Open Activity, People, or Pull requests. Inspect supporting evidence, sort and select PRs, and share the exact selection with your agent for discussion or code review.",
