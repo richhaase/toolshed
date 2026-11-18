@@ -153,7 +153,7 @@ for dir in plugins/*/; do
 
   if jq -es 'any(.[]; has("mcpServers"))' "$claude_manifest" "$codex_manifest" >/dev/null 2>&1; then
     for manifest in "$claude_manifest" "$codex_manifest"; do
-      config=$(jq -er '.mcpServers | select(type == "string" and startswith("./"))' "$manifest" 2>/dev/null || true)
+      config=$(jq -er '.mcpServers | select(type == "string" and startswith("./") and (split("/") | index("..") == null))' "$manifest" 2>/dev/null || true)
       if [[ -z "$config" || ! -f "$dir$config" ]]; then
         error "$manifest — mcpServers must name an existing plugin-local JSON file"
       elif ! jq -e '.mcpServers | type == "object" and length > 0' "$dir$config" >/dev/null 2>&1; then
