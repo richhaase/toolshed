@@ -1,0 +1,38 @@
+name: BigBoard MCP app
+
+on:
+  push:
+    paths:
+      - 'plugins/bigboard/**'
+      - '.agents/plugins/marketplace.json'
+      - '.claude-plugin/marketplace.json'
+      - '.github/workflows/bigboard.yml'
+  pull_request:
+    paths:
+      - 'plugins/bigboard/**'
+      - '.agents/plugins/marketplace.json'
+      - '.claude-plugin/marketplace.json'
+      - '.github/workflows/bigboard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bigboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/bigboard
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: plugins/bigboard/.node-version
+          cache: npm
+          cache-dependency-path: plugins/bigboard/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - name: Verify committed installable bundles
+        run: git diff --exit-code -- bundle

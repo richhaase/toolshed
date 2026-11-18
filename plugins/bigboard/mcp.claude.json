@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "bigboard": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bundle/server.cjs"
+      ]
+    }
+  }
+}

@@ -115,8 +115,6 @@ while IFS= read -r plugin; do
   [[ -d "plugins/$plugin" ]] || error "$plugin — marketplace source directory does not exist"
 done <<< "$claude_names"
 
-# Every plugin directory has both manifests. Portable fields must remain equal;
-# Codex-only interface metadata is the sole expected structural extension.
 for dir in plugins/*/; do
   [[ -d "$dir" ]] || continue
   plugin=$(basename "$dir")
@@ -147,10 +145,21 @@ for dir in plugins/*/; do
     error "$plugin — claude=$claude_v codex=$codex_v; versions must match"
   fi
 
-  claude_portable=$(jq -cS '.' "$claude_manifest" 2>/dev/null || true)
-  codex_portable=$(jq -cS 'del(.interface)' "$codex_manifest" 2>/dev/null || true)
+  claude_portable=$(jq -cS 'del(.mcpServers)' "$claude_manifest" 2>/dev/null || true)
+  codex_portable=$(jq -cS 'del(.interface, .mcpServers)' "$codex_manifest" 2>/dev/null || true)
   if [[ "$claude_portable" != "$codex_portable" ]]; then
     error "$plugin — shared manifest fields differ between Claude and Codex"
+  fi
+
+  if jq -es 'any(.[]; has("mcpServers"))' "$claude_manifest" "$codex_manifest" >/dev/null 2>&1; then
+    for manifest in "$claude_manifest" "$codex_manifest"; do
+      config=$(jq -er '.mcpServers | select(type == "string" and startswith("./"))' "$manifest" 2>/dev/null || true)
+      if [[ -z "$config" || ! -f "$dir$config" ]]; then
+        error "$manifest — mcpServers must name an existing plugin-local JSON file"
+      elif ! jq -e '.mcpServers | type == "object" and length > 0' "$dir$config" >/dev/null 2>&1; then
+        error "$dir$config — missing or invalid mcpServers"
+      fi
+    done
   fi
 done
 

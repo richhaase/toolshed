@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "bigboard": {
+      "command": "node",
+      "args": [
+        "bundle/server.cjs"
+      ],
+      "cwd": "."
+    }
+  }
+}
