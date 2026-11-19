@@ -1,10 +1,7 @@
-import type { PullRequestQueueEvidence, PullRequestQueueQuery, PullRequestQueueSnapshot, QueueSort } from "../pr-queue-types";
-import type { ActivityRecord, BoardQuery, BoardSnapshot, BoardViewMode, EvidenceResult, PeopleResult, PersonSummary, PullRequestRecord, PullRequestSort, SelectionContext, SortDirection } from "../shared";
+import type { ActivityRecord, BoardQuery, BoardSnapshot, BoardViewMode, EvidenceResult, PeopleResult, PersonSummary, PullRequestRecord, SelectionContext } from "../shared";
 
 export type { BoardViewMode } from "../shared";
-export type PullRequestState = "open" | "merged";
 export type PeopleSource = "git" | "github";
-const MAX_SELECTED_PRS = 100;
 
 export interface ToolResult {
   isError?: boolean;
@@ -23,12 +20,7 @@ export interface BoardBridge {
 export interface BoardViewState {
   snapshot: BoardSnapshot | null;
   view: BoardViewMode;
-  pullRequestState: PullRequestState;
-  pullRequestSort: QueueSort;
-  sortDirection: SortDirection;
   selectedBucket: string | null;
-  selectedPullRequestId: string | null;
-  selectedPullRequests: PullRequestRecord[];
   peopleSource: PeopleSource;
   selectedPersonId: string | null;
   people: PersonSummary[];
@@ -44,9 +36,6 @@ export interface BoardViewState {
   busy: boolean;
   sourceRefreshing: boolean;
   sourceRefreshPreviousId: string | null;
-  queueRefreshing: boolean;
-  queueRefreshPreviousId: string | null;
-  queueGroups: PullRequestQueueEvidence["groups"];
   evidenceLoading: boolean;
   contextReady: boolean;
   contextFailed: boolean;
@@ -54,7 +43,7 @@ export interface BoardViewState {
   notice: string | null;
 }
 
-export function selectionContext(snapshot: BoardSnapshot, bucketStart: string | null, view: BoardViewMode = "activity", pullRequestState: PullRequestState = "open", pullRequestId: string | null = null): SelectionContext {
+export function selectionContext(snapshot: BoardSnapshot, bucketStart: string | null, view: BoardViewMode = "activity"): SelectionContext {
   const bucket = view === "activity" ? snapshot.buckets.find((item) => item.start === bucketStart) : undefined;
   return {
     boardId: snapshot.boardId,
@@ -63,7 +52,6 @@ export function selectionContext(snapshot: BoardSnapshot, bucketStart: string | 
     query: snapshot.query,
     scope: snapshot.scope,
     view,
-    ...(view === "pullRequests" ? { pullRequestState, pullRequestId } : {}),
     bucketStart: bucket?.start ?? null,
     recordIds: bucket?.recordIds.slice(0, 100) ?? [],
     recordIdsTruncated: bucket?.recordIdsTruncated === true || (bucket?.recordIds.length ?? 0) > 100,
@@ -85,45 +73,27 @@ export function snapshotFromResult(result: ToolResult): BoardSnapshot {
   return value;
 }
 
-function queueFromResult(result: ToolResult): PullRequestQueueSnapshot {
-  toolError(result);
-  const queue = result.structuredContent as PullRequestQueueSnapshot | undefined;
-  if (!queue || typeof queue.boardId !== "string" || typeof queue.snapshotId !== "string" || typeof queue.revision !== "number" ||
-      !queue.query || !queue.coverage || !queue.totals || !Array.isArray(queue.repositories)) {
-    throw new Error("BigBoard returned an unreadable PR queue. Reopen it from the conversation.");
-  }
-  return queue;
-}
-
 export class BoardController {
   private state: BoardViewState = {
-    snapshot: null, view: "activity", pullRequestState: "open", pullRequestSort: "updated", sortDirection: "desc",
-    selectedBucket: null, selectedPullRequestId: null, selectedPullRequests: [],
+    snapshot: null, view: "activity", selectedBucket: null,
     peopleSource: "git", selectedPersonId: null, people: [], totalPeople: 0, peopleNextCursor: null, peopleLoading: false,
     records: [], pullRequests: [], totalRecords: 0, totalPullRequests: 0, nextCursor: null,
-    phase: "connecting", busy: false, sourceRefreshing: false, sourceRefreshPreviousId: null, queueRefreshing: false, queueRefreshPreviousId: null, queueGroups: [], evidenceLoading: false,
+    phase: "connecting", busy: false, sourceRefreshing: false, sourceRefreshPreviousId: null, evidenceLoading: false,
     contextReady: false, contextFailed: false, error: null, notice: null,
   };
   private listeners = new Set<() => void>();
   private connected = false;
   private viewReady = false;
   private viewChosen = false;
-  private viewActivation = 0;
-  private pendingPullRequestActivation: number | null = null;
-  private pendingPullRequestLoad = false;
   private destroyed = false;
   private syncing = false;
   private boardReadSequence = 0;
-  private appliedBoardReadSequence = 0;
   private evidenceSequence = 0;
   private peopleSequence = 0;
   private contextSequence = 0;
   private contextQueue: Promise<void> = Promise.resolve();
   private poll: ReturnType<typeof setInterval> | null = null;
   private refreshError: string | null = null;
-  private queueSortChosen = false;
-  private queueReadSequence = 0;
-  private activeQueueOrganization: string | null = null;
 
   constructor(private bridge: BoardBridge, private pollMilliseconds = 2000) {}
 
@@ -136,19 +106,13 @@ export class BoardController {
 
   private setState(patch: Partial<BoardViewState>): void {
     if (this.destroyed) return;
-    const wasBusy = this.state.busy;
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((listener) => listener());
-    if (wasBusy && !this.state.busy && this.pendingPullRequestActivation !== null) {
-      const activation = this.pendingPullRequestActivation;
-      this.pendingPullRequestActivation = null;
-      void Promise.resolve().then(() => this.activateView(activation));
-    }
   }
 
   private clearEvidence(patch: Partial<BoardViewState> = {}): void {
     this.evidenceSequence += 1;
-    this.setState({ records: [], pullRequests: [], totalRecords: 0, totalPullRequests: 0, nextCursor: null, queueGroups: [], evidenceLoading: false, ...patch });
+    this.setState({ records: [], pullRequests: [], totalRecords: 0, totalPullRequests: 0, nextCursor: null, evidenceLoading: false, ...patch });
   }
 
   private clearPeople(): void {
@@ -160,8 +124,7 @@ export class BoardController {
     const snapshot = this.state.snapshot;
     if (!snapshot) return null;
     return {
-      ...selectionContext(snapshot, this.state.selectedBucket, this.state.view, this.state.pullRequestState, this.state.selectedPullRequestId),
-      ...(this.state.view === "pullRequests" ? { selectedPullRequests: this.state.selectedPullRequests, pullRequestSort: this.state.pullRequestSort, sortDirection: this.state.sortDirection, ...(snapshot.pullRequestQueue ? { snapshotId: snapshot.pullRequestQueue.snapshotId, revision: snapshot.pullRequestQueue.revision, pullRequestQuery: snapshot.pullRequestQueue.query, reviewer: snapshot.pullRequestQueue.account } : {}) } : {}),
+      ...selectionContext(snapshot, this.state.selectedBucket, this.state.view),
       ...(this.state.view === "people" ? { personId: this.state.selectedPersonId, peopleSource: this.state.peopleSource } : {}),
     };
   }
@@ -178,7 +141,7 @@ export class BoardController {
         await this.refresh();
         if (this.destroyed) return;
         this.viewReady = true;
-        void this.activateView(this.viewActivation);
+        void this.activateView();
       } else {
         this.viewReady = true;
         this.setState({ phase: "waiting" });
@@ -205,81 +168,30 @@ export class BoardController {
           incoming.git.completedRepositories < prior.git.completedRepositories ||
           incoming.github.completedRepositories < prior.github.completedRepositories || incoming.github.requests < prior.github.requests))) return;
     }
-    const priorQueue = previous?.pullRequestQueue;
-    const incomingQueue = snapshot.pullRequestQueue;
-    if (priorQueue && incomingQueue && (incomingQueue.revision < priorQueue.revision ||
-        (incomingQueue.query.organization === priorQueue.query.organization && incomingQueue.refresh && priorQueue.refresh && (incomingQueue.refresh.startedAt < priorQueue.refresh.startedAt ||
-          (incomingQueue.refresh.id === priorQueue.refresh.id && (incomingQueue.refresh.updatedAt < priorQueue.refresh.updatedAt ||
-            incomingQueue.refresh.completed < priorQueue.refresh.completed || incomingQueue.refresh.requests < priorQueue.refresh.requests ||
-            (priorQueue.refresh.status !== "running" && incomingQueue.refresh.status === "running"))))))) {
-      snapshot = { ...snapshot, pullRequestQueue: priorQueue };
-    }
-    const openingView = (!previous && this.viewChosen) || !["activity", "pullRequests", "people"].includes(snapshot.initialView ?? "") ? undefined : snapshot.initialView;
-    const view = openingView ?? this.state.view;
-    const queue = snapshot.pullRequestQueue;
-    const sameScope = view === "pullRequests" && queue ? priorQueue?.snapshotId === queue.snapshotId && JSON.stringify(priorQueue?.query) === JSON.stringify(queue.query) && JSON.stringify(priorQueue?.account) === JSON.stringify(queue.account) : previous?.snapshotId === snapshot.snapshotId;
-    if (sameScope) {
-      if (JSON.stringify(previous?.refresh ?? null) !== JSON.stringify(snapshot.refresh ?? null) ||
-          JSON.stringify(previous?.pullRequestQueue ?? null) !== JSON.stringify(queue ?? null) || previous?.snapshotId !== snapshot.snapshotId) this.setState({ snapshot });
-      if (openingView && openingView !== this.state.view) void this.setView(openingView);
+    const openingView = snapshot.initialView === "activity" || snapshot.initialView === "people" ? snapshot.initialView : undefined;
+    const view = !previous && this.viewChosen ? this.state.view : openingView ?? this.state.view;
+    if (previous?.snapshotId === snapshot.snapshotId) {
+      if (JSON.stringify(previous.refresh) !== JSON.stringify(snapshot.refresh)) this.setState({ snapshot });
+      if (view !== this.state.view) void this.setView(view);
       return;
     }
     const selectedBucket = snapshot.buckets.some((bucket) => bucket.start === this.state.selectedBucket) ? this.state.selectedBucket : null;
-    const sourcesBecameAvailable = view === "pullRequests" && (queue ? Boolean(queue.query.organization && priorQueue?.query.organization !== queue.query.organization) : previous?.configuration.repositories.length === 0 && snapshot.configuration.repositories.length > 0);
-    const activated = !previous || view !== this.state.view || sourcesBecameAvailable;
-    if (activated) {
-      this.viewActivation += 1;
-      this.pendingPullRequestActivation = null;
-    }
-    const clearedSelection = this.state.selectedPullRequests.length > 0;
     this.clearPeople();
-    this.clearEvidence({ snapshot, view, selectedBucket, ...(!this.queueSortChosen && queue ? { pullRequestSort: this.state.pullRequestState === "open" ? "attention" : "updated", sortDirection: this.state.pullRequestState === "open" ? "asc" : "desc" } : {}), selectedPullRequestId: null, selectedPullRequests: [], phase: "ready", contextReady: false, contextFailed: false, ...(clearedSelection ? { notice: "PR selection cleared because the board snapshot changed." } : {}) });
-    if (this.connected && this.viewReady) {
-      if (activated) void this.activateView(this.viewActivation);
-      else {
-        void this.loadView();
-        void this.shareSelection();
-      }
-    }
+    this.clearEvidence({ snapshot, view, selectedBucket, phase: "ready", contextReady: false, contextFailed: false });
+    void this.activateView();
   }
 
-  private async activateView(activation: number): Promise<void> {
-    if (!this.connected || !this.viewReady || this.destroyed || activation !== this.viewActivation) return;
-    const sharing = this.shareSelection();
-    const queue = this.state.snapshot?.pullRequestQueue;
-    if (this.state.view === "pullRequests" && queue?.query.organization) {
-      if (this.state.queueRefreshing && this.activeQueueOrganization !== queue.query.organization) {
-        this.pendingPullRequestActivation = activation;
-        await sharing;
-        return;
-      }
-      if (!this.state.queueRefreshing && queue.refresh?.status !== "running") {
-        if (this.state.busy) {
-          this.pendingPullRequestActivation = activation;
-          await sharing;
-        } else await Promise.all([this.refreshPullRequests(), sharing]);
-        return;
-      }
-    } else if (this.state.view === "pullRequests" && !queue && this.state.snapshot?.configuration.repositories.length) {
-      if (!this.state.sourceRefreshing && this.state.snapshot.refresh?.status !== "running") {
-        if (this.state.busy) {
-          this.pendingPullRequestActivation = activation;
-          await sharing;
-        } else await Promise.all([this.refreshSources(), sharing]);
-        return;
-      }
-    }
-    await Promise.all([this.loadView(), sharing]);
+  private async activateView(): Promise<void> {
+    if (!this.connected || !this.viewReady || this.destroyed) return;
+    await Promise.all([this.loadView(), this.shareSelection()]);
   }
 
   async refresh(): Promise<void> {
     const snapshot = this.state.snapshot;
     if (!this.connected || !snapshot || this.syncing || this.destroyed) return;
     this.syncing = true;
-    let readSucceeded = false;
     try {
       await this.readLatestBoard(snapshot.boardId);
-      readSucceeded = true;
       if (this.state.error === this.refreshError) this.setState({ error: null });
       this.refreshError = null;
     } catch {
@@ -287,10 +199,6 @@ export class BoardController {
       this.setState({ error: this.refreshError });
     } finally {
       this.syncing = false;
-      if (readSucceeded && this.appliedBoardReadSequence === this.boardReadSequence && this.pendingPullRequestLoad && !this.state.sourceRefreshing && !this.state.queueRefreshing && this.state.view === "pullRequests") {
-        this.pendingPullRequestLoad = false;
-        if (!this.state.pullRequests.length && !this.state.evidenceLoading) await Promise.all([this.loadView(), this.shareSelection()]);
-      }
     }
   }
 
@@ -300,7 +208,6 @@ export class BoardController {
       const snapshot = snapshotFromResult(await this.bridge.callTool("read_board", { board_id: boardId }));
       if (sequence === this.boardReadSequence && !this.destroyed) {
         this.acceptSnapshot(snapshot);
-        this.appliedBoardReadSequence = sequence;
       }
     } catch (error) {
       if (sequence === this.boardReadSequence && !this.destroyed) throw error;
@@ -308,13 +215,9 @@ export class BoardController {
   }
 
   async refreshSources(): Promise<void> {
-    if (this.state.view === "pullRequests" && this.state.snapshot?.pullRequestQueue) return this.refreshPullRequests();
     if (!this.connected || this.state.busy || this.destroyed || this.state.snapshot?.refresh?.status === "running") return;
-    this.pendingPullRequestActivation = null;
-    this.pendingPullRequestLoad = false;
     this.boardReadSequence += 1;
-    if (this.state.view === "pullRequests") this.evidenceSequence += 1;
-    this.setState({ busy: true, sourceRefreshing: true, sourceRefreshPreviousId: this.state.snapshot?.refresh?.id ?? null, error: null, notice: null, ...(this.state.view === "pullRequests" ? { evidenceLoading: false } : {}) });
+    this.setState({ busy: true, sourceRefreshing: true, sourceRefreshPreviousId: this.state.snapshot?.refresh?.id ?? null, error: null, notice: null });
     try {
       toolError(await this.bridge.callTool("refresh_sources", {}));
       const snapshot = this.state.snapshot;
@@ -329,70 +232,6 @@ export class BoardController {
       }
     } finally {
       this.setState({ busy: false, sourceRefreshing: false });
-      if (this.state.view === "pullRequests" && !this.state.pullRequests.length && !this.state.evidenceLoading) {
-        if (this.appliedBoardReadSequence !== this.boardReadSequence) this.pendingPullRequestLoad = true;
-        else await Promise.all([this.loadView(), this.shareSelection()]);
-      }
-    }
-  }
-
-  private acceptQueue(queue: PullRequestQueueSnapshot): void {
-    const snapshot = this.state.snapshot;
-    if (!snapshot || queue.boardId !== snapshot.boardId || this.destroyed) return;
-    this.acceptSnapshot({ ...snapshot, initialView: undefined, pullRequestQueue: queue });
-  }
-
-  async changePullRequestQuery(patch: Partial<PullRequestQueueQuery>): Promise<void> {
-    const snapshot = this.state.snapshot;
-    const queue = snapshot?.pullRequestQueue;
-    if (!snapshot || !queue || this.state.busy || !this.connected || this.destroyed) return;
-    const sequence = ++this.queueReadSequence;
-    this.boardReadSequence += 1;
-    this.setState({ busy: true, error: null, notice: null });
-    try {
-      const next = queueFromResult(await this.bridge.callTool("update_pull_request_queue", { board_id: snapshot.boardId, expected_revision: queue.revision, ...patch }));
-      if (sequence === this.queueReadSequence) this.acceptQueue(next);
-    } catch (error) {
-      if (sequence === this.queueReadSequence) {
-        this.setState({ error: this.errorMessage(error) });
-        await this.refresh();
-      }
-    } finally {
-      this.setState({ busy: false });
-    }
-  }
-
-  async refreshPullRequests(): Promise<void> {
-    const snapshot = this.state.snapshot;
-    const queue = snapshot?.pullRequestQueue;
-    if (!snapshot || !queue?.query.organization || !this.connected || this.destroyed || this.state.busy || this.state.queueRefreshing || queue.refresh?.status === "running") return;
-    this.pendingPullRequestActivation = null;
-    this.pendingPullRequestLoad = false;
-    const organization = queue.query.organization;
-    this.activeQueueOrganization = organization;
-    const sequence = ++this.queueReadSequence;
-    this.boardReadSequence += 1;
-    this.evidenceSequence += 1;
-    this.setState({ queueRefreshing: true, queueRefreshPreviousId: queue.refresh?.id ?? null, evidenceLoading: false, error: null, notice: null });
-    try {
-      const latest = queueFromResult(await this.bridge.callTool("refresh_pull_requests", { board_id: snapshot.boardId }));
-      if (sequence === this.queueReadSequence && this.state.snapshot?.pullRequestQueue?.query.organization === organization) this.acceptQueue(latest);
-    } catch (error) {
-      if (sequence === this.queueReadSequence) {
-        this.setState({ error: this.errorMessage(error) });
-        try {
-          const latest = queueFromResult(await this.bridge.callTool("read_pull_request_queue", { board_id: snapshot.boardId }));
-          if (sequence === this.queueReadSequence) this.acceptQueue(latest);
-        } catch {}
-      }
-    } finally {
-      this.activeQueueOrganization = null;
-      this.setState({ queueRefreshing: false });
-      if (this.pendingPullRequestActivation !== null) {
-        const activation = this.pendingPullRequestActivation;
-        this.pendingPullRequestActivation = null;
-        await this.activateView(activation);
-      } else if (this.state.view === "pullRequests" && !this.state.evidenceLoading) await Promise.all([this.loadEvidence(), this.shareSelection()]);
     }
   }
 
@@ -404,8 +243,6 @@ export class BoardController {
       if (this.state.view === "people" && this.state.people.length) {
         if (this.state.peopleNextCursor) await this.loadPeople(true);
         await this.loadEvidence();
-      } else if (this.state.view === "pullRequests" && this.state.pullRequests.length) {
-        if (this.state.nextCursor) await this.loadEvidence(true);
       } else await this.loadView();
       await this.shareSelection();
     }
@@ -427,12 +264,9 @@ export class BoardController {
     if (this.destroyed) return;
     this.viewChosen = true;
     if (view === this.state.view) return;
-    const activation = ++this.viewActivation;
-    this.pendingPullRequestActivation = null;
-    this.pendingPullRequestLoad = false;
     this.clearPeople();
-    this.clearEvidence({ view, selectedPullRequestId: null, selectedPullRequests: [], contextReady: false, contextFailed: false, error: null, notice: null });
-    await this.activateView(activation);
+    this.clearEvidence({ view, contextReady: false, contextFailed: false, error: null, notice: null });
+    await this.activateView();
   }
 
   async setPeopleSource(peopleSource: PeopleSource): Promise<void> {
@@ -440,20 +274,6 @@ export class BoardController {
     this.clearPeople();
     this.clearEvidence({ peopleSource, contextReady: false, contextFailed: false, error: null, notice: null });
     await Promise.all([this.loadPeople(), this.shareSelection()]);
-  }
-
-  async setPullRequestState(pullRequestState: PullRequestState): Promise<void> {
-    if (pullRequestState === this.state.pullRequestState || this.destroyed) return;
-    this.clearEvidence({ pullRequestState, ...(this.state.snapshot?.pullRequestQueue ? { pullRequestSort: pullRequestState === "open" ? "attention" : "updated", sortDirection: pullRequestState === "open" ? "asc" : "desc" } : {}), selectedPullRequestId: null, selectedPullRequests: [], contextReady: false, contextFailed: false, error: null, notice: null });
-    await Promise.all([this.loadEvidence(), this.shareSelection()]);
-  }
-
-  async setPullRequestSort(pullRequestSort: QueueSort, sortDirection = this.state.sortDirection): Promise<void> {
-    if (pullRequestSort === "attention" && !this.state.snapshot?.pullRequestQueue) return;
-    this.queueSortChosen = true;
-    if ((pullRequestSort === this.state.pullRequestSort && sortDirection === this.state.sortDirection) || this.destroyed) return;
-    this.clearEvidence({ pullRequestSort, sortDirection, selectedPullRequestId: null, contextReady: false, contextFailed: false, error: null, notice: null });
-    await Promise.all([this.loadEvidence(), this.shareSelection()]);
   }
 
   async selectBucket(start: string | null): Promise<void> {
@@ -467,39 +287,6 @@ export class BoardController {
     if (this.state.view !== "people" || (id && !this.state.people.some(person => person.id === id))) return;
     this.clearEvidence({ selectedPersonId: id, contextReady: false, contextFailed: false, error: null, notice: null });
     await Promise.all([this.loadEvidence(), this.shareSelection()]);
-  }
-
-  async selectPullRequest(id: string | null): Promise<void> {
-    if (this.state.view !== "pullRequests" || (id && !this.state.pullRequests.some(pr => pr.id === id))) return;
-    this.setState({ selectedPullRequestId: id, contextReady: false, contextFailed: false, error: null, notice: null });
-    await this.shareSelection();
-  }
-
-  async togglePullRequest(id: string): Promise<void> {
-    if (this.state.view !== "pullRequests") return;
-    const selected = this.state.selectedPullRequests.some(pr => pr.id === id);
-    const pr = this.state.pullRequests.find(pr => pr.id === id);
-    if (!selected && !pr) return;
-    const next = selected ? this.state.selectedPullRequests.filter(pr => pr.id !== id) : [...this.state.selectedPullRequests, pr!];
-    await this.setPullRequestSelection(next);
-  }
-
-  async selectLoadedPullRequests(): Promise<void> {
-    if (this.state.view !== "pullRequests") return;
-    await this.setPullRequestSelection([...new Map([...this.state.selectedPullRequests, ...this.state.pullRequests].map(pr => [pr.id, pr])).values()]);
-  }
-
-  async clearPullRequestSelection(): Promise<void> {
-    await this.setPullRequestSelection([]);
-  }
-
-  private async setPullRequestSelection(selectedPullRequests: PullRequestRecord[]): Promise<void> {
-    if (selectedPullRequests.length > MAX_SELECTED_PRS) {
-      this.setState({ error: `Select up to ${MAX_SELECTED_PRS} pull requests at a time. Your existing selection is unchanged.` });
-      return;
-    }
-    this.setState({ selectedPullRequests, contextReady: false, contextFailed: false, error: null, notice: null });
-    await this.shareSelection();
   }
 
   async loadMore(): Promise<void> {
@@ -539,14 +326,10 @@ export class BoardController {
   private async loadEvidence(append = false): Promise<void> {
     const snapshot = this.state.snapshot;
     const view = this.state.view;
-    if (snapshot?.pullRequestQueue && view === "pullRequests") return this.loadQueueEvidence(append);
     const bucketStart = view === "activity" ? this.state.selectedBucket : null;
     const personId = view === "people" ? this.state.selectedPersonId : null;
-    const pullRequestState = this.state.pullRequestState;
-    const pullRequestSort = this.state.pullRequestSort;
-    const sortDirection = this.state.sortDirection;
-    const kind = view === "activity" || (view === "people" && this.state.peopleSource === "git") ? "activity" : "pull_requests";
-    if (!snapshot || !this.connected || this.destroyed || !snapshot.collectedAt || !snapshot.configuration.repositories.length || (view === "pullRequests" && (this.state.sourceRefreshing || this.pendingPullRequestActivation !== null)) || (view === "activity" && !bucketStart) || (view === "people" && !personId)) return;
+    const kind = view === "activity" || this.state.peopleSource === "git" ? "activity" : "pull_requests";
+    if (!snapshot || !this.connected || this.destroyed || !snapshot.collectedAt || !snapshot.configuration.repositories.length || (!bucketStart && !personId)) return;
     const cursor = append ? this.state.nextCursor : null;
     const sequence = ++this.evidenceSequence;
     this.setState({ evidenceLoading: true });
@@ -555,7 +338,6 @@ export class BoardController {
         board_id: snapshot.boardId, snapshot_id: snapshot.snapshotId, kind,
         ...(bucketStart ? { bucket_start: bucketStart } : {}),
         ...(personId ? { person_id: personId } : {}),
-        ...(view === "pullRequests" ? { pull_request_state: pullRequestState, pull_request_sort: pullRequestSort, sort_direction: sortDirection } : {}),
         ...(cursor ? { cursor } : {}),
       });
       if (sequence !== this.evidenceSequence || this.destroyed) return;
@@ -563,41 +345,10 @@ export class BoardController {
       const evidence = result.structuredContent as EvidenceResult | undefined;
       if (evidence?.snapshotId !== snapshot.snapshotId || !Array.isArray(evidence.records) || !Array.isArray(evidence.pullRequests) ||
           (evidence.kind !== undefined && evidence.kind !== kind) ||
-          (view === "pullRequests" && evidence.pullRequestState !== undefined && evidence.pullRequestState !== pullRequestState) ||
           (personId && evidence.selectedPersonId !== undefined && evidence.selectedPersonId !== personId)) throw new Error("The selected evidence changed. Refresh the board and select it again.");
       const records = append ? [...this.state.records, ...evidence.records] : evidence.records;
       const pullRequests = append ? [...this.state.pullRequests, ...evidence.pullRequests] : evidence.pullRequests;
       this.setState({ records: [...new Map(records.map(record => [record.id, record])).values()], pullRequests: [...new Map(pullRequests.map(record => [record.id, record])).values()], totalRecords: evidence.totalRecords, totalPullRequests: evidence.totalPullRequests, nextCursor: evidence.nextCursor, evidenceLoading: false });
-    } catch (error) {
-      if (sequence === this.evidenceSequence) this.setState({ error: this.errorMessage(error), evidenceLoading: false });
-    }
-  }
-
-  private async loadQueueEvidence(append = false): Promise<void> {
-    const snapshot = this.state.snapshot;
-    const queue = snapshot?.pullRequestQueue;
-    const pullRequestState = this.state.pullRequestState;
-    const sort = this.state.pullRequestSort;
-    const direction = this.state.sortDirection;
-    if (!snapshot || !queue || !queue.query.organization || !queue.collectedAt || !this.connected || this.destroyed ||
-        this.state.queueRefreshing || queue.refresh?.status === "running" || this.pendingPullRequestActivation !== null) return;
-    const cursor = append ? this.state.nextCursor : null;
-    const sequence = ++this.evidenceSequence;
-    this.setState({ evidenceLoading: true });
-    try {
-      const result = await this.bridge.callTool("query_pull_requests", {
-        board_id: snapshot.boardId, snapshot_id: queue.snapshotId, pull_request_state: pullRequestState,
-        pull_request_sort: sort, sort_direction: direction, ...(cursor ? { cursor } : {}),
-      });
-      if (sequence !== this.evidenceSequence || this.destroyed) return;
-      toolError(result);
-      const evidence = result.structuredContent as PullRequestQueueEvidence | undefined;
-      if (evidence?.snapshotId !== queue.snapshotId || evidence.state !== pullRequestState || evidence.sort !== sort || evidence.direction !== direction ||
-          !Array.isArray(evidence.pullRequests) || !Array.isArray(evidence.groups) || evidence.query.organization !== queue.query.organization ||
-          evidence.account?.id !== queue.account?.id) throw new Error("The PR queue changed. Refresh it and select the pull requests again.");
-      const pullRequests = append ? [...this.state.pullRequests, ...evidence.pullRequests] : evidence.pullRequests;
-      this.setState({ records: [], totalRecords: 0, pullRequests: [...new Map(pullRequests.map(record => [record.id, record])).values()],
-        totalPullRequests: evidence.totalPullRequests, nextCursor: evidence.nextCursor, queueGroups: evidence.groups, evidenceLoading: false });
     } catch (error) {
       if (sequence === this.evidenceSequence) this.setState({ error: this.errorMessage(error), evidenceLoading: false });
     }
@@ -631,20 +382,11 @@ export class BoardController {
     finally { this.setState({ busy: false }); }
   }
 
-  async sharePullRequestSelection(review = false): Promise<void> {
-    const context = this.context();
-    if (!context || context.view !== "pullRequests" || !context.selectedPullRequests?.length || !this.connected || this.state.busy) return;
-    const count = context.selectedPullRequests.length;
-    const selection = `${count} pull ${count === 1 ? "request" : "requests"} selected in BigBoard`;
-    const request = review ? `Review the ${selection} using your normal review workflow.` : `Let's discuss the ${selection}.`;
-    await this.sendSelection(context, request);
-  }
-
   async explainSelection(): Promise<void> {
     const context = this.context();
-    const selected = this.state.view === "activity" ? this.state.selectedBucket : this.state.view === "people" ? this.state.selectedPersonId : this.state.selectedPullRequestId;
+    const selected = this.state.view === "activity" ? this.state.selectedBucket : this.state.selectedPersonId;
     if (!context || !selected || !this.connected || this.state.busy) return;
-    const request = context.view === "activity" ? "Explain the selected Activity interval in BigBoard using its supporting evidence." : context.view === "people" ? "Explain the person selected in BigBoard using their supporting evidence." : "Explain the pull request whose details are open in BigBoard using its supporting evidence.";
+    const request = context.view === "activity" ? "Explain the selected Activity interval in BigBoard using its supporting evidence." : "Explain the person selected in BigBoard using their supporting evidence.";
     await this.sendSelection(context, request);
   }
 
@@ -652,11 +394,7 @@ export class BoardController {
     this.destroyed = true;
     this.connected = false;
     this.viewReady = false;
-    this.viewActivation += 1;
-    this.pendingPullRequestActivation = null;
-    this.pendingPullRequestLoad = false;
     this.boardReadSequence += 1;
-    this.queueReadSequence += 1;
     this.evidenceSequence += 1;
     this.peopleSequence += 1;
     this.contextSequence += 1;

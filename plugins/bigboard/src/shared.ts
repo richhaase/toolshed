@@ -1,9 +1,8 @@
 import { version } from "../package.json";
-import type { PullRequestAttention, PullRequestQueueQuery, PullRequestQueueSnapshot, QueueSort } from "./pr-queue-types";
 
 export const APP_VERSION = version;
 export type RepositoryFilter = string;
-export type BoardViewMode = "activity" | "pullRequests" | "people";
+export type BoardViewMode = "activity" | "people";
 export type PeopleSource = "git" | "github";
 export type PullRequestSort = "updated" | "created" | "number" | "title" | "author" | "repository";
 export type SortDirection = "asc" | "desc";
@@ -62,7 +61,6 @@ export interface PullRequestRecord {
   baseBranch: string;
   headSha: string;
   review?: PullRequestReview;
-  attention?: PullRequestAttention;
 }
 
 export interface PullRequestReview {
@@ -142,7 +140,6 @@ export interface RefreshProgress {
 }
 
 export interface BoardSnapshot {
-  pullRequestQueue?: PullRequestQueueSnapshot;
   initialView?: BoardViewMode;
   refresh?: RefreshProgress | null;
   boardId: string;
@@ -217,8 +214,6 @@ export interface EvidenceResult {
 }
 
 export interface SelectionContext {
-  pullRequestQuery?: PullRequestQueueQuery;
-  reviewer?: { id: string; login: string } | null;
   boardId: string;
   revision: number;
   snapshotId: string;
@@ -228,13 +223,8 @@ export interface SelectionContext {
   recordIds: string[];
   recordIdsTruncated?: boolean;
   view?: BoardViewMode;
-  pullRequestState?: "open" | "merged";
-  pullRequestId?: string | null;
   personId?: string | null;
   peopleSource?: PeopleSource;
-  selectedPullRequests?: PullRequestRecord[];
-  pullRequestSort?: QueueSort;
-  sortDirection?: SortDirection;
 }
 
 export const BOARD_RESOURCE_URI = "ui://bigboard/activity.html";

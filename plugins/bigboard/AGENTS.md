@@ -31,13 +31,9 @@ actual desktop-host interaction checklist.
   `$XDG_STATE_HOME` or `~/.local/state`; moving the plugin must not reset saved
   sources, collected evidence, or boards. `BIGBOARD_STATE_DIR` supports isolated
   tests. Native app state is separate.
-- Activity/People share configured history sources and retain independent
-  board filters. Native repository selection import is read-only.
-- Each board has a separate organization PR query and PR revision/snapshot.
-  The queue needs no local clones; Open has no age cutoff and defaults to the
-  whole organization with personal action groups first. Classify and sort the
-  complete collected inventory before paging, retain drafts/authored fallbacks,
-  and disclose missing review history or checks rather than inferring no action.
+- Activity and People share a board's repository and date filters. Each board
+  has its own saved filters. All boards use the same configured source
+  repositories. Native repository selection import is read-only.
 - Git collection reads existing clones and remote-tracking default branches.
   Never fetch or modify branches, the index, the working tree, Git config, or
   repository maintenance state.
@@ -46,9 +42,5 @@ actual desktop-host interaction checklist.
 - Preserve cancellation, account access invalidation, identity rules, honest
   stale or partial coverage, and snapshot-bound evidence paging. Update affected
   projections and tests when changing data models.
-- Activating Pull requests refreshes GitHub only and joins an existing PR
-  refresh. Its progress and collection must not replace Activity's snapshot or
-  selected interval. Organization changes refresh the active PR view; sorting,
-  selection, paging, and ordinary polls do not collect. Activity and People use
-  manual history refreshes. Keep agent queries and selection context bound to
-  the correct independent query, snapshot, account, and exact PR head.
+- Activity and People use manual source refreshes. Bind selected intervals and
+  people to the board's current snapshot when querying evidence.

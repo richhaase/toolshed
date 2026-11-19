@@ -64,9 +64,10 @@ available and falls back to `grep`.
 The host agent may use its own configured tools for workflow steps, including
 network access described by a skill. Bundled helper scripts do not install
 packages or make network requests on their own. BigBoard includes a local MCP
-server that reads Git history and organization-wide GitHub PR data. It requires
-Node.js 24 or later and an authenticated GitHub CLI; history views also need Git
-and existing clones. Its visual board requires a host with MCP Apps support.
+server that reads Git history and GitHub pull request data for your selected
+repositories. The server requires Node.js 24 or later and reads local clones
+using Git. GitHub data uses an authenticated GitHub CLI. The interactive board
+requires a host with MCP Apps support.
 See the [BigBoard guide](plugins/bigboard/).
 
 ## Plugins
@@ -103,15 +104,13 @@ self-contained five-to-ten-minute diversion. It learns broad preferences
 through a bounded ledger without retaining the work context that prompted the
 break.
 
-### <img src="plugins/bigboard/assets/icon.png" width="48" height="48" align="middle" alt=""> [BigBoard](plugins/bigboard/) — Repository Activity and Pull Requests
+### <img src="plugins/bigboard/assets/icon.png" width="48" height="48" align="middle" alt=""> [BigBoard](plugins/bigboard/) — Repository Activity and Contributors
 
-Explore Git activity, people, and organization-wide pull requests in an MCP app.
-The PR queue shows the whole organization with your review requests, re-reviews,
-feedback, and assignments first, using its own controls and GitHub-only refresh.
-Inspect evidence and share exact selected PRs with an agent for discussion or
-review. Use `bigboard:explore` to open a board and `bigboard:configure` to change
-organization PR scope, history sources, or viewing filters. Toolshed is the home
-for future BigBoard development; the original native app repository is archived.
+Activity charts commits from your selected repositories. People groups Git
+contributors and GitHub pull request authors, with supporting records for each
+person. Use `bigboard:explore` to open a board and discuss a selected interval
+or person. Use `bigboard:configure` to choose sources and viewing filters.
+The original native app repository is archived. Future development lives here.
 
 ## Distribution layout
 
