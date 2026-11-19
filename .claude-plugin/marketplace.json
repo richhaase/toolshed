@@ -28,7 +28,7 @@
     {
       "name": "bigboard",
       "source": "./plugins/bigboard",
-      "description": "Explore Git activity, people, and pull requests with an interactive MCP app and shared agent context.",
+      "description": "Explore repository activity and contributors with your agent.",
       "category": "Developer Tools"
     }
   ]

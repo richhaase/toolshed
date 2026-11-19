@@ -336,7 +336,7 @@ test("independent SQLite stores enforce board CAS and reset removed repository f
   assert.equal(removed.revision, current.revision + 1);
 });
 
-test("activity and PR views receive only their own evidence while the default query stays compatible", async t => {
+test("evidence kind filters isolate commits and PRs while the default query returns both", async t => {
   const { store } = await installation(t);
   await store.configure(undefined, true, 0);
   await store.refresh();
@@ -361,7 +361,7 @@ test("activity and PR views receive only their own evidence while the default qu
   await assert.rejects(store.evidence(board.boardId, board.snapshotId, undefined, undefined, { kind: "activity", pullRequestId: "example/widget#1" }), code("invalid_filter"));
 });
 
-test("PR tabs filter before pagination and reject cursors from another evidence view or state", async t => {
+test("PR evidence filters apply before pagination and reject cursors from another kind or state", async t => {
   const { store, data } = await installation(t);
   data.setPRs(Array.from({ length: 61 }, (_, index) => pr(repos[0].id, index + 1, index % 2 ? "open" : "merged", "2026-11-16T12:00:00.000Z")));
   await store.configure([repos[0].path], false, 0);

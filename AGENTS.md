@@ -153,16 +153,11 @@ the explicit validation and privacy commands required by the workflow above.
   self-contained five-to-ten-minute tangent. Learns broad preferences through a bounded
   ledger without retaining the work context that prompted the escape.
 
-- **bigboard** — Activity and People use configured local clones; Pull requests
-  is an independent organization-wide GitHub queue with personal action groups
-  first. `explore` opens and discusses boards; `configure` changes history
-  sources, history filters, or separate PR scope. PR refreshes are GitHub-only
-  and preserve history snapshots. Keep revisions, cursors, and selection context
-  bound to the correct collection and verified account. Preserve cancellation,
-  access invalidation, incomplete coverage, and exact selected PR heads. Git
-  collection never fetches or modifies clones. The native app repository is
-  archived; future development lives here. See the [plugin guide](plugins/bigboard/README.md)
-  and [plugin instructions](plugins/bigboard/AGENTS.md).
+- **bigboard** — Activity charts commits from configured local clones. People
+  groups Git contributors and GitHub pull request authors. `explore` opens and
+  discusses boards, and `configure` changes sources and per-board filters.
+  See the [plugin guide](plugins/bigboard/README.md) and
+  [plugin instructions](plugins/bigboard/AGENTS.md).
 
 ## Portability rules
 
