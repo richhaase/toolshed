@@ -1,6 +1,6 @@
 ---
 name: explore
-description: Open BigBoard Activity and People, compare repository activity, and inspect the commits or pull requests behind a selected interval or contributor.
+description: Open BigBoard Activity and People, compare repository activity, and inspect the commits behind a selected interval or contributor.
 ---
 
 # BigBoard exploration
@@ -24,18 +24,14 @@ does not switch tabs. Keep the existing panel for follow-up questions.
 Use `list_sources` for shared clone selection. Call `refresh_sources` when
 fresh history is requested or no collection exists, allowing up to 150
 seconds. It reads existing remote-tracking default branches without fetching
-or modifying clones and collects the configured repositories' GitHub evidence.
-Check `read_board` for an in-flight refresh before starting another. Report
-coverage and collection time. Refresh after a server restart to verify GitHub
-access before using cached GitHub evidence.
+or modifying clones. Check `read_board` for an in-flight refresh before
+starting another. Report coverage and collection time.
 
 Use `read_board`, then `query_evidence` with the history board's `snapshotId`.
-Activity uses `kind:activity` and the selected `bucket_start` when present.
-People uses `query_people` with `source:git` or `github`; a selected person's
-supporting evidence uses `query_evidence` and exact `person_id`. Git identities
-are mailmapped emails; GitHub authors are logins. Do not link identities by
-similar display names. Commit and merged PR counts use the board's repository
-and date filters. Open PR counts are current as of collection time.
+For Activity, pass the selected `bucket_start` when present. For People, use
+`query_people` to list contributors and pass the selected `person_id` to
+`query_evidence` to inspect their commits. Contributors are grouped by
+mailmapped Git email within the board's repository and date filters.
 
 Report scanned revisions and unknown line counts where relevant. Treat counts
 with incomplete coverage as lower bounds. If the selection's snapshot has

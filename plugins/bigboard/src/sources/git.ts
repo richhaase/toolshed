@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
+import { MAX_EVIDENCE_FILES } from "../shared";
 import type { ActivityRecord, ConfiguredRepository, FileChange, GitCollectionResult } from "../shared";
 
 const MAX_COMMITS = 20_000;
@@ -207,6 +208,7 @@ export async function collectGitHistory(repository: ConfiguredRepository, option
     if (result.partial) notes.push("Partial clone: line counts and paths are unavailable locally.");
     result.records = parsed.records.slice(0, MAX_COMMITS).filter((record) => Date.parse(record.timestamp) >= since && Date.parse(record.timestamp) < until);
     let linesFailed = false;
+    let hasBinaryFiles = false;
     if (!result.partial) {
       for (let start = 0; start < Math.min(result.records.length, MAX_LINE_COMMITS); start += 100) {
         options.signal?.throwIfAborted();
@@ -219,9 +221,11 @@ export async function collectGitHistory(repository: ConfiguredRepository, option
           for (const record of batch) {
             const files = changes.get(record.sha);
             if (!files) { linesFailed = true; continue; }
-            record.files = files;
             record.additions = files.every((file) => file.additions !== null) ? files.reduce((sum, file) => sum + (file.additions ?? 0), 0) : null;
             record.deletions = files.every((file) => file.deletions !== null) ? files.reduce((sum, file) => sum + (file.deletions ?? 0), 0) : null;
+            hasBinaryFiles ||= record.additions === null || record.deletions === null;
+            record.files = files.slice(0, MAX_EVIDENCE_FILES);
+            record.filesTruncated = files.length > MAX_EVIDENCE_FILES;
           }
         } catch {
           if (options.signal?.aborted) throw new Error("Git collection was cancelled.");
@@ -231,7 +235,7 @@ export async function collectGitHistory(repository: ConfiguredRepository, option
     }
     result.linesComplete = result.records.every((record) => record.additions !== null && record.deletions !== null);
     if (result.records.length > MAX_LINE_COMMITS || linesFailed) notes.push("Some commit line evidence could not be collected within the scan limits.");
-    if (result.records.some((record) => record.files.some((file) => file.additions === null || file.deletions === null))) notes.push("Binary files have unknown line counts.");
+    if (hasBinaryFiles) notes.push("Binary files have unknown line counts.");
     result.error = notes.length ? notes.join(" ") : null;
     return result;
   } catch (error) {

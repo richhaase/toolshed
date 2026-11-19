@@ -103,6 +103,29 @@ test("mailmap comes from the scanned revision rather than dirty worktree data", 
   assert.ok(result.records.every((record) => record.contributor === "Contributor Canonical"));
 });
 
+test("large commits retain 25 paths and account for changes outside the sample", async (t) => {
+  const repo = await fixture(t);
+  const paths = Array.from({ length: 26 }, (_, index) => `file-${String(index).padStart(2, "0")}`);
+  await Promise.all(paths.map(path => writeFile(join(repo.directory, path), "line\n")));
+  const textCommit = await repo.commit("Add text files");
+  await Promise.all(paths.map(path => writeFile(join(repo.directory, path), "updated\n")));
+  await writeFile(join(repo.directory, "last.bin"), Buffer.from([0, 1, 2]));
+  const binaryCommit = await repo.commit("Change text files and add a binary");
+  await repo.publish();
+  const result = await collectGitHistory(await describeRepository(repo.directory), range);
+  const text = result.records.find(record => record.sha === textCommit)!;
+  assert.deepEqual(text.files.map(file => file.path), paths.slice(0, 25));
+  assert.equal(text.filesTruncated, true);
+  assert.equal(text.additions, 26);
+  const binary = result.records.find(record => record.sha === binaryCommit)!;
+  assert.deepEqual(binary.files.map(file => file.path), paths.slice(0, 25));
+  assert.equal(binary.filesTruncated, true);
+  assert.equal(binary.additions, null);
+  assert.equal(binary.deletions, null);
+  assert.equal(result.linesComplete, false);
+  assert.match(result.error ?? "", /Binary/);
+});
+
 test("partial clones expose unknown lines and unavailable default refs never use HEAD", async (t) => {
   const repo = await fixture(t);
   await writeFile(join(repo.directory, "content.txt"), "one\n");

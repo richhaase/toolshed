@@ -5,11 +5,11 @@ chart interval or a person to inspect the underlying records with your agent.
 
 ## Install or update
 
-BigBoard v0.3.0 is distributed from toolshed. The original native macOS app is
+BigBoard v0.4.0 is distributed from toolshed. The original native macOS app is
 [archived](https://github.com/richhaase/bigboard); future development lives here.
 
-Requires Node.js 24 or later, Git, and existing local clones. GitHub author
-data also requires an authenticated GitHub CLI on the desktop host's PATH.
+Requires Node.js 24 or later, Git, and existing local clones with a github.com remote.
+Both dashboards use local Git history and work offline.
 The visual board requires a host with MCP Apps support. Installation uses
 committed bundles and needs no compiler, `npm install`, or install script.
 
@@ -55,14 +55,14 @@ updated. An add/remove save includes all retained paths.
 
 **Activity** opens with a commit chart and compact summary. Selecting an interval
 reveals its supporting commits; closing details returns to the overview.
-**People** has separate Git contributors and GitHub authors. Select a person
-for supporting commits or pull requests from the selected repositories. Open
-PRs reflect collection time. Merged PRs follow the selected date range.
+**People** lists contributors by commit count for the selected period and
+repositories. Select a contributor to see their commits.
 
 Use **Refresh sources** or `refresh_sources` to collect up to 28 days of Git
-history and the configured repositories' GitHub evidence. The status panel
-shows Git and GitHub progress and coverage separately. After a server restart,
-refresh to verify GitHub access before reading cached GitHub evidence.
+history. The status panel shows progress and coverage for the configured
+repositories. Upgrading from 0.3 preserves saved boards, filters, sources,
+and Git history. The next source refresh replaces the old collection with
+Git-only data.
 
 Git activity counts non-merge commits reachable from each clone's remote-tracking
 default branch, using author dates in half-open intervals. Collection never
@@ -74,9 +74,8 @@ selected repositories counts once per repository.
 History windows are rolling 7 or 14 days; chart bars are consecutive 24-hour UTC
 intervals. Comparison uses the preceding equal window. Git authors use the
 scanned revision's mailmap; names do not merge distinct email identities.
-GitHub authors remain distinct logins. Unknown line counts and truncated file
-lists are explicit. Configured-source merged evidence targets default branches
-and follows the history window; merged does not establish deployed.
+Line totals use all changed files. Evidence includes the first 25 paths per
+commit and indicates when the list is truncated or line counts are unknown.
 
 ## Agent interaction and configuration
 
@@ -121,14 +120,14 @@ fnm exec npm run check
 
 `bundle/server.cjs`, `bundle/board.html`, and bundled third-party licenses are
 committed. CI rebuilds and rejects drift. MCP SDK 1.32.2 and MCP Apps 1.7.5 remain
-pinned. Tests cover temporary Git repositories, mocked GitHub requests, the
-packaged stdio server, durable state, and the app through the official MCP Apps
-bridge; desktop-host verification is recorded separately.
+pinned. Tests cover temporary Git repositories, the packaged stdio server,
+durable state, and the app through the official MCP Apps bridge. Desktop-host
+verification is recorded separately.
 
 The server starts with `node bundle/server.cjs`. SQLite state stays under
 `$XDG_STATE_HOME/bigboard-mcp-app`, or `~/.local/state/bigboard-mcp-app` when
 unset. The legacy name preserves saved sources and boards. `BIGBOARD_STATE_DIR`
 provides isolated state for tests. Native import honors `BIGBOARD_CONFIG_ROOT`
-or `$XDG_CONFIG_HOME/bigboard/config.json`; native data remains separate and
-tokens are never persisted. Early fixture boards keep their IDs/date controls
-while synthetic scope is cleared; production collection returns no demo data.
+or `$XDG_CONFIG_HOME/bigboard/config.json`. Native data remains separate.
+Early fixture boards keep their IDs and date controls while synthetic scope
+is cleared.

@@ -1,11 +1,9 @@
 import { version } from "../package.json";
 
 export const APP_VERSION = version;
+export const MAX_EVIDENCE_FILES = 25;
 export type RepositoryFilter = string;
 export type BoardViewMode = "activity" | "people";
-export type PeopleSource = "git" | "github";
-export type PullRequestSort = "updated" | "created" | "number" | "title" | "author" | "repository";
-export type SortDirection = "asc" | "desc";
 
 export interface BoardQuery {
   days: 7 | 14;
@@ -46,32 +44,6 @@ export interface ActivityRecord {
   url: string;
 }
 
-export interface PullRequestRecord {
-  id: string;
-  repository: string;
-  number: number;
-  title: string;
-  url: string;
-  author: string;
-  state: "open" | "merged";
-  draft: boolean;
-  createdAt: string;
-  updatedAt: string;
-  mergedAt: string | null;
-  baseBranch: string;
-  headSha: string;
-  review?: PullRequestReview;
-}
-
-export interface PullRequestReview {
-  decision: "approved" | "changes_requested" | "review_required" | "none" | "unknown";
-  requestedReviewers: string[];
-  requestedTeams: string[];
-  assignees: string[];
-  reviewRequestsComplete: boolean;
-  assigneesComplete: boolean;
-}
-
 export interface GitCollectionResult {
   repository: ConfiguredRepository;
   revision: string | null;
@@ -84,13 +56,6 @@ export interface GitCollectionResult {
   error: string | null;
 }
 
-export interface GitHubCollectionResult {
-  account: { id: string; login: string } | null;
-  repositories: Array<{ id: string; openComplete: boolean; mergedComplete: boolean; reviewComplete?: boolean; accessDenied: boolean; error: string | null }>;
-  pullRequests: PullRequestRecord[];
-  error: string | null;
-}
-
 export interface CollectedWorkspace {
   id: string;
   configRevision: number;
@@ -98,7 +63,6 @@ export interface CollectedWorkspace {
   since: string;
   until: string;
   git: GitCollectionResult[];
-  github: GitHubCollectionResult;
 }
 
 export interface RepositoryCoverage {
@@ -109,9 +73,6 @@ export interface RepositoryCoverage {
   partial: boolean;
   historyComplete: boolean;
   linesComplete: boolean;
-  openPRsComplete: boolean;
-  mergedPRsComplete: boolean;
-  reviewComplete?: boolean;
   errors: string[];
 }
 
@@ -123,7 +84,6 @@ export interface ActivityBucket {
   deletions: number;
   unknownLineCommits: number;
   previousCommits: number | null;
-  mergedPRs: number;
   recordIds: string[];
   recordIdsTruncated?: boolean;
 }
@@ -135,7 +95,6 @@ export interface RefreshProgress {
   updatedAt: string;
   finishedAt: string | null;
   git: { completedRepositories: number; totalRepositories: number };
-  github: { completedRepositories: number; totalRepositories: number; requests: number };
   message: string;
 }
 
@@ -148,34 +107,27 @@ export interface BoardSnapshot {
   updatedAt: string;
   query: BoardQuery;
   scope: { since: string; until: string; timezone: string };
-  coverage: { source: "git+github"; complete: boolean; note: string; repositories: RepositoryCoverage[] };
+  coverage: { source: "git"; complete: boolean; note: string; repositories: RepositoryCoverage[] };
   configuration: { revision: number; repositories: string[]; needsRefresh: boolean };
-  account: { id: string; login: string } | null;
   collectedAt: string | null;
   buckets: ActivityBucket[];
-  totals: { commits: number; additions: number; deletions: number; unknownLineCommits: number; previousCommits: number | null; mergedPRs: number; openPRs: number };
+  totals: { commits: number; additions: number; deletions: number; unknownLineCommits: number; previousCommits: number | null };
 }
 
-export interface EvidenceFilter {
-  kind?: "all" | "activity" | "pull_requests";
-  pullRequestState?: "open" | "merged";
-  pullRequestId?: string;
-  personId?: string;
-  pullRequestSort?: PullRequestSort;
-  sortDirection?: SortDirection;
+export interface BoardUnchanged {
+  unchanged: true;
+  snapshotId: string;
+  refresh: RefreshProgress | null;
 }
 
 export interface PersonSummary {
   id: string;
-  source: PeopleSource;
   name: string;
   identity: string;
   commits: number;
   additions: number;
   deletions: number;
   unknownLineCommits: number;
-  openPRs: number;
-  mergedPRs: number;
   repositories: string[];
 }
 
@@ -186,7 +138,6 @@ export interface PeopleResult {
   query: BoardQuery;
   scope: BoardSnapshot["scope"];
   coverage: BoardSnapshot["coverage"];
-  source: PeopleSource;
   people: PersonSummary[];
   totalPeople: number;
   nextCursor: string | null;
@@ -201,16 +152,9 @@ export interface EvidenceResult {
   coverage: BoardSnapshot["coverage"];
   bucketStart: string | null;
   records: ActivityRecord[];
-  pullRequests: PullRequestRecord[];
   nextCursor: string | null;
   totalRecords: number;
-  totalPullRequests: number;
-  kind?: "all" | "activity" | "pull_requests";
-  pullRequestState?: "open" | "merged";
-  selectedPullRequestId?: string;
   selectedPersonId?: string;
-  pullRequestSort?: PullRequestSort;
-  sortDirection?: SortDirection;
 }
 
 export interface SelectionContext {
@@ -224,7 +168,6 @@ export interface SelectionContext {
   recordIdsTruncated?: boolean;
   view?: BoardViewMode;
   personId?: string | null;
-  peopleSource?: PeopleSource;
 }
 
 export const BOARD_RESOURCE_URI = "ui://bigboard/activity.html";

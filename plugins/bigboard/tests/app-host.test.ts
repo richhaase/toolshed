@@ -5,7 +5,8 @@ import { AppBridge } from "@modelcontextprotocol/ext-apps/app-bridge";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { CallToolResult, JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { JSDOM, VirtualConsole } from "jsdom";
-import type { ActivityRecord, BoardQuery, BoardSnapshot, EvidenceResult, PeopleResult, PersonSummary, PullRequestRecord, RefreshProgress, SelectionContext } from "../src/shared.js";
+import { BoardController } from "../src/ui/controller.js";
+import type { ActivityRecord, BoardQuery, BoardSnapshot, EvidenceResult, PeopleResult, PersonSummary, RefreshProgress, SelectionContext } from "../src/shared.js";
 
 type ContextUpdate = Parameters<NonNullable<AppBridge["onupdatemodelcontext"]>>[0];
 type ChatMessage = Parameters<NonNullable<AppBridge["onmessage"]>>[0];
@@ -45,17 +46,17 @@ function humanMessage(message: ChatMessage, context: SelectionContext): string {
   assert.equal(content.type, "text");
   const text = content.type === "text" ? content.text : "";
   assert.ok(text.trim().length > 0);
-  assert.doesNotMatch(text, /[{}]|boardId|snapshotId|recordIds|bucket_start|person_id|query_evidence|headSha|requestedReviewers/);
+  assert.doesNotMatch(text, /[{}]|boardId|snapshotId|recordIds|bucket_start|person_id|query_evidence/);
   assert.ok(!text.includes(context.boardId));
   assert.ok(!text.includes(context.snapshotId));
   return text;
 }
 
-function refreshProgress(git: number, github: number, status: RefreshProgress["status"] = "running", message = "Collecting repository evidence."): RefreshProgress {
+function refreshProgress(git: number, status: RefreshProgress["status"] = "running", message = "Collecting repository evidence."): RefreshProgress {
   return {
-    id: "synthetic-refresh", status, startedAt: new Date(END).toISOString(), updatedAt: new Date(END + (git + github) * 1000).toISOString(),
+    id: "synthetic-refresh", status, startedAt: new Date(END).toISOString(), updatedAt: new Date(END + git * 1000).toISOString(),
     finishedAt: status === "running" ? null : new Date(END + 10_000).toISOString(),
-    git: { completedRepositories: git, totalRepositories: 2 }, github: { completedRepositories: github, totalRepositories: 2, requests: github * 2 + 1 }, message,
+    git: { completedRepositories: git, totalRepositories: 2 }, message,
   };
 }
 
@@ -69,8 +70,8 @@ function refreshButton(document: Document): HTMLButtonElement {
   return found;
 }
 
-function processed(document: Document, source: "Git" | "GitHub"): number | null {
-  return document.querySelector<HTMLProgressElement>(`progress[aria-label="${source} repositories processed"]`)?.value ?? null;
+function processed(document: Document): number | null {
+  return document.querySelector<HTMLProgressElement>('progress[aria-label="Git repositories processed"]')?.value ?? null;
 }
 
 class Workspace {
@@ -78,7 +79,6 @@ class Workspace {
   generation = 1;
   configured = true;
   collected = true;
-  account: BoardSnapshot["account"] = { id: "1", login: "sample-user" };
   refresh: RefreshProgress | null = null;
   refreshOperation: (() => Promise<void>) | null = null;
   refreshFailure: string | null = null;
@@ -99,15 +99,6 @@ class Workspace {
     files: [],
     url: `https://github.com/sample/${index % 2 ? "web" : "api"}/commit/${index.toString(16).padStart(40, "0")}`,
   }));
-  readonly prs: PullRequestRecord[] = [
-    { id: "sample/api#2", repository: "sample/api", number: 2, title: "Improve activity loading", url: "https://github.com/sample/api/pull/2", author: "contributor-a", state: "merged", draft: false, createdAt: "2026-11-01T09:00:00Z", updatedAt: "2026-11-15T13:00:00Z", mergedAt: "2026-11-15T13:00:00Z", baseBranch: "main", headSha: "a".repeat(40) },
-    { id: "sample/web#9", repository: "sample/web", number: 9, title: "An older draft still open", url: "https://github.com/sample/web/pull/9", author: "contributor-b", state: "open", draft: true, createdAt: "2026-05-01T09:00:00Z", updatedAt: "2026-11-16T10:00:00Z", mergedAt: null, baseBranch: "main", headSha: "b".repeat(40) },
-    { id: "sample/api#10", repository: "sample/api", number: 10, title: "Refine API loading", url: "https://github.com/sample/api/pull/10", author: "contributor-a", state: "open", draft: false, createdAt: "2026-11-10T09:00:00Z", updatedAt: "2026-11-16T11:00:00Z", mergedAt: null, baseBranch: "main", headSha: "c".repeat(40) },
-    { id: "sample/web#11", repository: "sample/web", number: 11, title: "Improve keyboard navigation", url: "https://github.com/sample/web/pull/11", author: "contributor-b", state: "open", draft: false, createdAt: "2026-11-12T09:00:00Z", updatedAt: "2026-11-14T11:00:00Z", mergedAt: null, baseBranch: "main", headSha: "d".repeat(40) },
-    { id: "sample/api#12", repository: "sample/api", number: 12, title: "Add retry coverage", url: "https://github.com/sample/api/pull/12", author: "contributor-a", state: "open", draft: false, createdAt: "2026-11-12T09:00:00Z", updatedAt: "2026-11-13T11:00:00Z", mergedAt: null, baseBranch: "main", headSha: "e".repeat(40) },
-    { id: "sample/web#13", repository: "sample/web", number: 13, title: "Update source status", url: "https://github.com/sample/web/pull/13", author: "contributor-b", state: "merged", draft: false, createdAt: "2026-11-11T09:00:00Z", updatedAt: "2026-11-13T15:00:00Z", mergedAt: "2026-11-13T15:00:00Z", baseBranch: "main", headSha: "f".repeat(40) },
-    { id: "sample/api#1", repository: "sample/api", number: 1, title: "An older merged change", url: "https://github.com/sample/api/pull/1", author: "contributor-a", state: "merged", draft: false, createdAt: "2026-10-01T09:00:00Z", updatedAt: "2026-10-25T13:00:00Z", mergedAt: "2026-10-25T13:00:00Z", baseBranch: "main", headSha: "1".repeat(40) },
-  ];
 
   open(): BoardSnapshot {
     const boardId = `00000000-0000-4000-8000-${(this.boards.size + 1).toString().padStart(12, "0")}`;
@@ -123,7 +114,6 @@ class Workspace {
     const included = this.records.filter(record => query.repository === "all" || record.repository === query.repository);
     const current = this.collected ? included.filter(record => Date.parse(record.timestamp) >= since && Date.parse(record.timestamp) < END) : [];
     const previous = included.filter(record => Date.parse(record.timestamp) >= since - query.days * DAY && Date.parse(record.timestamp) < since);
-    const prs = this.collected ? this.prs.filter(pr => query.repository === "all" || pr.repository === query.repository) : [];
     const buckets = Array.from({ length: query.days }, (_, index) => {
       const start = since + index * DAY;
       const end = start + DAY;
@@ -133,46 +123,36 @@ class Workspace {
         additions: records.reduce((sum, record) => sum + (record.additions ?? 0), 0), deletions: records.reduce((sum, record) => sum + (record.deletions ?? 0), 0),
         unknownLineCommits: records.filter(record => record.additions === null).length,
         previousCommits: query.compare ? previous.filter(record => Date.parse(record.timestamp) >= start - query.days * DAY && Date.parse(record.timestamp) < end - query.days * DAY).length : null,
-        mergedPRs: prs.filter(pr => pr.mergedAt && Date.parse(pr.mergedAt) >= start && Date.parse(pr.mergedAt) < end).length,
         recordIds: records.map(record => record.id),
       };
     });
     return {
       boardId, revision: saved.revision, snapshotId: `${boardId}:${saved.revision}:${this.generation}`, updatedAt: new Date(END).toISOString(), query: { ...query }, refresh: this.refresh,
       scope: { since: new Date(since).toISOString(), until: new Date(END).toISOString(), timezone: "UTC" },
-      coverage: { source: "git+github", complete: false, note: this.collected ? "Some line evidence is unavailable. Git remote-tracking refs were read without fetching." : "Refresh sources to collect evidence.", repositories: this.configured ? ["sample/api", "sample/web"].map(repository => ({ repository, revision: "a".repeat(40), ref: "refs/remotes/origin/main", shallow: false, partial: true, historyComplete: true, linesComplete: false, openPRsComplete: true, mergedPRsComplete: true, errors: ["Line evidence is incomplete."] })) : [] },
+      coverage: { source: "git", complete: false, note: this.collected ? "Some line evidence is unavailable. Git remote-tracking refs were read without fetching." : "Refresh sources to collect evidence.", repositories: this.configured ? ["sample/api", "sample/web"].map(repository => ({ repository, revision: "a".repeat(40), ref: "refs/remotes/origin/main", shallow: false, partial: true, historyComplete: true, linesComplete: false, errors: ["Line evidence is incomplete."] })) : [] },
       configuration: { revision: 1, repositories: this.configured ? ["sample/api", "sample/web"] : [], needsRefresh: !this.collected },
-      account: this.account, collectedAt: this.collected ? new Date(END + this.generation * 1000).toISOString() : null, buckets,
-      totals: { commits: current.length, additions: buckets.reduce((sum, item) => sum + item.additions, 0), deletions: buckets.reduce((sum, item) => sum + item.deletions, 0), unknownLineCommits: buckets.reduce((sum, item) => sum + item.unknownLineCommits, 0), previousCommits: query.compare ? previous.length : null, mergedPRs: prs.filter(pr => pr.mergedAt && Date.parse(pr.mergedAt) >= since && Date.parse(pr.mergedAt) < END).length, openPRs: prs.filter(pr => pr.state === "open").length },
+      collectedAt: this.collected ? new Date(END + this.generation * 1000).toISOString() : null, buckets,
+      totals: { commits: current.length, additions: buckets.reduce((sum, item) => sum + item.additions, 0), deletions: buckets.reduce((sum, item) => sum + item.deletions, 0), unknownLineCommits: buckets.reduce((sum, item) => sum + item.unknownLineCommits, 0), previousCommits: query.compare ? previous.length : null },
     };
   }
 
-  people(snapshot: BoardSnapshot, source: "git" | "github"): PersonSummary[] {
+  people(snapshot: BoardSnapshot): PersonSummary[] {
     const people = new Map<string, PersonSummary>();
     const person = (identity: string, name: string): PersonSummary => {
-      const id = `${source}:${identity}`;
-      if (!people.has(id)) people.set(id, { id, source, name, identity, commits: 0, additions: 0, deletions: 0, unknownLineCommits: 0, openPRs: 0, mergedPRs: 0, repositories: [] });
+      const id = `git:${identity}`;
+      if (!people.has(id)) people.set(id, { id, name, identity, commits: 0, additions: 0, deletions: 0, unknownLineCommits: 0, repositories: [] });
       return people.get(id)!;
     };
     if (!this.collected) return [];
-    if (source === "git") {
-      for (const record of this.records.filter(record => (snapshot.query.repository === "all" || record.repository === snapshot.query.repository) && record.timestamp >= snapshot.scope.since && record.timestamp < snapshot.scope.until)) {
-        const summary = person(record.email, record.contributor);
-        summary.commits += 1;
-        summary.additions += record.additions ?? 0;
-        summary.deletions += record.deletions ?? 0;
-        summary.unknownLineCommits += record.additions === null || record.deletions === null ? 1 : 0;
-        if (!summary.repositories.includes(record.repository)) summary.repositories.push(record.repository);
-      }
-    } else {
-      for (const pr of this.prs.filter(pr => (snapshot.query.repository === "all" || pr.repository === snapshot.query.repository) && (pr.state === "open" || (pr.mergedAt! >= snapshot.scope.since && pr.mergedAt! < snapshot.scope.until)))) {
-        const summary = person(pr.author, pr.author);
-        if (pr.state === "open") summary.openPRs += 1;
-        else summary.mergedPRs += 1;
-        if (!summary.repositories.includes(pr.repository)) summary.repositories.push(pr.repository);
-      }
+    for (const record of this.records.filter(record => (snapshot.query.repository === "all" || record.repository === snapshot.query.repository) && record.timestamp >= snapshot.scope.since && record.timestamp < snapshot.scope.until)) {
+      const summary = person(record.email, record.contributor);
+      summary.commits += 1;
+      summary.additions += record.additions ?? 0;
+      summary.deletions += record.deletions ?? 0;
+      summary.unknownLineCommits += record.additions === null || record.deletions === null ? 1 : 0;
+      if (!summary.repositories.includes(record.repository)) summary.repositories.push(record.repository);
     }
-    return [...people.values()].sort((a,b) => (source === "git" ? b.commits - a.commits : b.openPRs + b.mergedPRs - a.openPRs - a.mergedPRs) || a.identity.localeCompare(b.identity));
+    return [...people.values()].sort((a,b) => b.commits - a.commits || a.identity.localeCompare(b.identity));
   }
 
   async tool(params: { name: string; arguments?: Record<string, unknown> }): Promise<CallToolResult> {
@@ -186,7 +166,12 @@ class Workspace {
     }
     const boardId = String(args.board_id);
     const snapshot = this.snapshot(boardId);
-    if (params.name === "read_board") return { content: [], structuredContent: { ...snapshot } };
+    if (params.name === "read_board") return {
+      content: [],
+      structuredContent: args.known_snapshot_id === snapshot.snapshotId
+        ? { unchanged: true, snapshotId: snapshot.snapshotId, refresh: snapshot.refresh }
+        : { ...snapshot },
+    };
     if (params.name === "update_board") {
       const saved = this.boards.get(boardId)!;
       if (args.expected_revision !== saved.revision) return { isError: true, content: [{ type: "text", text: "Read the current revision." }] };
@@ -197,9 +182,8 @@ class Workspace {
     if (args.snapshot_id !== snapshot.snapshotId) return { isError: true, content: [{ type: "text", text: "The selected snapshot changed." }] };
     if (params.name === "query_people") {
       await this.delayPeople?.(args);
-      const source = args.source as "git" | "github";
-      const people = this.people(snapshot, source);
-      const signature = JSON.stringify([snapshot.snapshotId, source]);
+      const people = this.people(snapshot);
+      const signature = snapshot.snapshotId;
       let offset = 0;
       if (args.cursor) {
         const decoded = JSON.parse(Buffer.from(String(args.cursor), "base64url").toString("utf8"));
@@ -207,21 +191,18 @@ class Workspace {
         offset = decoded[1];
       }
       const nextOffset = offset + 3;
-      const result: PeopleResult = { boardId, revision: snapshot.revision, snapshotId: snapshot.snapshotId, query: snapshot.query, scope: snapshot.scope, coverage: snapshot.coverage, source, people: people.slice(offset, nextOffset), totalPeople: people.length, nextCursor: people.length > nextOffset ? Buffer.from(JSON.stringify([signature, nextOffset])).toString("base64url") : null };
+      const result: PeopleResult = { boardId, revision: snapshot.revision, snapshotId: snapshot.snapshotId, query: snapshot.query, scope: snapshot.scope, coverage: snapshot.coverage, people: people.slice(offset, nextOffset), totalPeople: people.length, nextCursor: people.length > nextOffset ? Buffer.from(JSON.stringify([signature, nextOffset])).toString("base64url") : null };
       this.completedPeople.push(args);
       return { content: [], structuredContent: { ...result } };
     }
     assert.equal(params.name, "query_evidence");
     await this.delayEvidence?.(args);
-    const kind = args.kind;
-    assert.ok(kind === "activity" || kind === "pull_requests");
     const personId = args.person_id as string | undefined;
-    const selectedPerson = personId ? [...this.people(snapshot, "git"), ...this.people(snapshot, "github")].find(person => person.id === personId) : undefined;
+    const selectedPerson = personId ? this.people(snapshot).find(person => person.id === personId) : undefined;
     if (personId && !selectedPerson) return { isError: true, content: [{ type: "text", text: "The selected person is unavailable." }] };
     const bucket = snapshot.buckets.find(item => item.start === args.bucket_start);
-    const records = kind === "activity" && this.collected ? this.records.filter(record => (snapshot.query.repository === "all" || record.repository === snapshot.query.repository) && (!selectedPerson || selectedPerson.source === "git" && record.email === selectedPerson.identity) && record.timestamp >= (bucket?.start ?? snapshot.scope.since) && record.timestamp < (bucket?.end ?? snapshot.scope.until)).sort((a,b) => b.timestamp.localeCompare(a.timestamp) || a.id.localeCompare(b.id)) : [];
-    const prs = kind === "pull_requests" && this.collected ? this.prs.filter(pr => (snapshot.query.repository === "all" || pr.repository === snapshot.query.repository) && selectedPerson?.source === "github" && pr.author === selectedPerson.identity && (pr.state === "open" || (pr.mergedAt! >= snapshot.scope.since && pr.mergedAt! < snapshot.scope.until))).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id)) : [];
-    const signature = JSON.stringify([snapshot.snapshotId, args.bucket_start ?? null, kind, personId ?? null]);
+    const records = this.collected ? this.records.filter(record => (snapshot.query.repository === "all" || record.repository === snapshot.query.repository) && (!selectedPerson || record.email === selectedPerson.identity) && record.timestamp >= (bucket?.start ?? snapshot.scope.since) && record.timestamp < (bucket?.end ?? snapshot.scope.until)).sort((a,b) => b.timestamp.localeCompare(a.timestamp) || a.id.localeCompare(b.id)) : [];
+    const signature = JSON.stringify([snapshot.snapshotId, args.bucket_start ?? null, personId ?? null]);
     let offset = 0;
     if (args.cursor) {
       const decoded = JSON.parse(Buffer.from(String(args.cursor), "base64url").toString("utf8"));
@@ -229,7 +210,7 @@ class Workspace {
       offset = decoded[1];
     }
     const nextOffset = offset + 3;
-    const evidence: EvidenceResult = { boardId, revision: snapshot.revision, snapshotId: snapshot.snapshotId, query: snapshot.query, scope: snapshot.scope, coverage: snapshot.coverage, bucketStart: bucket?.start ?? null, kind, selectedPersonId: personId, records: records.slice(offset, nextOffset), pullRequests: prs.slice(offset, nextOffset), nextCursor: Math.max(records.length, prs.length) > nextOffset ? Buffer.from(JSON.stringify([signature, nextOffset])).toString("base64url") : null, totalRecords: records.length, totalPullRequests: prs.length };
+    const evidence: EvidenceResult = { boardId, revision: snapshot.revision, snapshotId: snapshot.snapshotId, query: snapshot.query, scope: snapshot.scope, coverage: snapshot.coverage, bucketStart: bucket?.start ?? null, selectedPersonId: personId, records: records.slice(offset, nextOffset), nextCursor: records.length > nextOffset ? Buffer.from(JSON.stringify([signature, nextOffset])).toString("base64url") : null, totalRecords: records.length };
     this.completedEvidence.push(args);
     return { content: [], structuredContent: { ...evidence } };
   }
@@ -318,7 +299,7 @@ test("Activity stays quiet until a bucket is selected, then shares only its supp
   dailyButtons(first.document)[index].click();
   await waitFor(() => first.document.querySelectorAll('[aria-label="Commit records"] article').length === 3, "selected Activity evidence");
   const query = first.calls.find(call => call.name === "query_evidence")!;
-  assert.equal(query.arguments?.kind, "activity");
+  assert.deepEqual(query.arguments, { board_id: initial.boardId, snapshot_id: initial.snapshotId, bucket_start: bucket.start });
   assert.equal(query.arguments?.bucket_start, bucket.start);
   assert.equal(first.document.querySelector('[aria-label="Pull request records"]'), null);
   assert.equal(first.selectedContext().bucketStart, bucket.start);
@@ -356,26 +337,23 @@ test("late Activity evidence cannot replace a newer People selection or reuse it
   const workspace = new Workspace();
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
-  workspace.delayEvidence = args => args.kind === "activity" ? gate : Promise.resolve();
+  workspace.delayEvidence = args => args.bucket_start ? gate : Promise.resolve();
   const initial = workspace.open();
   const first = await panel(workspace, initial);
   t.after(first.close);
   await waitFor(() => dailyButtons(first.document).length === 7, "initial Activity chart");
   dailyButtons(first.document)[0].click();
-  await waitFor(() => first.calls.some(call => call.name === "query_evidence" && call.arguments?.kind === "activity"), "delayed Activity query");
+  await waitFor(() => first.calls.some(call => call.name === "query_evidence" && call.arguments?.bucket_start), "delayed Activity query");
   button(first.document, "People").click();
-  await waitFor(() => first.document.querySelector('[aria-label="People source"]') !== null, "People navigation");
-  button(first.document, "GitHub authors").click();
-  const person = workspace.people(initial, "github")[0];
-  await waitFor(() => first.document.querySelector(`[data-person-id="${person.id}"]`) !== null, "GitHub authors");
+  const person = workspace.people(initial)[0];
+  await waitFor(() => first.document.querySelector(`[data-person-id="${person.id}"]`) !== null, "Git contributors");
   button(first.document, `Select person ${person.name}: ${person.identity}`).click();
-  await waitFor(() => first.document.querySelector('[aria-label="Person pull requests"]') !== null, "person PR evidence");
+  await waitFor(() => first.document.querySelector('[aria-label="Commit records"]') !== null, "person commit evidence");
   release();
-  await waitFor(() => workspace.completedEvidence.some(args => args.kind === "activity"), "late Activity completion");
+  await waitFor(() => workspace.completedEvidence.some(args => args.bucket_start), "late Activity completion");
   assert.equal(first.document.querySelector('[aria-label="Activity evidence"]'), null);
-  assert.equal(first.document.querySelector('[aria-label="Commit records"]'), null);
   assert.equal(first.selectedContext().personId, person.id);
-  assert.ok(first.document.querySelector('[aria-label="Person pull requests"]'));
+  assert.ok(first.document.querySelector('[aria-label="Commit records"]')?.textContent?.includes(person.name));
   const queries = first.calls.filter(call => call.name === "query_evidence" && call.arguments?.person_id === person.id);
   assert.ok(queries.length > 0);
   assert.ok(queries.every(call => call.arguments?.cursor === undefined));
@@ -442,7 +420,7 @@ test("setup stays passive and independent boards recover their saved query witho
   assert.deepEqual([...empty.errors, ...first.errors, ...second.errors, ...reopened.errors], []);
 });
 
-test("People can open directly and keep Git and GitHub identities and evidence separate", async t => {
+test("People can open directly, explain a Git contributor, and link to their commits", async t => {
   const workspace = new Workspace();
   const initial = { ...workspace.open(), initialView: "people" as const };
   const first = await panel(workspace, initial);
@@ -451,7 +429,7 @@ test("People can open directly and keep Git and GitHub identities and evidence s
   assert.equal(first.selectedContext().view, "people");
   assert.equal(first.document.querySelector('[aria-label="Daily commits"]'), null);
   assert.equal(first.calls.some(call => call.name === "query_evidence"), false);
-  const gitPerson = workspace.people(initial, "git")[0];
+  const gitPerson = workspace.people(initial)[0];
   button(first.document, `Select person ${gitPerson.name}: ${gitPerson.identity}`).click();
   await waitFor(() => first.document.querySelector('[aria-label="People evidence"]') !== null && first.document.querySelectorAll('[aria-label="Commit records"] article').length > 0 && first.selectedContext()?.personId === gitPerson.id, "selected Git identity");
   const gitEvidence = first.calls.find(call => call.name === "query_evidence")!.arguments!;
@@ -464,41 +442,30 @@ test("People can open directly and keep Git and GitHub identities and evidence s
   await waitFor(() => first.messages.length === 1, "People explanation");
   assert.match(humanMessage(first.messages[0], first.selectedContext()), /person|people|contributor/i);
   assert.equal(first.selectedContext().personId, gitPerson.id);
-  button(first.document, "GitHub authors").click();
-  await waitFor(() => first.selectedContext()?.peopleSource === "github" && first.document.querySelectorAll('[aria-label="People records"] [data-person-id]').length === 2, "GitHub authors");
-  assert.equal(first.selectedContext().personId, null);
-  assert.equal(first.document.querySelector('[aria-label="People evidence"]'), null);
-  const githubPerson = workspace.people(initial, "github")[0];
-  button(first.document, `Select person ${githubPerson.name}: ${githubPerson.identity}`).click();
-  await waitFor(() => first.document.querySelector('[aria-label="People evidence"]') !== null && first.selectedContext()?.personId === githubPerson.id && first.document.querySelector('[aria-label="Person pull requests"]') !== null, "GitHub identity evidence");
-  assert.equal(first.document.querySelector('[aria-label="Commit records"]'), null);
-  const prEvidence = first.calls.filter(call => call.name === "query_evidence").at(-1)!.arguments!;
-  assert.equal(prEvidence.person_id, githubPerson.id);
-  assert.equal(prEvidence.pull_request_state, undefined);
-  assert.equal(prEvidence.bucket_start, undefined);
-  const personLinks = [...first.document.querySelectorAll<HTMLAnchorElement>('[aria-label="Person pull requests"] a')];
-  assert.ok(personLinks.length > 0);
-  assert.ok(personLinks.every(link => workspace.prs.some(pr => pr.url === link.href && pr.author === githubPerson.identity)));
+  const links = [...first.document.querySelectorAll<HTMLAnchorElement>('[aria-label="Commit records"] a')];
+  assert.ok(links.length > 0);
+  assert.ok(links.every(link => workspace.records.some(record => record.url === link.href && record.email === gitPerson.identity)));
   button(first.document, "Close people evidence").click();
   await waitFor(() => first.selectedContext()?.personId === null && first.document.querySelector('[aria-label="People evidence"]') === null, "dismissed person selection");
   assert.deepEqual(first.errors, []);
 });
 
-test("a late People response cannot replace the newer source or leak its selection", async t => {
+test("a late People response cannot replace contributors in a newer repository scope", async t => {
   const workspace = new Workspace();
+  const initial = workspace.open();
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
-  workspace.delayPeople = args => args.source === "git" ? gate : Promise.resolve();
-  const first = await panel(workspace, { ...workspace.open(), initialView: "people" });
-  t.after(first.close);
-  await waitFor(() => first.calls.some(call => call.name === "query_people" && call.arguments?.source === "git"), "delayed Git people query");
-  button(first.document, "GitHub authors").click();
-  await waitFor(() => first.document.querySelector('[aria-label="People records"]')?.textContent?.includes("contributor-a") ?? false, "new GitHub people");
+  workspace.delayPeople = args => args.snapshot_id === initial.snapshotId ? gate : Promise.resolve();
+  const first = await panel(workspace, { ...initial, initialView: "people" });
+  t.after(async () => { release(); await first.close(); });
+  await waitFor(() => first.calls.some(call => call.name === "query_people"), "delayed People query");
+  choose(first.document, "Repository", "sample/api");
+  await waitFor(() => first.document.querySelectorAll("[data-person-id]").length === 1, "filtered People query");
   release();
-  await waitFor(() => workspace.completedPeople.some(args => args.source === "git"), "late Git people completion");
-  assert.equal(first.selectedContext().peopleSource, "github");
+  await waitFor(() => workspace.completedPeople.some(args => args.snapshot_id === initial.snapshotId), "older People query completion");
+  assert.equal(first.document.querySelectorAll("[data-person-id]").length, 1);
+  assert.equal(first.selectedContext().query.repository, "sample/api");
   assert.equal(first.selectedContext().personId, null);
-  assert.ok(!first.document.querySelector('[aria-label="People records"]')?.textContent?.includes("@example.test"));
   assert.equal(first.calls.some(call => call.name === "query_evidence"), false);
   assert.deepEqual(first.errors, []);
 });
@@ -539,7 +506,7 @@ test("retry keeps a later-page People selection visible and consistent with shar
   await waitFor(() => first.document.querySelectorAll('[aria-label="People records"] [data-person-id]').length === 3, "first people page");
   button(first.document, "Load more people").click();
   await waitFor(() => first.document.querySelectorAll('[aria-label="People records"] [data-person-id]').length === 5, "later people page");
-  const person = workspace.people(initial, "git").at(-1)!;
+  const person = workspace.people(initial).at(-1)!;
   button(first.document, `Select person ${person.name}: ${person.identity}`).click();
   await waitFor(() => first.document.querySelector('[aria-label="People evidence"]')?.textContent?.includes(person.identity) === true && first.selectedContext()?.personId === person.id, "later-page person selected");
   first.rejectMessage(true);
@@ -563,9 +530,9 @@ test("source refresh progress is visible while collection is pending and finishe
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   workspace.refreshOperation = async () => {
-    workspace.refresh = refreshProgress(1, 0);
+    workspace.refresh = refreshProgress(1);
     await gate;
-    workspace.refresh = refreshProgress(2, 1, "complete", "Source refresh completed with coverage gaps.");
+    workspace.refresh = refreshProgress(2, "complete", "Source refresh completed with coverage gaps.");
   };
   const first = await panel(workspace, workspace.open());
   t.after(async () => { release(); await first.close(); });
@@ -573,16 +540,14 @@ test("source refresh progress is visible while collection is pending and finishe
   refreshButton(first.document).click();
   await waitFor(() => first.calls.some(call => call.name === "refresh_sources"), "started source collection");
   assert.equal(refreshButton(first.document).disabled, true);
-  await waitFor(() => processed(first.document, "Git") === 1 && processed(first.document, "GitHub") === 0, "in-flight refresh progress");
+  await waitFor(() => processed(first.document) === 1, "in-flight refresh progress");
   assert.equal(refreshSection(first.document)?.getAttribute("role"), "status");
   assert.equal(first.selectedContext().snapshotId, originalSnapshot);
   assert.equal(first.calls.filter(call => call.name === "refresh_sources").length, 1);
   const git = first.document.querySelector<HTMLProgressElement>('progress[aria-label="Git repositories processed"]');
-  const github = first.document.querySelector<HTMLProgressElement>('progress[aria-label="GitHub repositories processed"]');
   assert.equal(git?.max, 2);
-  assert.equal(github?.max, 2);
-  workspace.refresh = refreshProgress(2, 1);
-  await waitFor(() => processed(first.document, "Git") === 2 && processed(first.document, "GitHub") === 1, "updated refresh progress before completion");
+  workspace.refresh = refreshProgress(2);
+  await waitFor(() => processed(first.document) === 2, "updated refresh progress before completion");
   assert.equal(refreshButton(first.document).disabled, true);
   release();
   await waitFor(() => refreshSection(first.document)?.textContent?.includes("completed with coverage gaps") === true && !refreshButton(first.document).disabled, "completed refresh with partial coverage");
@@ -605,17 +570,18 @@ test("same-snapshot refresh progress keeps paged Activity evidence while externa
   const originalSnapshot = first.selectedContext().snapshotId;
   const evidenceCalls = first.calls.filter(call => call.name === "query_evidence").length;
   const sourceCalls = first.calls.filter(call => call.name === "refresh_sources").length;
-  workspace.refresh = refreshProgress(1, 0);
-  await waitFor(() => processed(first.document, "Git") === 1, "external refresh progress");
+  workspace.refresh = refreshProgress(1);
+  await waitFor(() => processed(first.document) === 1, "external refresh progress");
   assert.equal(refreshButton(first.document).disabled, true);
   assert.equal(refreshButton(first.document).textContent, "Collecting…");
-  workspace.refresh = refreshProgress(2, 1);
-  await waitFor(() => processed(first.document, "GitHub") === 1, "external progress update");
+  workspace.refresh = refreshProgress(2);
+  await waitFor(() => processed(first.document) === 2, "external progress update");
+  assert.ok(first.calls.some(call => call.name === "read_board" && call.arguments?.known_snapshot_id === originalSnapshot));
   assert.equal(first.selectedContext().snapshotId, originalSnapshot);
   assert.equal(first.selectedContext().bucketStart, initial.buckets[index].start);
   assert.equal(first.document.querySelectorAll('[aria-label="Commit records"] article').length, 6);
   assert.equal(first.calls.filter(call => call.name === "query_evidence").length, evidenceCalls);
-  workspace.refresh = refreshProgress(2, 1, "cancelled", "Source refresh was cancelled. Previous Git evidence remains available.");
+  workspace.refresh = refreshProgress(2, "cancelled", "Source refresh was cancelled. Previous Git evidence remains available.");
   await waitFor(() => refreshSection(first.document)?.textContent?.includes("was cancelled") === true && !refreshButton(first.document).disabled, "cancelled refresh progress");
   assert.equal(refreshSection(first.document)?.querySelector("progress"), null);
   assert.equal(first.selectedContext().bucketStart, initial.buckets[index].start);
@@ -626,7 +592,7 @@ test("same-snapshot refresh progress keeps paged Activity evidence while externa
 
 test("a failed refresh keeps its terminal progress and allows another explicit attempt", async t => {
   const workspace = new Workspace();
-  workspace.refresh = refreshProgress(1, 0, "failed", "Source refresh stopped before all repositories were processed.");
+  workspace.refresh = refreshProgress(1, "failed", "Source refresh stopped before all repositories were processed.");
   const first = await panel(workspace, workspace.open());
   t.after(first.close);
   await waitFor(() => refreshSection(first.document)?.textContent?.includes("stopped before all repositories") === true, "failed progress on opening");
@@ -635,43 +601,57 @@ test("a failed refresh keeps its terminal progress and allows another explicit a
   assert.equal(first.calls.filter(call => call.name === "refresh_sources").length, 0);
   const originalSnapshot = first.selectedContext().snapshotId;
   workspace.refreshFailure = "Source refresh failed. Try again.";
-  workspace.refreshOperation = async () => { workspace.refresh = refreshProgress(1, 0, "failed", "Source refresh failed. Previous Git evidence remains available."); };
+  workspace.refreshOperation = async () => { workspace.refresh = refreshProgress(1, "failed", "Source refresh failed. Previous Git evidence remains available."); };
   refreshButton(first.document).click();
   await waitFor(() => first.document.querySelector('[role="alert"]')?.textContent?.includes("Source refresh failed") === true && refreshSection(first.document)?.textContent?.includes("Previous Git evidence remains available") === true && !refreshButton(first.document).disabled, "failed refresh completion");
   assert.equal(first.selectedContext().snapshotId, originalSnapshot);
   assert.equal(dailyButtons(first.document).length, 7);
   assert.equal(first.calls.filter(call => call.name === "refresh_sources").length, 1);
   workspace.refreshFailure = null;
-  workspace.refreshOperation = async () => { workspace.refresh = refreshProgress(2, 2, "complete", "Source refresh completed."); };
+  workspace.refreshOperation = async () => { workspace.refresh = refreshProgress(2, "complete", "Source refresh completed."); };
   refreshButton(first.document).click();
   await waitFor(() => first.selectedContext().snapshotId !== originalSnapshot && refreshSection(first.document)?.textContent?.includes("Source refresh completed.") === true, "explicit retry after failure");
   assert.equal(first.calls.filter(call => call.name === "refresh_sources").length, 2);
   assert.deepEqual(first.errors, []);
 });
 
-test("equal-timestamp progress cannot regress repository or request counters", async t => {
+test("equal-timestamp progress cannot regress the repository count", async t => {
   const workspace = new Workspace();
-  workspace.refresh = refreshProgress(2, 1, "running", "Current refresh progress.");
+  workspace.refresh = refreshProgress(2, "running", "Current refresh progress.");
   const first = await panel(workspace, workspace.open());
   t.after(first.close);
-  await waitFor(() => processed(first.document, "Git") === 2 && processed(first.document, "GitHub") === 1, "current refresh counters");
+  await waitFor(() => processed(first.document) === 2, "current refresh counters");
   const current = workspace.refresh;
-  const delayed = [
-    { ...current, git: { ...current.git, completedRepositories: 1 } },
-    { ...current, github: { ...current.github, completedRepositories: 0 } },
-    { ...current, github: { ...current.github, requests: 2 } },
-  ];
-  for (const progress of delayed) {
-    workspace.refresh = { ...progress, message: "Delayed refresh progress." };
-    await first.sendSnapshot(workspace.snapshot(first.selectedContext().boardId));
-    await new Promise(resolve => setTimeout(resolve, 40));
-    assert.equal(processed(first.document, "Git"), 2);
-    assert.equal(processed(first.document, "GitHub"), 1);
-    assert.ok(refreshSection(first.document)?.textContent?.includes("Current refresh progress."));
-    assert.ok(!refreshSection(first.document)?.textContent?.includes("Delayed refresh progress."));
-  }
+  workspace.refresh = { ...current, git: { ...current.git, completedRepositories: 1 }, message: "Delayed refresh progress." };
+  await first.sendSnapshot(workspace.snapshot(first.selectedContext().boardId));
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(processed(first.document), 2);
+  assert.ok(refreshSection(first.document)?.textContent?.includes("Current refresh progress."));
+  assert.ok(!refreshSection(first.document)?.textContent?.includes("Delayed refresh progress."));
   assert.equal(first.calls.filter(call => call.name === "refresh_sources").length, 0);
   assert.deepEqual(first.errors, []);
+});
+
+test("an unchanged board poll leaves subscribers and selections undisturbed", async t => {
+  const workspace = new Workspace();
+  workspace.refresh = refreshProgress(2, "complete");
+  const initial = workspace.open();
+  const controller = new BoardController({
+    async connect(onResult) { onResult({ structuredContent: initial }); },
+    async callTool(name, args) { return workspace.tool({ name, arguments: args }); },
+    async updateContext() {},
+    async sendMessage() {},
+    async close() {},
+  }, 0);
+  t.after(() => controller.destroy());
+  await controller.start();
+  await controller.selectBucket(initial.buckets[0].start);
+  const selected = controller.getState();
+  let updates = 0;
+  controller.subscribe(() => { updates += 1; });
+  await controller.refresh(initial.snapshotId);
+  assert.equal(updates, 0);
+  assert.equal(controller.getState(), selected);
 });
 
 test("a delayed pre-refresh board read cannot replace the completed snapshot or a new Activity selection", async t => {
@@ -698,7 +678,7 @@ test("a delayed pre-refresh board read cannot replace the completed snapshot or 
   const originalSnapshot = first.selectedContext().snapshotId;
   holdNextRead = true;
   await waitFor(() => capturedOldRead, "held pre-refresh poll response");
-  workspace.refreshOperation = async () => { workspace.refresh = refreshProgress(2, 2, "complete", "Source refresh completed."); };
+  workspace.refreshOperation = async () => { workspace.refresh = refreshProgress(2, "complete", "Source refresh completed."); };
   refreshButton(first.document).click();
   await waitFor(() => first.selectedContext().snapshotId !== originalSnapshot && refreshSection(first.document)?.textContent?.includes("Source refresh completed.") === true, "new collection");
   dailyButtons(first.document)[0].click();
@@ -727,7 +707,7 @@ test("ordinary navigation updates structured background context without creating
   dailyButtons(first.document)[initial.buckets.indexOf(bucket)].click();
   await waitFor(() => first.selectedContext()?.bucketStart === bucket.start, "background Activity selection");
   button(first.document, "People").click();
-  const person = workspace.people(initial, "git")[0];
+  const person = workspace.people(initial)[0];
   await waitFor(() => first.document.querySelector(`[data-person-id="${person.id}"]`) !== null, "People navigation");
   button(first.document, `Select person ${person.name}: ${person.identity}`).click();
   await waitFor(() => first.selectedContext()?.personId === person.id, "background person selection");

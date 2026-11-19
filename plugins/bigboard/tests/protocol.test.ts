@@ -19,7 +19,7 @@ function value<T>(result: ToolResult): T {
 }
 const board = (result: ToolResult) => {
   const resultBoard = value<BoardSnapshot>(result);
-  assert.equal(resultBoard.coverage.source, "git+github");
+  assert.equal(resultBoard.coverage.source, "git");
   return resultBoard;
 };
 
@@ -31,7 +31,7 @@ async function installation(t: TestContext) {
   const bin = join(root, "bin");
   await mkdir(bin);
   const fakeGH = join(bin, "gh");
-  await writeFile(fakeGH, "#!/bin/sh\nexit 1\n");
+  await writeFile(fakeGH, '#!/bin/sh\necho called > "$0.called"\nexit 1\n');
   await chmod(fakeGH, 0o755);
   const paths: string[] = [];
   for (const name of ["widget", "other"]) {
@@ -69,7 +69,7 @@ async function installation(t: TestContext) {
   };
   const stop = async (client: Client) => { await client.close(); clients.delete(client); };
   const configure = async (client: Client) => value<SourceConfiguration>(await client.callTool({ name: "configure_sources", arguments: { paths, expected_revision: 0 } }));
-  return { paths, start, stop, configure, stateDirectory };
+  return { paths, start, stop, configure, stateDirectory, ghCallMarker: fakeGH + ".called" };
 }
 
 test("clean installed bundle exposes source tools and keeps polling calls headless", async t => {
@@ -79,6 +79,9 @@ test("clean installed bundle exposes source tools and keeps polling calls headle
   assert.equal(client.getServerVersion()?.version, APP_VERSION);
   const inventory = await client.listTools();
   assert.deepEqual(inventory.tools.map(tool => tool.name).sort(), ["configure_sources", "list_sources", "open_board", "query_evidence", "query_people", "read_board", "refresh_sources", "update_board"]);
+  const inputFields = (name: string) => Object.keys(inventory.tools.find(tool => tool.name === name)!.inputSchema.properties ?? {}).sort();
+  assert.deepEqual(inputFields("query_evidence"), ["board_id", "bucket_start", "cursor", "person_id", "snapshot_id"]);
+  assert.deepEqual(inputFields("query_people"), ["board_id", "cursor", "snapshot_id"]);
   const icon = `data:image/png;base64,${(await readFile(new URL("../assets/icon.png",import.meta.url))).toString("base64")}`;
   assert.equal(client.getServerVersion()?.icons?.[0].src,icon);
   const resources = await client.listResources();
@@ -98,7 +101,6 @@ test("clean installed bundle exposes source tools and keeps polling calls headle
   assert.ok(content.text.includes(icon));
   const before = board(await client.callTool({ name: "open_board", arguments: {} }));
   assert.equal(before.initialView, "activity");
-  assert.equal(Object.hasOwn(before, "pullRequestQueue"), false);
   const peopleView = board(await client.callTool({ name: "open_board", arguments: { board_id: before.boardId, view: "people" } }));
   assert.equal(peopleView.boardId, before.boardId);
   assert.equal(peopleView.initialView, "people");
@@ -106,6 +108,8 @@ test("clean installed bundle exposes source tools and keeps polling calls headle
   const retiredView = await client.callTool({ name: "open_board", arguments: { board_id: before.boardId, view: "pull_requests" } });
   assert.equal(retiredView.isError, true);
   assert.equal(board(await client.callTool({ name: "read_board", arguments: { board_id: before.boardId } })).initialView, undefined);
+  const poll = value<object>(await client.callTool({ name: "read_board", arguments: { board_id: before.boardId, known_snapshot_id: before.snapshotId } }));
+  assert.deepEqual(poll, { unchanged: true, snapshotId: before.snapshotId, refresh: null });
   assert.equal(before.collectedAt, null);
   assert.equal(before.configuration.repositories.length, 0);
   assert.equal(before.coverage.complete, false);
@@ -119,8 +123,8 @@ test("clean installed bundle exposes source tools and keeps polling calls headle
   assert.equal(value<SourceConfiguration>(await client.callTool({ name: "list_sources", arguments: {} })).repositories.length, 2);
 });
 
-test("real Git refresh feeds the same board and stale selections fail without requiring GitHub auth", async t => {
-  const { start, configure } = await installation(t);
+test("local Git refresh feeds both views and invalidates stale selections", async t => {
+  const { start, configure, ghCallMarker } = await installation(t);
   const client = await start();
   await configure(client);
   const first = board(await client.callTool({ name: "open_board", arguments: {} }));
@@ -128,33 +132,30 @@ test("real Git refresh feeds the same board and stale selections fail without re
   const notifications: Array<{ progress: number; total?: number; message?: string }> = [];
   const refresh = value<{ repositoryCount: number; complete: boolean }>(await client.callTool({ name: "refresh_sources", arguments: {} }, undefined, { onprogress: progress => { notifications.push(progress); } }));
   assert.equal(refresh.repositoryCount, 2);
-  assert.equal(refresh.complete, false);
+  assert.equal(refresh.complete, true);
+  await assert.rejects(access(ghCallMarker), { code: "ENOENT" });
   assert.ok(notifications.length >= 3);
   assert.equal(notifications[0].progress, 0);
-  assert.ok(notifications.every(progress => progress.total === 4 && progress.message?.includes("repositories checked")));
+  assert.ok(notifications.every(progress => progress.total === 2 && progress.message?.includes("repositories checked")));
   for (let index = 1; index < notifications.length; index += 1) assert.ok(notifications[index].progress > notifications[index - 1].progress);
-  const collected = board(await client.callTool({ name: "read_board", arguments: { board_id: first.boardId } }));
+  const collected = board(await client.callTool({ name: "read_board", arguments: { board_id: first.boardId, known_snapshot_id: first.snapshotId } }));
   assert.equal(collected.refresh?.status, "complete");
   assert.deepEqual(collected.refresh?.git, { completedRepositories: 2, totalRepositories: 2 });
-  assert.equal(collected.refresh?.github.requests, 0);
-  assert.match(collected.refresh!.message, /coverage gaps/);
+  assert.equal(collected.coverage.complete, true);
   assert.equal(collected.boardId, first.boardId);
   assert.notEqual(collected.snapshotId, first.snapshotId);
   assert.equal(collected.totals.commits, 2);
-  assert.equal(collected.totals.openPRs, 0);
-  assert.equal(collected.account, null);
-  assert.ok(collected.coverage.repositories.every(repo => repo.historyComplete && !repo.openPRsComplete));
-  const people = value<PeopleResult>(await client.callTool({ name: "query_people", arguments: { board_id: collected.boardId, snapshot_id: collected.snapshotId, source: "git" } }));
+  assert.ok(collected.coverage.repositories.every(repo => repo.historyComplete && repo.linesComplete));
+  const people = value<PeopleResult>(await client.callTool({ name: "query_people", arguments: { board_id: collected.boardId, snapshot_id: collected.snapshotId } }));
   assert.equal(people.totalPeople, 1);
   assert.equal(people.people[0].commits, 2);
   assert.deepEqual(people.people[0].repositories, ["example/other", "example/widget"]);
-  const personEvidence = value<EvidenceResult>(await client.callTool({ name: "query_evidence", arguments: { board_id: collected.boardId, snapshot_id: collected.snapshotId, person_id: people.people[0].id, kind: "activity" } }));
+  const selection = { board_id: collected.boardId, snapshot_id: collected.snapshotId };
+  assert.equal((await client.callTool({ name: "query_people", arguments: { ...selection, source: "github" } })).isError, true);
+  assert.equal((await client.callTool({ name: "query_evidence", arguments: { ...selection, kind: "pull_requests" } })).isError, true);
+  const personEvidence = value<EvidenceResult>(await client.callTool({ name: "query_evidence", arguments: { board_id: collected.boardId, snapshot_id: collected.snapshotId, person_id: people.people[0].id } }));
   assert.equal(personEvidence.selectedPersonId, people.people[0].id);
   assert.equal(personEvidence.totalRecords, 2);
-  assert.deepEqual(personEvidence.pullRequests, []);
-  const githubPeople = value<PeopleResult>(await client.callTool({ name: "query_people", arguments: { board_id: collected.boardId, snapshot_id: collected.snapshotId, source: "github" } }));
-  assert.equal(githubPeople.totalPeople, 0);
-  assert.equal(githubPeople.coverage.complete, false);
   const changed = board(await client.callTool({ name: "update_board", arguments: { board_id: first.boardId, expected_revision: first.revision, repository: "example/widget", compare: true } }));
   assert.equal(changed.revision, first.revision + 1);
   assert.equal(changed.totals.commits, 1);
@@ -168,30 +169,15 @@ test("real Git refresh feeds the same board and stale selections fail without re
   assert.equal(selected.records[0].repository, "example/widget");
   assert.match(selected.records[0].url, /^https:\/\/github\.com\/example\/widget\/commit\/[a-f0-9]{40}$/);
   assert.ok(selected.records[0].timestamp >= bucket.start && selected.records[0].timestamp < bucket.end);
-  const activity = value<EvidenceResult>(await client.callTool({ name: "query_evidence", arguments: { board_id: changed.boardId, snapshot_id: changed.snapshotId, bucket_start: bucket.start, kind: "activity" } }));
-  assert.equal(activity.kind, "activity");
-  assert.equal(activity.records.length, 1);
-  assert.deepEqual(activity.pullRequests, []);
-  const openPRs = value<EvidenceResult>(await client.callTool({ name: "query_evidence", arguments: { board_id: changed.boardId, snapshot_id: changed.snapshotId, kind: "pull_requests", pull_request_state: "open" } }));
-  assert.equal(openPRs.kind, "pull_requests");
-  assert.equal(openPRs.pullRequestState, "open");
-  assert.deepEqual(openPRs.records, []);
-  assert.deepEqual(openPRs.pullRequests, []);
-  const incompatible = await client.callTool({ name: "query_evidence", arguments: { board_id: changed.boardId, snapshot_id: changed.snapshotId, kind: "activity", pull_request_state: "open" } });
-  assert.equal(incompatible.isError, true);
-  assert.equal((incompatible.structuredContent as { error: { code: string } }).error.code, "invalid_filter");
-  const unavailablePR = await client.callTool({ name: "query_evidence", arguments: { board_id: changed.boardId, snapshot_id: changed.snapshotId, kind: "pull_requests", pull_request_id: "example/widget#1" } });
-  assert.equal(unavailablePR.isError, true);
-  assert.equal((unavailablePR.structuredContent as { error: { code: string } }).error.code, "selection_not_found");
   const oldRevision = await client.callTool({ name: "update_board", arguments: { board_id: first.boardId, expected_revision: first.revision, days: 14 } });
   assert.equal(oldRevision.isError, true);
   await client.callTool({ name: "refresh_sources", arguments: {} });
   const oldSnapshot = await client.callTool({ name: "query_evidence", arguments: { board_id: changed.boardId, snapshot_id: changed.snapshotId } });
   assert.equal(oldSnapshot.isError, true);
-  assert.equal((await client.callTool({ name: "query_people", arguments: { board_id: changed.boardId, snapshot_id: changed.snapshotId, source: "git" } })).isError, true);
+  assert.equal((await client.callTool({ name: "query_people", arguments: { board_id: changed.boardId, snapshot_id: changed.snapshotId } })).isError, true);
 });
 
-test("server restart preserves selected sources and board query while requiring fresh GitHub verification", async t => {
+test("server restart reuses the saved Git snapshot, selected sources and board query", async t => {
   const { start, stop, configure, paths } = await installation(t);
   const original = await start();
   await configure(original);
@@ -207,8 +193,8 @@ test("server restart preserves selected sources and board query while requiring 
   assert.equal(reopened.revision, updated.revision);
   assert.deepEqual(reopened.query, updated.query);
   assert.equal(reopened.totals.commits, updated.totals.commits);
-  assert.equal(reopened.configuration.needsRefresh, true);
-  assert.equal(reopened.account, null);
+  assert.equal(reopened.snapshotId, updated.snapshotId);
+  assert.equal(reopened.configuration.needsRefresh, false);
   const settings = value<SourceConfiguration>(await restarted.callTool({ name: "list_sources", arguments: {} }));
   assert.equal(settings.revision, 1);
   assert.equal(settings.repositories.length, paths.length);

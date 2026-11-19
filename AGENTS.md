@@ -154,7 +154,7 @@ the explicit validation and privacy commands required by the workflow above.
   ledger without retaining the work context that prompted the escape.
 
 - **bigboard** — Activity charts commits from configured local clones. People
-  groups Git contributors and GitHub pull request authors. `explore` opens and
+  groups commits by Git contributor. `explore` opens and
   discusses boards, and `configure` changes sources and per-board filters.
   See the [plugin guide](plugins/bigboard/README.md) and
   [plugin instructions](plugins/bigboard/AGENTS.md).
