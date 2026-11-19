@@ -64,10 +64,8 @@ available and falls back to `grep`.
 The host agent may use its own configured tools for workflow steps, including
 network access described by a skill. Bundled helper scripts do not install
 packages or make network requests on their own. BigBoard includes a local MCP
-server that reads Git history and GitHub pull request data for your selected
-repositories. The server requires Node.js 24 or later and reads local clones
-using Git. GitHub data uses an authenticated GitHub CLI. The interactive board
-requires a host with MCP Apps support.
+server that reads Git history from your selected local clones. It requires
+Node.js 24 or later, Git, and a host with MCP Apps support for the visual board.
 See the [BigBoard guide](plugins/bigboard/).
 
 ## Plugins
@@ -106,10 +104,10 @@ break.
 
 ### <img src="plugins/bigboard/assets/icon.png" width="48" height="48" align="middle" alt=""> [BigBoard](plugins/bigboard/) — Repository Activity and Contributors
 
-Activity charts commits from your selected repositories. People groups Git
-contributors and GitHub pull request authors, with supporting records for each
-person. Use `bigboard:explore` to open a board and discuss a selected interval
-or person. Use `bigboard:configure` to choose sources and viewing filters.
+Activity charts commits from your selected repositories. People ranks
+contributors by commit count. Use `bigboard:explore` to open a board and
+inspect the commits for an interval or person. Use `bigboard:configure` to
+choose sources and viewing filters.
 The original native app repository is archived. Future development lives here.
 
 ## Distribution layout

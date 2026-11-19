@@ -1,6 +1,6 @@
 {
   "name": "bigboard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Explore repository activity and contributors with your agent.",
   "author": {
     "name": "Rich Haase",
@@ -15,7 +15,7 @@
     "logo": "./assets/icon.png",
     "displayName": "BigBoard",
     "shortDescription": "Explore activity together with your agent",
-    "longDescription": "Compare commit activity over time, explore Git contributors and GitHub authors, and discuss the evidence for a selected interval or person.",
+    "longDescription": "Compare commit activity over time, explore Git contributors, and discuss the evidence for a selected interval or person.",
     "developerName": "Rich Haase",
     "category": "Developer Tools",
     "capabilities": [

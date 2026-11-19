@@ -37,9 +37,7 @@ actual desktop-host interaction checklist.
 - Git collection reads existing clones and remote-tracking default branches.
   Never fetch or modify branches, the index, the working tree, Git config, or
   repository maintenance state.
-- Obtain GitHub API access only through GitHub CLI authentication. Keep tokens
-  in memory; never persist them in source, state, or tool output.
-- Preserve cancellation, account access invalidation, identity rules, honest
+- Preserve cancellation, contributor identity rules, honest
   stale or partial coverage, and snapshot-bound evidence paging. Update affected
   projections and tests when changing data models.
 - Activity and People use manual source refreshes. Bind selected intervals and

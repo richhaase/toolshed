@@ -135,11 +135,7 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .selection-action { margin-top: 18px; }
 .explain-button { color: var(--surface); background: var(--blue); border: 1px solid transparent; padding: 8px 11px; font-size: 11px; font-weight: 600; }
 .context-status { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; margin: 10px 0 0; min-height: 15px; }
-.people-view-header { display: flex; justify-content: space-between; gap: 15px; align-items: center; margin: 21px 0 14px; }
-.people-source-control { display: flex; gap: 2px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--surface); }
-.people-source-control button { background: transparent; border: 0; color: var(--muted); padding: 6px 12px; font-size: 11px; }
-.people-source-control button[aria-pressed="true"] { background: var(--blue-soft); color: var(--blue); font-weight: 600; }
-.inventory-count { margin: 0; color: var(--muted); font-size: 10px; }
+.inventory-count { margin: 21px 0 14px; color: var(--muted); font-size: 10px; }
 .load-more { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; color: var(--muted); font-size: 10px; }
 .message { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; margin: 13px 0; border: 1px solid var(--line); border-radius: 6px; font-size: 11px; line-height: 1.5; }
 .message.error { border-color: var(--red); color: var(--red); }
