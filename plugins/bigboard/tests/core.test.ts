@@ -34,7 +34,7 @@ function fixtures() {
     importNativeSources: async () => { calls.native += 1; return [...repos, repos[0]]; },
     collectGitHistory: async (repository: ConfiguredRepository, options: { since: string; until: string }): Promise<GitCollectionResult> => {
       calls.git += 1;
-      assert.equal(Date.parse(options.until) - Date.parse(options.since), 28 * DAY);
+      assert.equal(Date.parse(options.until) - Date.parse(options.since), 180 * DAY);
       await beforeGit?.();
       const selected = records.filter(record => record.repository === repository.id);
       return { repository, revision: "a".repeat(40), ref: `refs/remotes/origin/${repository.defaultBranch}`, shallow: false, partial: false, complete: true, linesComplete: selected.every(record => record.additions !== null && record.deletions !== null), records: selected, error: null };
@@ -461,4 +461,44 @@ test("existing mixed collections expose their Git evidence with bounded file lis
   assert.deepEqual(result.records.map(record => [record.files.length, record.filesTruncated]), [[25, true], [25, true]]);
   assert.equal("pullRequests" in result, false);
   assert.equal("account" in recovered, false);
+});
+
+test("periods use hourly, daily and weekly intervals that cover the window without gaps", async t => {
+  const { store } = await installation(t);
+  await store.configure(repos.map(repo => repo.path), false);
+  await store.refresh();
+  let board = await store.open();
+  for (const [days, interval, count] of [[1, "hour", 24], [7, "day", 7], [14, "day", 14], [30, "day", 30], [90, "week", 13]] as const) {
+    board = await store.update(board.boardId, board.revision, { days, compare: true });
+    assert.equal(board.interval, interval);
+    assert.equal(board.buckets.length, count);
+    assert.equal(board.buckets[0].start, board.scope.since);
+    assert.equal(board.buckets.at(-1)!.end, board.scope.until);
+    for (let index = 1; index < count; index += 1) assert.equal(board.buckets[index].start, board.buckets[index - 1].end);
+    assert.equal(board.buckets.reduce((sum, bucket) => sum + bucket.commits, 0), board.totals.commits);
+    assert.equal(board.buckets.reduce((sum, bucket) => sum + bucket.previousCommits!, 0), board.totals.previousCommits);
+    assert.equal(board.historyStart, null);
+    assert.equal(board.configuration.needsRefresh, false);
+    assert.ok(board.buckets.reduce((sum, bucket) => sum + bucket.recordIds.length, 0) <= 420);
+  }
+  await assert.rejects(store.update(board.boardId, board.revision, { days: 2 as never }), code("invalid_query"));
+});
+
+test("history collected for a shorter window is reported instead of shown as zero activity", async t => {
+  const { store, directory } = await installation(t);
+  await store.configure(repos.map(repo => repo.path), false);
+  await store.refresh();
+  const since = new Date(NOW.getTime() - 28 * DAY).toISOString();
+  const database = new DatabaseSync(join(directory, "boards.sqlite"));
+  const collection = JSON.parse(String(database.prepare("SELECT collection FROM workspace").get()!.collection));
+  database.prepare("UPDATE workspace SET collection=?").run(JSON.stringify({ ...collection, since }));
+  database.close();
+  let board = await store.open();
+  assert.equal(board.historyStart, null);
+  board = await store.update(board.boardId, board.revision, { days: 30, compare: true });
+  assert.equal(board.historyStart, since);
+  assert.equal(board.coverage.complete, false);
+  assert.equal(board.configuration.needsRefresh, true);
+  assert.equal(board.totals.previousCommits, null);
+  assert.match(board.coverage.note, /Refresh sources for the full period/);
 });

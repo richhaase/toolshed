@@ -2,11 +2,15 @@ import { version } from "../package.json";
 
 export const APP_VERSION = version;
 export const MAX_EVIDENCE_FILES = 25;
+export const PERIOD_DAYS = [1, 7, 14, 30, 90] as const;
+export const COLLECTION_DAYS = 180;
+export type PeriodDays = typeof PERIOD_DAYS[number];
+export type BucketInterval = "hour" | "day" | "week";
 export type RepositoryFilter = string;
 export type BoardViewMode = "activity" | "people";
 
 export interface BoardQuery {
-  days: 7 | 14;
+  days: PeriodDays;
   repository: RepositoryFilter;
   compare: boolean;
 }
@@ -66,6 +70,7 @@ export interface CollectedWorkspace {
 }
 
 export interface PanelWorkspace {
+  trimmed?: true;
   generation: number;
   configuration: { revision: number; repositories: Omit<ConfiguredRepository, "path">[] };
   collection: (Omit<CollectedWorkspace, "git"> & { git: (Omit<GitCollectionResult, "repository"> & { repository: Omit<ConfiguredRepository, "path"> })[] }) | null;
@@ -134,6 +139,8 @@ export interface BoardSnapshot {
   repositories?: RepositoryTotal[];
   highlights?: BoardHighlight[];
   unsaved?: boolean;
+  interval?: BucketInterval;
+  historyStart?: string | null;
   totals: { commits: number; additions: number; deletions: number; unknownLineCommits: number; previousCommits: number | null };
 }
 

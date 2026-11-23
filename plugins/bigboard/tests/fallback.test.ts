@@ -9,7 +9,7 @@ import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { BoardStore } from "../src/core";
 import { embedPanelData, MAX_PANEL_DATA_LENGTH, panelDataFromHtml } from "../src/panel-data";
-import { BOARD_RESOURCE_URI, type ActivityRecord, type BoardSnapshot, type ConfiguredRepository, type EvidenceResult, type PanelWorkspace, type PeopleResult, type SelectionContext } from "../src/shared";
+import { BOARD_RESOURCE_URI, PERIOD_DAYS, type ActivityRecord, type BoardSnapshot, type ConfiguredRepository, type EvidenceResult, type PanelWorkspace, type PeopleResult, type SelectionContext } from "../src/shared";
 import { FallbackBridge, LocalBoard } from "../src/ui/fallback";
 import type { BoardBridge, ToolResult } from "../src/ui/controller";
 
@@ -58,7 +58,7 @@ test("local projections match the server for every filter, page, person and inte
   const opened = await store.open();
   const local = new LocalBoard(opened, store.panelWorkspace());
   let revision = opened.revision;
-  for (const days of [7, 14] as const) for (const repository of ["all", repos[0].id]) for (const compare of [false, true]) {
+  for (const days of PERIOD_DAYS) for (const repository of ["all", repos[0].id]) for (const compare of [false, true]) {
     const server = await store.update(opened.boardId, revision, { days, repository, compare });
     revision = server.revision;
     const panel = structured<BoardSnapshot>(local.callTool("update_board", { expected_revision: 1, days, repository, compare }));
@@ -72,7 +72,7 @@ test("local projections match the server for every filter, page, person and inte
       if (compare) assert.ok(actual.people.every(person => typeof person.previousCommits === "number"));
       serverCursor = expected.nextCursor ?? undefined; panelCursor = actual.nextCursor ?? undefined;
     } while (serverCursor);
-    for (const selection of [{}, { bucket_start: server.buckets.find(bucket => bucket.commits)!.start }]) {
+    for (const selection of [{}, { bucket_start: (server.buckets.find(bucket => bucket.commits) ?? server.buckets[0]).start }]) {
       const expected = await store.evidence(opened.boardId, server.snapshotId, selection.bucket_start);
       const actual = structured<EvidenceResult>(local.callTool("query_evidence", { snapshot_id: panel.snapshotId, ...selection }));
       assert.equal(actual.totalRecords, expected.totalRecords);
@@ -105,6 +105,21 @@ test("embedded data escapes markup, omits clone paths and file lists, and respec
   const huge = { ...workspace, collection: { ...workspace.collection!, id: "x".repeat(MAX_PANEL_DATA_LENGTH) } };
   assert.equal(panelDataFromHtml(embedPanelData(await shell(), huge)), null);
   assert.equal(panelDataFromHtml(embedPanelData(await shell(), { generation: 0, configuration: { revision: 0, repositories: [] }, collection: null })), null);
+});
+
+test("oversized panel history keeps the most recent days that fit and says so", async t => {
+  const store = await collected(t);
+  const workspace = store.panelWorkspace();
+  const full = embedPanelData(await shell(), workspace).length;
+  const trimmed = panelDataFromHtml(embedPanelData(await shell(), workspace, full - (await shell()).length - 200))!;
+  assert.equal(trimmed.trimmed, true);
+  assert.ok(trimmed.collection!.since > workspace.collection!.since);
+  const opened = await store.open();
+  const local = new LocalBoard(opened, trimmed);
+  const wide = structured<BoardSnapshot>(local.callTool("update_board", { days: 90 }));
+  assert.equal(wide.historyStart, trimmed.collection!.since);
+  assert.equal(wide.configuration.needsRefresh, false);
+  assert.match(wide.coverage.note, /Ask your agent for earlier commits/);
 });
 
 function bridgeFor(opened: BoardSnapshot, call: BoardBridge["callTool"]): BoardBridge {
@@ -205,8 +220,11 @@ test("the built panel stays interactive and shares its view in a host that refus
   const { document } = panel;
   await waitFor(() => document.querySelector(".local-mode") !== null, "local mode");
   assert.equal(document.querySelector('[role="alert"]'), null);
-  panel.click("14 days");
-  await waitFor(() => document.querySelectorAll(".day-column").length === 14, "14 days");
+  for (const [label, count, chart] of [["24 hours", 24, "Hourly commits"], ["30 days", 30, "Daily commits"], ["90 days", 13, "Weekly commits"], ["14 days", 14, "Daily commits"]] as const) {
+    panel.click(label);
+    await waitFor(() => document.querySelectorAll(".day-column").length === count, label);
+    assert.ok(document.querySelector(`[aria-label="${chart}"]`));
+  }
   document.querySelector<HTMLInputElement>(".compare-control input")!.click();
   await waitFor(() => document.querySelector(".comparison-total") !== null, "comparison");
   const expected = await store.update(opened.boardId, opened.revision, { days: 14, compare: true });

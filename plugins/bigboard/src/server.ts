@@ -4,7 +4,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { z } from "zod";
 import { BoardError, BoardStore } from "./core";
 import { embedPanelData } from "./panel-data";
-import { APP_VERSION, BOARD_RESOURCE_URI, type BoardSnapshot, type EvidenceResult, type PeopleResult } from "./shared";
+import { APP_VERSION, BOARD_RESOURCE_URI, COLLECTION_DAYS, PERIOD_DAYS, type BoardSnapshot, type EvidenceResult, type PeopleResult } from "./shared";
 import { BIGBOARD_ICON_DATA_URL } from "./branding";
 
 const boardId = z.string().uuid();
@@ -18,7 +18,7 @@ function boardText(board: BoardSnapshot): string {
 function evidenceText(evidence: EvidenceResult): string {
   return `Commit evidence for board ${evidence.boardId}, snapshot ${evidence.snapshotId}. ` +
     (evidence.selectedPersonId ? `Selected contributor ${evidence.selectedPersonId}. ` : "") +
-    (evidence.bucketStart ? `Selected 24-hour interval ${evidence.bucketStart}. ` : "Whole board period. ") +
+    (evidence.bucketStart ? `Selected interval starting ${evidence.bucketStart}. ` : "Whole board period. ") +
     `${evidence.records.length}/${evidence.totalRecords} commit records on this page. ` +
     `${evidence.coverage.note}\n${JSON.stringify({ records: evidence.records, nextCursor: evidence.nextCursor })}`;
 }
@@ -58,11 +58,11 @@ export function createBigboardServer(html: string, store: BoardStore): McpServer
     "unchanged" in board ? `Snapshot ${board.snapshotId} is current. ${board.refresh?.message ?? ""}`.trimEnd() : boardText(board)));
   server.registerTool("update_board", {
     title: "Update BigBoard view", description: "Change this board's viewing filters and comparison using its latest expected_revision. Repository must be all or an ID in list_sources. Viewing changes never change collected repositories or perform network requests.",
-    inputSchema: { board_id: boardId, expected_revision: z.number().int().positive(), days: z.union([z.literal(7),z.literal(14)]).optional(), repository: z.string().min(1).optional(), compare: z.boolean().optional() },
+    inputSchema: { board_id: boardId, expected_revision: z.number().int().positive(), days: z.union(PERIOD_DAYS.map(days => z.literal(days))).optional().describe("Period length in days: 1, 7, 14, 30 or 90. Intervals are hourly for 1, daily through 30, and weekly for 90."), repository: z.string().min(1).optional(), compare: z.boolean().optional() },
     annotations: { ...annotations, readOnlyHint: false }, _meta: { ui: { visibility: ["model", "app"] } },
   }, ({ board_id,expected_revision,days,repository,compare }) => result(() => store.update(board_id,expected_revision,{ ...(days === undefined ? {} : { days }), ...(repository === undefined ? {} : { repository }), ...(compare === undefined ? {} : { compare }) }), boardText));
   server.registerTool("query_evidence", {
-    title: "Inspect BigBoard evidence", description: "Page commits by author date for the selected board snapshot. Optionally filter by a selected 24-hour bucket or a contributor ID from query_people. Reuse nextCursor with the same snapshot and selection.",
+    title: "Inspect BigBoard evidence", description: "Page commits by author date for the selected board snapshot. Optionally filter by a selected chart interval or a contributor ID from query_people. Reuse nextCursor with the same snapshot and selection.",
     inputSchema: z.strictObject({ board_id: boardId, snapshot_id: z.string(), bucket_start: z.string().optional(), person_id: z.string().min(1).max(8192).optional(), cursor: z.string().optional() }), annotations, _meta: { ui: { visibility: ["model", "app"] } },
   }, ({ board_id, snapshot_id, bucket_start, cursor, person_id }) => result(() => store.evidence(board_id, snapshot_id, bucket_start, cursor, person_id), evidenceText));
   server.registerTool("query_people", {
@@ -77,7 +77,7 @@ export function createBigboardServer(html: string, store: BoardStore): McpServer
     inputSchema: { paths: z.array(z.string().min(1)).max(100).optional(), import_native: z.boolean().optional(), expected_revision: z.number().int().nonnegative().optional() }, annotations: { ...annotations, readOnlyHint: false },
   }, ({ paths,import_native,expected_revision }) => result(() => store.configure(paths,import_native === true,expected_revision)));
   server.registerTool("refresh_sources", {
-    title: "Refresh BigBoard sources", description: "Collect 28 days of Git history by author date from the configured clones' local remote-tracking default branches. Saves the collection time and coverage. May take up to 150 seconds. Use read_board or request MCP progress notifications to track the refresh.",
+    title: "Refresh BigBoard sources", description: `Collect ${COLLECTION_DAYS} days of Git history by author date from the configured clones' local remote-tracking default branches. Saves the collection time and coverage. May take up to 150 seconds. Use read_board or request MCP progress notifications to track the refresh.`,
     inputSchema: {}, annotations: { ...annotations, readOnlyHint: false }, _meta: { ui: { visibility: ["model", "app"] } },
   }, (_,extra) => {
     let lastProgress = -1;
