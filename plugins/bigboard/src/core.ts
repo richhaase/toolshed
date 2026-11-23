@@ -4,20 +4,16 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { collectGitHistory, describeRepository, importNativeSources } from "./sources/git";
-import { MAX_EVIDENCE_FILES } from "./shared";
+import { projectCoverage, projectEvidence, projectPeople, projectSnapshot, snapshotIdFor, validateQuery } from "./projection";
 import { BoardError } from "./errors";
 export { BoardError } from "./errors";
-import type { ActivityRecord, BoardQuery, BoardSnapshot, BoardUnchanged, CollectedWorkspace, ConfiguredRepository, EvidenceResult, GitCollectionResult, PeopleResult, PersonSummary, RefreshProgress, RepositoryCoverage, SourceConfiguration } from "./shared";
+import type { BoardQuery, BoardSnapshot, BoardUnchanged, CollectedWorkspace, ConfiguredRepository, EvidenceResult, GitCollectionResult, PanelWorkspace, PeopleResult, RefreshProgress, SourceConfiguration } from "./shared";
 
 export type { EvidenceResult } from "./shared";
 const DAY = 86_400_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DEFAULT_QUERY: BoardQuery = { days: 7, repository: "all", compare: false };
-const PAGE_SIZE = 25;
 
-function gitPersonId(record: ActivityRecord): string {
-  return `git:${Buffer.from(JSON.stringify(record.email ? ["email", record.email] : ["record", record.id])).toString("base64url")}`;
-}
 interface SavedBoard { version: 2; boardId: string; revision: number; updatedAt: string; query: BoardQuery }
 interface Dependencies {
   now?: () => Date;
@@ -32,37 +28,6 @@ function stateDirectory(): string {
   const base = configuredBase && isAbsolute(configuredBase) ? configuredBase : join(homedir(), ".local", "state");
   return process.env.BIGBOARD_STATE_DIR || join(base, "bigboard-mcp-app");
 }
-function validateQuery(value: unknown): BoardQuery {
-  const query = value as Partial<BoardQuery> | null;
-  if (!query || (query.days !== 7 && query.days !== 14) || typeof query.repository !== "string" || !query.repository || typeof query.compare !== "boolean") {
-    throw new BoardError("invalid_query", "Use days 7 or 14, a configured repository or all, and a boolean comparison setting.");
-  }
-  return { days: query.days, repository: query.repository, compare: query.compare };
-}
-function snapshotIdFor(boardId: string, revision: number, generation: number): string {
-  return `git:${boardId}:${revision}:${generation}`;
-}
-
-function page<T>(items: T[], cursor: string | undefined, selection: (string | null)[]) {
-  let offset = 0;
-  if (cursor !== undefined) {
-    try {
-      if (cursor.length > 16384 || !/^[a-zA-Z0-9_-]+$/.test(cursor)) throw new Error();
-      const decoded = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-      if (!Array.isArray(decoded) || decoded.length !== selection.length + 1 || !selection.every((value, i) => value === decoded[i])) throw new Error();
-      offset = decoded[selection.length];
-      if (!Number.isSafeInteger(offset) || offset < 0 || offset > items.length) throw new Error();
-    } catch {
-      throw new BoardError("invalid_cursor", "Use the nextCursor returned for this snapshot and selection.");
-    }
-  }
-  const end = offset + PAGE_SIZE;
-  return {
-    items: items.slice(offset, end),
-    nextCursor: end < items.length ? Buffer.from(JSON.stringify([...selection, end])).toString("base64url") : null,
-  };
-}
-
 export class BoardStore {
   private database?: DatabaseSync;
   private refreshing = false;
@@ -182,7 +147,7 @@ export class BoardStore {
       const result = this.db().prepare("UPDATE workspace SET collection=?,generation=generation+1 WHERE id=1 AND revision=? AND verification=?")
         .run(JSON.stringify(collection), configuration.revision, refreshEpoch);
       if (Number(result.changes) !== 1) throw new BoardError("refresh_superseded", "Source settings or collected data changed while refreshing. Read the board and refresh again if needed.");
-      const coverage = this.coverage(configuration.repositories, collection);
+      const coverage = projectCoverage(configuration.repositories, collection);
       const complete = coverage.every(repo => repo.historyComplete && repo.linesComplete);
       finishProgress("complete", complete ? "Sources refreshed." : "Sources refreshed with coverage gaps. Check source coverage for details.");
       return { collectionId: collection.id, collectedAt: collection.generatedAt, configurationRevision: configuration.revision, repositoryCount: configuration.repositories.length, complete, note: complete ? "Git history collection completed." : "Collection completed with coverage gaps; inspect the board's repository coverage." };
@@ -229,62 +194,16 @@ export class BoardStore {
       return { ...saved, query: validateQuery(saved.query) };
     } catch { throw new BoardError("board_unreadable", "The saved board could not be read. Create a new board to continue."); }
   }
-  private coverage(repos: ConfiguredRepository[], collection: CollectedWorkspace | null): RepositoryCoverage[] {
-    return repos.map(repo => {
-      const git = collection?.git.find(value => value.repository.id === repo.id);
-      return {
-        repository: repo.id, revision: git?.revision ?? null, ref: git?.ref ?? `refs/remotes/${repo.remote}/${repo.defaultBranch}`,
-        shallow: git?.shallow ?? false, partial: git?.partial ?? false, historyComplete: git?.complete ?? false,
-        linesComplete: git?.linesComplete ?? false, errors: git?.error ? [git.error] : [],
-      };
-    });
-  }
   private snapshot(saved: SavedBoard, workspace = this.workspace()): BoardSnapshot {
-    const config = workspace.configuration;
-    const collection = workspace.collection;
-    const until = collection?.until ?? saved.updatedAt;
-    const since = new Date(Date.parse(until) - saved.query.days * DAY).toISOString();
-    const previousSince = new Date(Date.parse(since) - saved.query.days * DAY).toISOString();
-    const repos = config.repositories.filter(repo => saved.query.repository === "all" || repo.id === saved.query.repository);
-    const ids = new Set(repos.map(repo => repo.id));
-    const coverage = this.coverage(repos, collection);
-    const records = (collection?.git ?? []).filter(value => ids.has(value.repository.id)).flatMap(value => value.records);
-    const current = records.filter(record => record.timestamp >= since && record.timestamp < until);
-    const priorCovered = Boolean(collection && collection.since <= previousSince && repos.length && coverage.every(repo => repo.historyComplete));
-    const previous = saved.query.compare && priorCovered ? records.filter(record => record.timestamp >= previousSince && record.timestamp < since) : null;
-    const complete = Boolean(collection && repos.length && coverage.every(repo => repo.historyComplete && repo.linesComplete));
-    const buckets = Array.from({ length: saved.query.days }, (_, index) => {
-      const start = new Date(Date.parse(since) + index * DAY).toISOString();
-      const end = new Date(Date.parse(start) + DAY).toISOString();
-      const selected = current.filter(record => record.timestamp >= start && record.timestamp < end);
-      const priorStart = new Date(Date.parse(start) - saved.query.days * DAY).toISOString();
-      const priorEnd = new Date(Date.parse(end) - saved.query.days * DAY).toISOString();
-      return {
-        start, end, commits: selected.length,
-        additions: selected.reduce((sum, record) => sum + (record.additions ?? 0), 0),
-        deletions: selected.reduce((sum, record) => sum + (record.deletions ?? 0), 0),
-        unknownLineCommits: selected.filter(record => record.additions === null || record.deletions === null).length,
-        previousCommits: previous?.filter(record => record.timestamp >= priorStart && record.timestamp < priorEnd).length ?? null,
-        recordIds: selected.slice(0, 30).map(record => record.id), recordIdsTruncated: selected.length > 30,
-      };
-    });
-    const needsRefresh = !collection || collection.configRevision !== config.revision;
-    const note = !config.repositories.length ? "Configure local clone paths or import the native BigBoard selection, then refresh sources."
-      : !collection ? "Refresh sources to collect Git history."
-      : `Git activity uses author dates from local remote-tracking default branches. ${complete ? "Coverage is complete." : "Coverage is incomplete. Reported counts may be lower bounds."}`;
+    return projectSnapshot(saved, workspace);
+  }
+  panelWorkspace(): PanelWorkspace {
+    const { generation, configuration, collection } = this.workspace();
+    const withoutPath = ({ id, remote, defaultBranch }: ConfiguredRepository) => ({ id, remote, defaultBranch });
     return {
-      refresh: workspace.refresh, boardId: saved.boardId, revision: saved.revision,
-      snapshotId: snapshotIdFor(saved.boardId, saved.revision, workspace.generation),
-      updatedAt: saved.updatedAt, query: saved.query, scope: { since, until, timezone: "UTC" },
-      coverage: { source: "git", complete, note, repositories: coverage },
-      configuration: { revision: config.revision, repositories: config.repositories.map(repo => repo.id), needsRefresh },
-      collectedAt: collection?.generatedAt ?? null, buckets,
-      totals: {
-        commits: current.length, additions: current.reduce((sum, r) => sum + (r.additions ?? 0), 0),
-        deletions: current.reduce((sum, r) => sum + (r.deletions ?? 0), 0),
-        unknownLineCommits: current.filter(r => r.additions === null || r.deletions === null).length,
-        previousCommits: previous?.length ?? null,
-      },
+      generation,
+      configuration: { revision: configuration.revision, repositories: configuration.repositories.map(withoutPath) },
+      collection: collection && { ...collection, git: collection.git.map(git => ({ ...git, repository: withoutPath(git.repository), records: git.records.map(record => ({ ...record, files: [] })) })) },
     };
   }
   async open(boardId?: string): Promise<BoardSnapshot> {
@@ -331,60 +250,13 @@ export class BoardStore {
       throw error;
     }
   }
-  private selection(boardId: string, snapshotId: string, bucketStart?: string) {
-    const { saved, workspace } = this.boardState(boardId);
-    const board = this.snapshot(saved, workspace);
-    if (board.snapshotId !== snapshotId) throw new BoardError("stale_snapshot", "The selected evidence changed. Read the board and select the current snapshot.");
-    const bucket = bucketStart === undefined ? undefined : board.buckets.find(value => value.start === bucketStart);
-    if (bucketStart !== undefined && !bucket) throw new BoardError("invalid_selection", "The selected bucket is outside this board's scope.");
-    const since = bucket?.start ?? board.scope.since;
-    const until = bucket?.end ?? board.scope.until;
-    const repositoryIds = new Set(board.coverage.repositories.map(repo => repo.repository));
-    const records = (workspace.collection?.git ?? [])
-      .filter(repo => repositoryIds.has(repo.repository.id))
-      .flatMap(repo => repo.records)
-      .filter(record => record.timestamp >= since && record.timestamp < until)
-      .sort((a, b) => b.timestamp.localeCompare(a.timestamp) || a.id.localeCompare(b.id));
-    return { board, records };
-  }
   async people(boardId: string, snapshotId: string, cursor?: string): Promise<PeopleResult> {
-    const { board, records } = this.selection(boardId, snapshotId);
-    const people = new Map<string, PersonSummary>();
-    for (const record of records) {
-      const id = gitPersonId(record);
-      let person = people.get(id);
-      if (!person) {
-        person = { id, name: record.contributor, identity: record.email || "Email unavailable", commits: 0, additions: 0, deletions: 0, unknownLineCommits: 0, repositories: [] };
-        people.set(id, person);
-      }
-      if (!person.repositories.includes(record.repository)) person.repositories.push(record.repository);
-      person.commits++;
-      person.additions += record.additions ?? 0;
-      person.deletions += record.deletions ?? 0;
-      person.unknownLineCommits += Number(record.additions === null || record.deletions === null);
-    }
-    const sorted = [...people.values()].sort((a, b) => b.commits - a.commits || a.identity.localeCompare(b.identity) || a.id.localeCompare(b.id));
-    const result = page(sorted, cursor, ["people", snapshotId]);
-    for (const person of result.items) person.repositories.sort();
-    return {
-      boardId, revision: board.revision, snapshotId, query: board.query, scope: board.scope, coverage: board.coverage,
-      people: result.items, totalPeople: sorted.length, nextCursor: result.nextCursor,
-    };
+    const { saved, workspace } = this.boardState(boardId);
+    return projectPeople(this.snapshot(saved, workspace), workspace, snapshotId, cursor);
   }
   async evidence(boardId: string, snapshotId: string, bucketStart?: string, cursor?: string, personId?: string): Promise<EvidenceResult> {
-    const selection = this.selection(boardId, snapshotId, bucketStart);
-    const { board } = selection;
-    const records = personId === undefined ? selection.records : selection.records.filter(record => gitPersonId(record) === personId);
-    if (personId !== undefined && records.length === 0) throw new BoardError("selection_not_found", "The selected contributor has no evidence in this scope. Refresh the selection before discussing it.");
-    const result = page(records, cursor, ["evidence", snapshotId, bucketStart ?? null, personId ?? null]);
-    return {
-      boardId, revision: board.revision, snapshotId, query: board.query, scope: board.scope, coverage: board.coverage,
-      bucketStart: bucketStart ?? null, selectedPersonId: personId, totalRecords: records.length, nextCursor: result.nextCursor,
-      records: result.items.map(record => ({
-        ...record, files: record.files.slice(0, MAX_EVIDENCE_FILES),
-        filesTruncated: record.filesTruncated === true || record.files.length > MAX_EVIDENCE_FILES,
-      })),
-    };
+    const { saved, workspace } = this.boardState(boardId);
+    return projectEvidence(this.snapshot(saved, workspace), workspace, snapshotId, bucketStart, cursor, personId);
   }
   close(): void { this.database?.close(); this.database = undefined; }
 }

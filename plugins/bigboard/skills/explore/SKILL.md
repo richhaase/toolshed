@@ -38,6 +38,16 @@ with incomplete coverage as lower bounds. If the selection's snapshot has
 changed, refresh the selection before attributing records. Follow `nextCursor`
 with the same snapshot and filters to inspect more evidence.
 
+Panel context can include `summary` with totals, leading repositories, people,
+and highlights. Use it to describe the current view, and retrieve evidence before
+explaining causes.
+
+When context has `unsaved: true`, the panel is using embedded history and its
+filters are not saved. To retrieve its evidence, call `read_board`, then
+`update_board` with the context's query and the current revision, and use the
+returned `snapshotId`. This saves those filters to the board. If the user asks to
+refresh such a panel, refresh sources and reopen the same board.
+
 Ordinary navigation updates background app context. When the user chooses
 **Explain selection**, use the interval or person identified in that context
 to retrieve the supporting records.

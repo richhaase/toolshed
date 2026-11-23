@@ -5,7 +5,7 @@ chart interval or a person to inspect the underlying records with your agent.
 
 ## Install or update
 
-BigBoard v0.4.0 is distributed from toolshed. The original native macOS app is
+BigBoard v0.5.0 is distributed from toolshed. The original native macOS app is
 [archived](https://github.com/richhaase/bigboard); future development lives here.
 
 Requires Node.js 24 or later, Git, and existing local clones with a github.com remote.
@@ -55,8 +55,26 @@ updated. An add/remove save includes all retained paths.
 
 **Activity** opens with a commit chart and compact summary. Selecting an interval
 reveals its supporting commits; closing details returns to the overview.
-**People** lists contributors by commit count for the selected period and
-repositories. Select a contributor to see their commits.
+Highlights point to the busiest interval and, with comparison on, the largest
+changes. Repository totals filter the board.
+**People** ranks contributors by commit count for the selected period and
+repositories, with each person's share of commits and, with comparison on, the
+change from the previous period. Select a contributor to see their commits.
+
+### Hosts that do not run panel tool calls
+
+Some MCP Apps hosts display the panel without letting it call the server. The
+server therefore embeds the collected Git history in the panel page. The panel
+always tries the host first. If the host has never run a panel call, the panel
+uses the embedded history for date, repository, comparison, interval, and
+contributor views. It says so, and filter changes stay in that panel. **Ask to
+refresh** sends a chat message because collection needs the server.
+
+Each panel checks its history against the board that opened it. If the host
+served an older page, the panel rereads it once, then asks the user to reopen
+the board. Embedded history includes commit subjects, authors, emails, and line
+counts. It omits local clone paths and file lists, and is left out when larger
+than 6 MiB. The panel still makes no network requests.
 
 Use **Refresh sources** or `refresh_sources` to collect up to 28 days of Git
 history. The status panel shows progress and coverage for the configured
@@ -106,6 +124,8 @@ fresh chat. Open Activity and People, verify the easel in the app header, and
 check that repository and date filters apply to both views. Select a chart
 interval and a person, then use **Explain selection** to check their supporting
 records. Verify that source refresh reports partial coverage when applicable.
+In a host that refuses panel calls, check that filters, People, and commit
+details work from embedded history and that reopening shows newly collected data.
 Record the desktop host and outcome separately from automated protocol and
 rendered-bridge checks.
 

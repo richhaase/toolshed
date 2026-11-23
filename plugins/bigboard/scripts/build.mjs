@@ -18,7 +18,7 @@ const server = await build({ ...common, entryPoints: ["src/main.ts"], outfile: "
 const ui = await build({ ...common, entryPoints: ["src/ui/index.tsx"], outfile: "bundle/activity.js", platform: "browser", format: "iife", target: "es2022", write: false, define: { "process.env.NODE_ENV": '"production"' } });
 const js = ui.outputFiles.find(file => file.path.endsWith(".js")).text.replaceAll("</script", "<\\/script");
 const css = ui.outputFiles.find(file => file.path.endsWith(".css"))?.text ?? "";
-await writeFile(join(outdir, "board.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BigBoard activity</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>\n`);
+await writeFile(join(outdir, "board.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BigBoard activity</title><style>${css}</style></head><body><div id="root"></div><script type="application/json" id="bigboard-data">null</script><script>${js}</script></body></html>\n`);
 
 const packages = new Set();
 for (const input of [...Object.keys(server.metafile.inputs), ...Object.keys(ui.metafile.inputs)]) {

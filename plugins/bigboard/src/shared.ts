@@ -65,6 +65,26 @@ export interface CollectedWorkspace {
   git: GitCollectionResult[];
 }
 
+export interface PanelWorkspace {
+  generation: number;
+  configuration: { revision: number; repositories: Omit<ConfiguredRepository, "path">[] };
+  collection: (Omit<CollectedWorkspace, "git"> & { git: (Omit<GitCollectionResult, "repository"> & { repository: Omit<ConfiguredRepository, "path"> })[] }) | null;
+}
+
+export interface RepositoryTotal {
+  repository: string;
+  commits: number;
+  previousCommits: number | null;
+}
+
+export interface BoardHighlight {
+  kind: "peak" | "interval-change" | "repository-change";
+  commits: number;
+  previousCommits: number | null;
+  bucketStart: string | null;
+  repository: string | null;
+}
+
 export interface RepositoryCoverage {
   repository: string;
   revision: string | null;
@@ -111,6 +131,9 @@ export interface BoardSnapshot {
   configuration: { revision: number; repositories: string[]; needsRefresh: boolean };
   collectedAt: string | null;
   buckets: ActivityBucket[];
+  repositories?: RepositoryTotal[];
+  highlights?: BoardHighlight[];
+  unsaved?: boolean;
   totals: { commits: number; additions: number; deletions: number; unknownLineCommits: number; previousCommits: number | null };
 }
 
@@ -125,6 +148,7 @@ export interface PersonSummary {
   name: string;
   identity: string;
   commits: number;
+  previousCommits?: number | null;
   additions: number;
   deletions: number;
   unknownLineCommits: number;
@@ -168,6 +192,14 @@ export interface SelectionContext {
   recordIdsTruncated?: boolean;
   view?: BoardViewMode;
   personId?: string | null;
+  unsaved?: boolean;
+  summary?: {
+    commits: number;
+    previousCommits: number | null;
+    repositories: RepositoryTotal[];
+    people: { name: string; commits: number; previousCommits: number | null }[];
+    highlights: BoardHighlight[];
+  };
 }
 
 export const BOARD_RESOURCE_URI = "ui://bigboard/activity.html";
