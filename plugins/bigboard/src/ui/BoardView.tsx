@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { BIGBOARD_ICON_DATA_URL } from "../branding";
-import type { ActivityRecord, BoardHighlight, BoardSnapshot, RefreshProgress } from "../shared";
+import { PERIOD_DAYS, type ActivityRecord, type BoardHighlight, type BoardSnapshot, type BucketInterval, type RefreshProgress } from "../shared";
 import type { BoardController } from "./controller";
 
 const count = new Intl.NumberFormat("en-US");
@@ -11,6 +11,24 @@ export function dateLabel(value: string, timezone = "UTC"): string {
 
 function moment(value: string, timezone: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: timezone, timeZoneName: "short" }).format(new Date(value));
+}
+
+function intervalLabel(value: string, interval: BucketInterval, timezone: string): string {
+  return interval === "hour" ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: timezone }).format(new Date(value)) : dateLabel(value, timezone);
+}
+
+function axisLabel(value: string, interval: BucketInterval, timezone: string): string {
+  return interval === "hour" ? new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: timezone }).format(new Date(value)) : dateLabel(value, timezone);
+}
+
+const INTERVAL_TEXT: Record<BucketInterval, { chart: string; instruction: string }> = {
+  hour: { chart: "Hourly commits", instruction: "Select a one-hour interval to inspect its commits." },
+  day: { chart: "Daily commits", instruction: "Select a 24-hour interval to inspect its commits." },
+  week: { chart: "Weekly commits", instruction: "Select a seven-day interval to inspect its commits. The first interval may be shorter." },
+};
+
+function periodLabel(days: number): string {
+  return days === 1 ? "24 hours" : `${days} days`;
 }
 
 function githubLink(value: string): string | undefined {
@@ -85,8 +103,11 @@ export function BoardView({ controller }: { controller: BoardController }) {
   const hasSources = Boolean(board?.configuration.repositories.length);
   const hasCollection = hasSources && Boolean(board?.collectedAt);
   const refreshRunning = state.sourceRefreshing || board?.refresh?.status === "running";
-  const historyComplete = Boolean(board?.coverage.repositories.every(source => source.historyComplete));
-  const label = (value: string) => dateLabel(value, timezone);
+  const historyComplete = Boolean(board?.coverage.repositories.every(source => source.historyComplete) && !board.historyStart);
+  const interval = board?.interval ?? "day";
+  const label = (value: string) => intervalLabel(value, interval, timezone);
+  const columns = board?.buckets.length ?? 0;
+  const labelStep = columns > 14 ? Math.ceil(columns / 8) : 1;
   const hasDetails = Boolean(selected || selectedPerson);
   const closeActivity = () => {
     const start = selected?.start;
@@ -110,20 +131,21 @@ export function BoardView({ controller }: { controller: BoardController }) {
     <nav className="board-navigation" aria-label="Board views"><button aria-pressed={activity} onClick={() => void controller.setView("activity")}>Activity</button><button aria-pressed={peopleView} onClick={() => void controller.setView("people")}>People</button></nav>
     {state.error && <div className="message error" role="alert"><span>{state.error}</span><button onClick={() => void controller.retry()}>Try again</button></div>}
     {state.local && board?.collectedAt && <p className="local-mode" role="status">This app does not let the panel reach BigBoard's server. You are exploring data collected {moment(board.collectedAt, timezone)}. Filter changes apply to this panel only.</p>}
+    {board?.historyStart && <p className="local-mode" role="status">{board.configuration.needsRefresh ? `Collected history starts ${moment(board.historyStart, timezone)}. Refresh sources to fill this period.` : `This panel holds history from ${moment(board.historyStart, timezone)}. Ask your agent for earlier commits.`}</p>}
     {state.notice && <div className="message success" role="status">{state.notice}</div>}
     <RefreshStatus progress={board?.refresh} starting={state.sourceRefreshing && (board?.refresh?.id ?? null) === state.sourceRefreshPreviousId} />
     {!board ? <div className="waiting" role="status"><span className="loading-mark" /><h2>{state.phase === "connecting" ? "Connecting to your conversation" : "Waiting for the board"}</h2><p>{state.error ? "Reopen BigBoard from the conversation if the connection does not recover." : "Your board will appear here when BigBoard is ready."}</p></div> : <>
       <div className="view-heading"><h1>{activity ? "Activity" : "People"}</h1>{hasCollection && <p className="date-scope">{label(board.scope.since)} – {label(board.scope.until)}<span>{timezone}</span></p>}</div>
       <section className="toolbar" aria-label={activity ? "Activity controls" : "People controls"}>
         <label className="repository-filter">Repository<select value={board.query.repository} disabled={state.busy || !hasSources} onChange={(event) => void controller.changeQuery({ repository: event.target.value })}><option value="all">All repositories</option>{board.configuration.repositories.map(repository => <option key={repository} value={repository}>{repository}</option>)}</select></label>
-        <div className="period-control" role="group" aria-label="Date range">{[7, 14].map(days => <button key={days} aria-pressed={board.query.days === days} disabled={state.busy || !hasSources} onClick={() => void controller.changeQuery({ days: days as 7 | 14 })}>{days} days</button>)}</div>
+        <div className="period-control" role="group" aria-label="Date range">{PERIOD_DAYS.map(days => <button key={days} aria-pressed={board.query.days === days} disabled={state.busy || !hasSources} onClick={() => void controller.changeQuery({ days })}>{periodLabel(days)}</button>)}</div>
         <label className="compare-control"><input type="checkbox" checked={board.query.compare} disabled={state.busy || !hasSources} onChange={(event) => void controller.changeQuery({ compare: event.target.checked })} />Compare previous period</label>
       </section>
       {!hasSources ? <section className="setup-state" aria-label="Configure repositories"><h2>Choose the repositories to collect</h2><p>Ask your agent to use bigboard:configure to reuse your native BigBoard selection or choose local Git clones.</p><p>Your saved collection selection is shared across boards.</p></section> : !hasCollection ? <section className="setup-state" aria-label="Collect repository evidence"><h2>Sources are ready</h2><p>Refresh sources to collect evidence for your {board.configuration.repositories.length} selected repositories.</p></section> : <div className={`workspace-layout${hasDetails ? " has-details" : ""}`}>
         <section className="view-content" aria-label={activity ? "Activity overview" : "People view"}>
           {activity ? <>
             <div className="activity-summary" aria-label="Activity totals"><p className="primary-total"><strong>{count.format(board.totals.commits)}{historyComplete ? "" : "+"}</strong><span>commits</span></p><p className="line-total"><span className="additions">+{count.format(board.totals.additions)}</span><span className="deletions">−{count.format(board.totals.deletions)}</span><span>{board.totals.unknownLineCommits ? "known lines · lower bound" : "lines changed"}</span></p>{board.query.compare && <p className="comparison-total">{board.totals.previousCommits === null ? "Previous period unavailable" : `${count.format(board.totals.previousCommits)} in previous period`}</p>}</div>
-            <section className="activity-chart" aria-label="Daily commits"><div className="chart-heading"><h2>Commits by author date</h2>{board.query.compare && <div className="legend"><span><i className="current-key" />This period</span><span><i className="previous-key" />Previous</span></div>}</div><div className="chart-frame"><div className="chart-scale" aria-hidden="true"><span>{chartMax}</span><span>0</span></div><div className={`chart-columns days-${board.query.days}`}>{board.buckets.map(bucket => <button className={`day-column${state.selectedBucket === bucket.start ? " selected" : ""}`} key={bucket.start} data-bucket-start={bucket.start} aria-label={`${label(bucket.start)}: ${bucket.commits} commits${bucket.previousCommits !== null ? `, ${bucket.previousCommits} in previous period` : ""}`} title={`${moment(bucket.start, timezone)} to ${moment(bucket.end, timezone)}`} aria-pressed={state.selectedBucket === bucket.start} onClick={() => void controller.selectBucket(state.selectedBucket === bucket.start ? null : bucket.start)}><span className="column-count">{bucket.commits}</span><span className="bar-track">{board.query.compare && bucket.previousCommits !== null && <span className="bar previous-bar" style={{ height: `${bucket.previousCommits / chartMax * 100}%` }} />}<span className={`bar current-bar${bucket.commits === 0 ? " empty-bar" : ""}`} style={{ height: `${bucket.commits / chartMax * 100}%` }} /></span><span className="day-label">{label(bucket.start)}</span><span className="selection-tick" /></button>)}</div></div><p className="chart-instruction">Select a 24-hour interval to inspect its commits.</p></section>
+            <section className="activity-chart" aria-label={INTERVAL_TEXT[interval].chart}><div className="chart-heading"><h2>Commits by author date</h2>{board.query.compare && <div className="legend"><span><i className="current-key" />This period</span><span><i className="previous-key" />Previous</span></div>}</div><div className="chart-frame"><div className="chart-scale" aria-hidden="true"><span>{chartMax}</span><span>0</span></div><div className={`chart-columns${columns > 14 ? " many" : columns > 7 ? " dense" : ""}`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>{board.buckets.map((bucket, index) => <button className={`day-column${state.selectedBucket === bucket.start ? " selected" : ""}`} key={bucket.start} data-bucket-start={bucket.start} aria-label={`${label(bucket.start)}: ${bucket.commits} commits${bucket.previousCommits !== null ? `, ${bucket.previousCommits} in previous period` : ""}`} title={`${moment(bucket.start, timezone)} to ${moment(bucket.end, timezone)}`} aria-pressed={state.selectedBucket === bucket.start} onClick={() => void controller.selectBucket(state.selectedBucket === bucket.start ? null : bucket.start)}><span className="column-count">{columns <= 14 || bucket.commits === chartMax || state.selectedBucket === bucket.start ? bucket.commits : "\u00a0"}</span><span className="bar-track">{board.query.compare && bucket.previousCommits !== null && <span className="bar previous-bar" style={{ height: `${bucket.previousCommits / chartMax * 100}%` }} />}<span className={`bar current-bar${bucket.commits === 0 ? " empty-bar" : ""}`} style={{ height: `${bucket.commits / chartMax * 100}%` }} /></span><span className="day-label">{index % labelStep === 0 ? axisLabel(bucket.start, interval, timezone) : "\u00a0"}</span><span className="selection-tick" /></button>)}</div></div><p className="chart-instruction">{INTERVAL_TEXT[interval].instruction}</p></section>
             {Boolean(board.highlights?.length) && <section className="breakdown" aria-label="Highlights"><h2>Highlights</h2>{board.highlights!.map(highlight => <button key={highlight.kind} className="breakdown-row" disabled={state.busy} onClick={() => void controller.showHighlight(highlight)}><span>{highlightText(highlight, label)}</span></button>)}</section>}
             {Boolean(board.repositories?.length) && <section className="breakdown" aria-label="Repository totals"><h2>Repositories</h2>{board.repositories!.slice(0, 8).map(total => <button key={total.repository} className="breakdown-row" aria-pressed={board.query.repository === total.repository} disabled={state.busy} onClick={() => void controller.changeQuery({ repository: board.query.repository === total.repository ? "all" : total.repository })}><span className="repository-name">{total.repository}</span><span>{count.format(total.commits)}{total.previousCommits !== null && <em>{change(total.commits, total.previousCommits)}</em>}</span></button>)}{board.repositories!.length > 8 && <p className="breakdown-more">and {board.repositories!.length - 8} more</p>}</section>}
           </> : <>

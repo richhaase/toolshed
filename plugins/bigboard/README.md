@@ -5,7 +5,7 @@ chart interval or a person to inspect the underlying records with your agent.
 
 ## Install or update
 
-BigBoard v0.5.0 is distributed from toolshed. The original native macOS app is
+BigBoard v0.6.0 is distributed from toolshed. The original native macOS app is
 [archived](https://github.com/richhaase/bigboard); future development lives here.
 
 Requires Node.js 24 or later, Git, and existing local clones with a github.com remote.
@@ -73,10 +73,10 @@ refresh** sends a chat message because collection needs the server.
 Each panel checks its history against the board that opened it. If the host
 served an older page, the panel rereads it once, then asks the user to reopen
 the board. Embedded history includes commit subjects, authors, emails, and line
-counts. It omits local clone paths and file lists, and is left out when larger
-than 6 MiB. The panel still makes no network requests.
+counts. It omits local clone paths and file lists. Above 4 MiB it keeps the most
+recent 90, 60, 28, or 14 days that fit. The panel still makes no network requests.
 
-Use **Refresh sources** or `refresh_sources` to collect up to 28 days of Git
+Use **Refresh sources** or `refresh_sources` to collect up to 180 days of Git
 history. The status panel shows progress and coverage for the configured
 repositories. Upgrading from 0.3 preserves saved boards, filters, sources,
 and Git history. The next source refresh replaces the old collection with
@@ -89,8 +89,12 @@ state. Update your tracking refs through your normal Git workflow. Scanned
 revisions and shallow/partial coverage remain visible. A commit found in two
 selected repositories counts once per repository.
 
-History windows are rolling 7 or 14 days; chart bars are consecutive 24-hour UTC
-intervals. Comparison uses the preceding equal window. Git authors use the
+Periods are rolling 24 hours, 7, 14, 30, or 90 days. Charts use hourly intervals
+for 24 hours, daily intervals through 30 days, and weekly intervals for 90 days,
+counted back in UTC from the collection time. The first weekly interval is
+partial. Comparison uses the preceding equal window, so 180 days of history
+covers every period. When collected history starts inside the selected period,
+the board says when it starts and reports counts as lower bounds. Git authors use the
 scanned revision's mailmap; names do not merge distinct email identities.
 Line totals use all changed files. Evidence includes the first 25 paths per
 commit and indicates when the list is truncated or line counts are unknown.

@@ -6,7 +6,7 @@ import { MAX_EVIDENCE_FILES } from "../shared";
 import type { ActivityRecord, ConfiguredRepository, FileChange, GitCollectionResult } from "../shared";
 
 const MAX_COMMITS = 20_000;
-const MAX_LINE_COMMITS = 5_000;
+const MAX_LINE_COMMITS = MAX_COMMITS;
 const MAX_OUTPUT = 16 * 1024 * 1024;
 const OID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const SKIPPED = new Set(["node_modules", ".build", "build", "dist", "target", "vendor", "Pods", "DerivedData", "Library"]);

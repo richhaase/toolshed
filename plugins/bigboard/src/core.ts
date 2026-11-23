@@ -7,6 +7,7 @@ import { collectGitHistory, describeRepository, importNativeSources } from "./so
 import { projectCoverage, projectEvidence, projectPeople, projectSnapshot, snapshotIdFor, validateQuery } from "./projection";
 import { BoardError } from "./errors";
 export { BoardError } from "./errors";
+import { COLLECTION_DAYS } from "./shared";
 import type { BoardQuery, BoardSnapshot, BoardUnchanged, CollectedWorkspace, ConfiguredRepository, EvidenceResult, GitCollectionResult, PanelWorkspace, PeopleResult, RefreshProgress, SourceConfiguration } from "./shared";
 
 export type { EvidenceResult } from "./shared";
@@ -108,7 +109,7 @@ export class BoardStore {
         .run(progress.id, configuration.revision, refreshEpoch, JSON.stringify(progress));
       this.db().exec("COMMIT");
     } catch (error) { this.db().exec("ROLLBACK"); throw error; }
-    const since = new Date(Date.parse(until) - 28 * DAY).toISOString();
+    const since = new Date(Date.parse(until) - COLLECTION_DAYS * DAY).toISOString();
     const boundedSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(150_000)]) : AbortSignal.timeout(150_000);
     const notifyProgress = () => {
       try { onProgress?.({ ...progress, git: { ...progress.git } }); }

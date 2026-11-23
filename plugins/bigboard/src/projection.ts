@@ -1,9 +1,11 @@
 import { BoardError } from "./errors";
-import { MAX_EVIDENCE_FILES } from "./shared";
-import type { ActivityRecord, BoardHighlight, BoardQuery, BoardSnapshot, EvidenceResult, PanelWorkspace, PeopleResult, PersonSummary, RefreshProgress, RepositoryCoverage, RepositoryTotal } from "./shared";
+import { MAX_EVIDENCE_FILES, PERIOD_DAYS } from "./shared";
+import type { ActivityRecord, BoardHighlight, BucketInterval, BoardQuery, BoardSnapshot, EvidenceResult, PanelWorkspace, PeopleResult, PersonSummary, RefreshProgress, RepositoryCoverage, RepositoryTotal } from "./shared";
 
 const DAY = 86_400_000;
 const PAGE_SIZE = 25;
+const MAX_BUCKET_RECORDS = 420;
+const INTERVALS: Record<BucketInterval, number> = { hour: DAY / 24, day: DAY, week: 7 * DAY };
 
 export interface ProjectedBoard { boardId: string; revision: number; updatedAt: string; query: BoardQuery }
 export interface ProjectedWorkspace extends PanelWorkspace { refresh: RefreshProgress | null }
@@ -25,10 +27,10 @@ function gitPersonId(record: ActivityRecord): string {
 
 export function validateQuery(value: unknown): BoardQuery {
   const query = value as Partial<BoardQuery> | null;
-  if (!query || (query.days !== 7 && query.days !== 14) || typeof query.repository !== "string" || !query.repository || typeof query.compare !== "boolean") {
-    throw new BoardError("invalid_query", "Use days 7 or 14, a configured repository or all, and a boolean comparison setting.");
+  if (!query || !PERIOD_DAYS.some(days => days === query.days) || typeof query.repository !== "string" || !query.repository || typeof query.compare !== "boolean") {
+    throw new BoardError("invalid_query", `Use days ${PERIOD_DAYS.join(", ")}, a configured repository or all, and a boolean comparison setting.`);
   }
-  return { days: query.days, repository: query.repository, compare: query.compare };
+  return { days: query.days!, repository: query.repository, compare: query.compare };
 }
 
 export function snapshotIdFor(boardId: string, revision: number, generation: number): string {
@@ -78,6 +80,19 @@ function periods(query: BoardQuery, workspace: PanelWorkspace, fallbackUntil: st
   return { since, until, repositories, coverage, current, previous };
 }
 
+function intervalFor(days: number): BucketInterval {
+  return days === 1 ? "hour" : days <= 30 ? "day" : "week";
+}
+
+function bucketEdges(since: string, until: string, interval: BucketInterval): { start: string; end: string }[] {
+  const first = Date.parse(since);
+  const edges: { start: string; end: string }[] = [];
+  for (let end = Date.parse(until); end > first; end -= INTERVALS[interval]) {
+    edges.unshift({ start: new Date(Math.max(first, end - INTERVALS[interval])).toISOString(), end: new Date(end).toISOString() });
+  }
+  return edges;
+}
+
 function repositoryTotals(current: ActivityRecord[], previous: ActivityRecord[] | null): RepositoryTotal[] {
   const totals = new Map<string, RepositoryTotal>();
   const total = (repository: string) => {
@@ -109,10 +124,12 @@ function highlights(buckets: BoardSnapshot["buckets"], repositories: RepositoryT
 export function projectSnapshot(board: ProjectedBoard, workspace: ProjectedWorkspace): BoardSnapshot {
   const { configuration, collection } = workspace;
   const { since, until, repositories, coverage, current, previous } = periods(board.query, workspace, board.updatedAt);
-  const complete = Boolean(collection && repositories.length && coverage.every(repo => repo.historyComplete && repo.linesComplete));
-  const buckets = Array.from({ length: board.query.days }, (_, index) => {
-    const start = new Date(Date.parse(since) + index * DAY).toISOString();
-    const end = new Date(Date.parse(start) + DAY).toISOString();
+  const historyStart = collection && collection.since > since ? collection.since : null;
+  const complete = Boolean(collection && !historyStart && repositories.length && coverage.every(repo => repo.historyComplete && repo.linesComplete));
+  const interval = intervalFor(board.query.days);
+  const edges = bucketEdges(since, until, interval);
+  const recordLimit = Math.min(30, Math.floor(MAX_BUCKET_RECORDS / edges.length));
+  const buckets = edges.map(({ start, end }) => {
     const selected = current.filter(record => record.timestamp >= start && record.timestamp < end);
     const priorStart = new Date(Date.parse(start) - board.query.days * DAY).toISOString();
     const priorEnd = new Date(Date.parse(end) - board.query.days * DAY).toISOString();
@@ -122,20 +139,20 @@ export function projectSnapshot(board: ProjectedBoard, workspace: ProjectedWorks
       deletions: selected.reduce((sum, record) => sum + (record.deletions ?? 0), 0),
       unknownLineCommits: selected.filter(record => record.additions === null || record.deletions === null).length,
       previousCommits: previous?.filter(record => record.timestamp >= priorStart && record.timestamp < priorEnd).length ?? null,
-      recordIds: selected.slice(0, 30).map(record => record.id), recordIdsTruncated: selected.length > 30,
+      recordIds: selected.slice(0, recordLimit).map(record => record.id), recordIdsTruncated: selected.length > recordLimit,
     };
   });
   const note = !configuration.repositories.length ? "Configure local clone paths or import the native BigBoard selection, then refresh sources."
     : !collection ? "Refresh sources to collect Git history."
-    : `Git activity uses author dates from local remote-tracking default branches. ${complete ? "Coverage is complete." : "Coverage is incomplete. Reported counts may be lower bounds."}`;
+    : `Git activity uses author dates from local remote-tracking default branches. ${complete ? "Coverage is complete." : "Coverage is incomplete. Reported counts may be lower bounds."}${!historyStart ? "" : workspace.trimmed ? ` This panel holds history from ${historyStart}. Ask your agent for earlier commits.` : ` Collected history starts ${historyStart}. Refresh sources for the full period.`}`;
   const totals = repositoryTotals(current, previous);
   return {
     refresh: workspace.refresh, boardId: board.boardId, revision: board.revision,
     snapshotId: snapshotIdFor(board.boardId, board.revision, workspace.generation),
     updatedAt: board.updatedAt, query: board.query, scope: { since, until, timezone: "UTC" },
     coverage: { source: "git", complete, note, repositories: coverage },
-    configuration: { revision: configuration.revision, repositories: configuration.repositories.map(repo => repo.id), needsRefresh: !collection || collection.configRevision !== configuration.revision },
-    collectedAt: collection?.generatedAt ?? null, buckets, repositories: totals, highlights: highlights(buckets, totals, board.query),
+    configuration: { revision: configuration.revision, repositories: configuration.repositories.map(repo => repo.id), needsRefresh: !collection || collection.configRevision !== configuration.revision || Boolean(historyStart && !workspace.trimmed) },
+    collectedAt: collection?.generatedAt ?? null, interval, historyStart, buckets, repositories: totals, highlights: highlights(buckets, totals, board.query),
     totals: {
       commits: current.length, additions: current.reduce((sum, r) => sum + (r.additions ?? 0), 0),
       deletions: current.reduce((sum, r) => sum + (r.deletions ?? 0), 0),

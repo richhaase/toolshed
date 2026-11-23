@@ -98,7 +98,10 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .chart-frame { position: relative; padding-left: 25px; }
 .chart-scale { position: absolute; inset: 25px auto 33px 0; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .chart-columns { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
-.chart-columns.days-14 { grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 2px; }
+.chart-columns.dense, .chart-columns.many { gap: 2px; }
+.many .day-column { padding: 6px 0 0; }
+.many .column-count { font-size: 9px; }
+.many .day-label { font-size: 9px; overflow: visible; }
 .day-column { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 6px 5px 0; background: transparent; border: 0; color: var(--ink); position: relative; }
 .day-column:hover, .day-column.selected { background: var(--blue-soft); }
 .column-count { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 16px; margin-bottom: 6px; color: var(--muted); }
@@ -110,7 +113,7 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .previous-bar { background: var(--previous); }
 .empty-bar { min-height: 2px; background: var(--line); }
 .day-label { font-size: 10px; color: var(--muted); white-space: nowrap; margin-top: 9px; }
-.days-14 .day-label { font-size: 9px; }
+.dense .day-label { font-size: 9px; }
 .selection-tick { margin-top: 7px; width: 17px; height: 2px; background: transparent; border-radius: 2px; }
 .selected .selection-tick { background: var(--blue); }
 .chart-instruction { color: var(--muted); font-size: 10px; margin: 12px 0 0 25px; }
@@ -163,7 +166,7 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
   .activity-summary { flex-wrap: wrap; gap: 16px; }
   .comparison-total { margin: -4px 0 0; width: 100%; text-align: left; }
   .day-column { padding-left: 3px; padding-right: 3px; }
-  .days-14 .day-label { writing-mode: vertical-rl; font-size: 9px; height: 34px; }
+  .dense .day-label, .many .day-label { writing-mode: vertical-rl; font-size: 9px; height: 46px; }
   .bar-track { height: 136px; gap: 2px; }
   .chart-scale { bottom: 53px; }
   .legend { font-size: 8px; gap: 7px; }

@@ -34,7 +34,7 @@ Honor an explicit request to save without collecting.
 Resolve `boardId` from current app context or the user's supplied ID. If the
 intended board is unclear, ask them to select it. Create a new board only when
 requested. Call `read_board`, then `update_board` with that board's current
-`expected_revision` and only requested fields: `days` (7 or 14), `repository`
+`expected_revision` and only requested fields: `days` (1, 7, 14, 30 or 90), `repository`
 (`all` or an ID from `list_sources`), and `compare` (boolean). Verify the
 resulting query and revision; reconcile conflicts against current state.
 These settings apply to the saved board and use the existing collection.
