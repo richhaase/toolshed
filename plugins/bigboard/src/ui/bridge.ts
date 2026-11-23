@@ -1,8 +1,10 @@
 import { App } from "@modelcontextprotocol/ext-apps";
-import { APP_VERSION, type SelectionContext } from "../shared";
+import { panelDataFromHtml, parsePanelData } from "../panel-data";
+import { APP_VERSION, BOARD_RESOURCE_URI, type PanelWorkspace, type SelectionContext } from "../shared";
 import type { BoardBridge, ToolResult } from "./controller";
+import type { PanelDataSource } from "./fallback";
 
-export class McpBoardBridge implements BoardBridge {
+export class McpBoardBridge implements BoardBridge, PanelDataSource {
   private app = new App({ name: "BigBoard", version: APP_VERSION }, {});
 
   async connect(onResult: (result: ToolResult) => void, onTeardown?: () => void): Promise<void> {
@@ -21,6 +23,16 @@ export class McpBoardBridge implements BoardBridge {
 
   callTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     return this.app.callServerTool({ name, arguments: args }, { timeout: name === "refresh_sources" ? 180_000 : 30_000 }) as Promise<ToolResult>;
+  }
+
+  embedded(): PanelWorkspace | null {
+    return parsePanelData(document.getElementById("bigboard-data")?.textContent);
+  }
+
+  async reload(): Promise<PanelWorkspace | null> {
+    const resource = await this.app.readServerResource({ uri: BOARD_RESOURCE_URI }, { timeout: 15_000 });
+    const content = resource.contents.find(item => item.uri === BOARD_RESOURCE_URI);
+    return content && "text" in content ? panelDataFromHtml(content.text) : null;
   }
 
   async updateContext(context: SelectionContext): Promise<void> {

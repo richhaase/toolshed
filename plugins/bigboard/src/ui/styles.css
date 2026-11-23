@@ -196,3 +196,12 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
   .person-numbers strong { font-size: 11px; }
 }
 .wordmark img { display: block; object-fit: contain; flex-shrink: 0; }
+.local-mode { margin: 13px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.breakdown { margin-top: 22px; }
+.breakdown h2 { color: var(--muted); font-size: 11px; font-weight: 500; margin-bottom: 6px; }
+.breakdown-row { display: flex; justify-content: space-between; gap: 14px; width: 100%; padding: 8px 10px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; font-size: 11px; text-align: left; }
+.breakdown-row:hover, .breakdown-row[aria-pressed="true"] { background: var(--blue-soft); }
+.breakdown-row > span { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.breakdown-row em { margin-left: 10px; color: var(--muted); font-style: normal; }
+.breakdown-more { margin: 8px 10px 0; color: var(--muted); font-size: 10px; }
+.person-rank { flex: 0 0 22px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }

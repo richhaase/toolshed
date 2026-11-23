@@ -8,6 +8,7 @@ import { test, type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { panelDataFromHtml } from "../src/panel-data";
 import { APP_VERSION, BOARD_RESOURCE_URI, type BoardSnapshot, type EvidenceResult, type PeopleResult, type SourceConfiguration } from "../src/shared";
 
 const exec = promisify(execFile);
@@ -146,6 +147,12 @@ test("local Git refresh feeds both views and invalidates stale selections", asyn
   assert.notEqual(collected.snapshotId, first.snapshotId);
   assert.equal(collected.totals.commits, 2);
   assert.ok(collected.coverage.repositories.every(repo => repo.historyComplete && repo.linesComplete));
+  const embedded = await client.readResource({ uri: BOARD_RESOURCE_URI });
+  const page = embedded.contents[0];
+  assert.ok("text" in page);
+  const data = panelDataFromHtml(page.text);
+  assert.equal(data?.collection?.generatedAt, collected.collectedAt);
+  assert.equal(data?.generation, Number(collected.snapshotId.split(":").at(-1)));
   const people = value<PeopleResult>(await client.callTool({ name: "query_people", arguments: { board_id: collected.boardId, snapshot_id: collected.snapshotId } }));
   assert.equal(people.totalPeople, 1);
   assert.equal(people.people[0].commits, 2);

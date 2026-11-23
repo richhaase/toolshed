@@ -1,4 +1,5 @@
-import type { ActivityRecord, BoardQuery, BoardSnapshot, BoardUnchanged, BoardViewMode, EvidenceResult, PeopleResult, PersonSummary, SelectionContext } from "../shared";
+import { BoardError } from "../errors";
+import type { ActivityRecord, BoardHighlight, BoardQuery, BoardSnapshot, BoardUnchanged, BoardViewMode, EvidenceResult, PeopleResult, PersonSummary, SelectionContext } from "../shared";
 
 export type { BoardViewMode } from "../shared";
 
@@ -14,6 +15,7 @@ export interface BoardBridge {
   updateContext(context: SelectionContext): Promise<void>;
   sendMessage(text: string): Promise<void>;
   close(): Promise<void>;
+  onLocalMode?: () => void;
 }
 
 export interface BoardViewState {
@@ -35,6 +37,7 @@ export interface BoardViewState {
   evidenceLoading: boolean;
   contextReady: boolean;
   contextFailed: boolean;
+  local: boolean;
   error: string | null;
   notice: string | null;
 }
@@ -75,7 +78,7 @@ export class BoardController {
     selectedPersonId: null, people: [], totalPeople: 0, peopleNextCursor: null, peopleLoading: false,
     records: [], totalRecords: 0, nextCursor: null,
     phase: "connecting", busy: false, sourceRefreshing: false, sourceRefreshPreviousId: null, evidenceLoading: false,
-    contextReady: false, contextFailed: false, error: null, notice: null,
+    contextReady: false, contextFailed: false, local: false, error: null, notice: null,
   };
   private listeners = new Set<() => void>();
   private connected = false;
@@ -91,7 +94,9 @@ export class BoardController {
   private poll: ReturnType<typeof setInterval> | null = null;
   private refreshError: string | null = null;
 
-  constructor(private bridge: BoardBridge, private pollMilliseconds = 2000) {}
+  constructor(private bridge: BoardBridge, private pollMilliseconds = 2000) {
+    bridge.onLocalMode = () => this.setState({ local: true, error: null });
+  }
 
   getState = (): BoardViewState => this.state;
 
@@ -121,6 +126,14 @@ export class BoardController {
     if (!snapshot) return null;
     return {
       ...selectionContext(snapshot, this.state.selectedBucket, this.state.view),
+      ...(snapshot.unsaved ? { unsaved: true } : {}),
+      summary: {
+        commits: snapshot.totals.commits,
+        previousCommits: snapshot.totals.previousCommits,
+        repositories: (snapshot.repositories ?? []).slice(0, 5),
+        people: this.state.people.slice(0, 5).map(person => ({ name: person.name, commits: person.commits, previousCommits: person.previousCommits ?? null })),
+        highlights: snapshot.highlights ?? [],
+      },
       ...(this.state.view === "people" ? { personId: this.state.selectedPersonId } : {}),
     };
   }
@@ -189,8 +202,8 @@ export class BoardController {
       await this.readLatestBoard(snapshot.boardId, knownSnapshotId);
       if (this.refreshError !== null && this.state.error === this.refreshError) this.setState({ error: null });
       this.refreshError = null;
-    } catch {
-      this.refreshError = "The board could not refresh. Your last view is still here. Try again.";
+    } catch (error) {
+      this.refreshError = error instanceof BoardError && error.code === "stale_panel" ? error.message : "The board could not refresh. Your last view is still here. Try again.";
       this.setState({ error: this.refreshError });
     } finally {
       this.syncing = false;
@@ -235,6 +248,21 @@ export class BoardController {
     } finally {
       this.setState({ busy: false, sourceRefreshing: false });
     }
+  }
+
+  async requestRefresh(): Promise<void> {
+    if (!this.connected || this.state.busy) return;
+    this.setState({ busy: true, error: null, notice: null });
+    try {
+      await this.bridge.sendMessage("Refresh BigBoard's sources, then reopen this board.");
+      this.setState({ notice: "Refresh requested in the conversation." });
+    } catch (error) { this.setState({ error: this.errorMessage(error) }); }
+    finally { this.setState({ busy: false }); }
+  }
+
+  async showHighlight(highlight: BoardHighlight): Promise<void> {
+    if (highlight.bucketStart) await this.selectBucket(highlight.bucketStart);
+    else if (highlight.repository) await this.changeQuery({ repository: highlight.repository });
   }
 
   async retry(): Promise<void> {
@@ -311,7 +339,9 @@ export class BoardController {
       const people = result.structuredContent as PeopleResult | undefined;
       if (people?.snapshotId !== snapshot.snapshotId || !Array.isArray(people.people)) throw new Error("The people view changed. Refresh the board and try again.");
       const rows = append ? [...this.state.people, ...people.people] : people.people;
+      const first = this.state.people.length === 0;
       this.setState({ people: [...new Map(rows.map(person => [person.id, person])).values()], totalPeople: people.totalPeople, peopleNextCursor: people.nextCursor, peopleLoading: false });
+      if (first && people.people.length) void this.shareSelection();
     } catch (error) {
       if (sequence === this.peopleSequence) this.setState({ error: this.errorMessage(error), peopleLoading: false });
     }

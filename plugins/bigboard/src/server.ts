@@ -3,6 +3,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { BoardError, BoardStore } from "./core";
+import { embedPanelData } from "./panel-data";
 import { APP_VERSION, BOARD_RESOURCE_URI, type BoardSnapshot, type EvidenceResult, type PeopleResult } from "./shared";
 import { BIGBOARD_ICON_DATA_URL } from "./branding";
 
@@ -35,13 +36,17 @@ async function result<T extends object>(operation: () => Promise<T>, format: (va
     return { isError: true, content: [{ type: "text", text: message }], structuredContent: { error: { code, message } } };
   }
 }
+function panelHtml(html: string, store: BoardStore): string {
+  try { return embedPanelData(html, store.panelWorkspace()); }
+  catch { return html; }
+}
 export function createBigboardServer(html: string, store: BoardStore): McpServer {
   const icons = [{ src: BIGBOARD_ICON_DATA_URL, mimeType: "image/png", sizes: ["1254x1254"] }];
   const server = new McpServer({ name: "bigboard", title: "BigBoard", version: APP_VERSION, icons });
   const resourceMeta = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true } };
   registerAppResource(server, "BigBoard", BOARD_RESOURCE_URI,
     { description: "Activity and People views for configured repositories", icons, _meta: resourceMeta },
-    async () => ({ contents: [{ uri: BOARD_RESOURCE_URI, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: resourceMeta }] }));
+    async () => ({ contents: [{ uri: BOARD_RESOURCE_URI, mimeType: RESOURCE_MIME_TYPE, text: panelHtml(html, store), _meta: resourceMeta }] }));
   registerAppTool(server, "open_board", {
     title: "Open BigBoard", description: "Open Activity or People for configured repositories. Omit board_id for an independent board or provide its exact ID to reopen it. Opening a board does not itself collect data.",
     inputSchema: { board_id: boardId.optional(), view: z.enum(["activity", "people"]).optional() }, annotations: { ...annotations, readOnlyHint: false }, _meta: { ui: { resourceUri: BOARD_RESOURCE_URI, visibility: ["model", "app"] } },

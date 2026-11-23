@@ -37,6 +37,9 @@ actual desktop-host interaction checklist.
 - Git collection reads existing clones and remote-tracking default branches.
   Never fetch or modify branches, the index, the working tree, Git config, or
   repository maintenance state.
+- Keep board calculations in `src/projection.ts`, shared by the server and the
+  panel's embedded-history fallback, so both produce the same results. Never
+  embed clone paths or file lists in the panel page.
 - Preserve cancellation, contributor identity rules, honest
   stale or partial coverage, and snapshot-bound evidence paging. Update affected
   projections and tests when changing data models.
