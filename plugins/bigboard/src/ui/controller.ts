@@ -3,6 +3,8 @@ import type { ActivityRecord, BoardHighlight, BoardQuery, BoardSnapshot, BoardUn
 
 export type { BoardViewMode } from "../shared";
 
+export const OPENING_WAIT_MILLISECONDS = 10_000;
+
 export interface ToolResult {
   isError?: boolean;
   content?: Array<{ type: string; text?: string }>;
@@ -30,7 +32,7 @@ export interface BoardViewState {
   records: ActivityRecord[];
   totalRecords: number;
   nextCursor: string | null;
-  phase: "connecting" | "waiting" | "ready";
+  phase: "connecting" | "waiting" | "overdue" | "ready";
   busy: boolean;
   sourceRefreshing: boolean;
   sourceRefreshPreviousId: string | null;
@@ -92,9 +94,10 @@ export class BoardController {
   private contextSequence = 0;
   private contextQueue: Promise<void> = Promise.resolve();
   private poll: ReturnType<typeof setInterval> | null = null;
+  private openingTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshError: string | null = null;
 
-  constructor(private bridge: BoardBridge, private pollMilliseconds = 2000) {
+  constructor(private bridge: BoardBridge, private pollMilliseconds = 2000, private openingWaitMilliseconds = OPENING_WAIT_MILLISECONDS) {
     bridge.onLocalMode = () => this.setState({ local: true, error: null });
   }
 
@@ -154,6 +157,9 @@ export class BoardController {
       } else {
         this.viewReady = true;
         this.setState({ phase: "waiting" });
+        this.openingTimer = setTimeout(() => {
+          if (!this.state.snapshot) this.setState({ phase: "overdue" });
+        }, this.openingWaitMilliseconds);
       }
       if (this.pollMilliseconds > 0) {
         this.poll = setInterval(() => {
@@ -185,7 +191,7 @@ export class BoardController {
     }
     const selectedBucket = snapshot.buckets.some((bucket) => bucket.start === this.state.selectedBucket) ? this.state.selectedBucket : null;
     this.clearPeople();
-    this.clearEvidence({ snapshot, view, selectedBucket, phase: "ready", contextReady: false, contextFailed: false });
+    this.clearEvidence({ snapshot, view, selectedBucket, phase: "ready", contextReady: false, contextFailed: false, ...(previous ? {} : { error: null, notice: null }) });
     void this.activateView();
   }
 
@@ -260,6 +266,17 @@ export class BoardController {
     finally { this.setState({ busy: false }); }
   }
 
+  async requestReopen(): Promise<void> {
+    if (!this.connected || this.state.busy || this.state.snapshot) return;
+    this.setState({ busy: true, error: null, notice: null });
+    try {
+      await this.bridge.sendMessage("The BigBoard panel did not receive its board. Reopen the board you last opened.");
+      if (!this.state.snapshot) this.setState({ notice: "Reopen requested in the conversation." });
+    } catch {
+      if (!this.state.snapshot) this.setState({ error: "The panel could not send a message. Ask your agent to reopen BigBoard." });
+    } finally { this.setState({ busy: false }); }
+  }
+
   async showHighlight(highlight: BoardHighlight): Promise<void> {
     if (highlight.bucketStart) await this.selectBucket(highlight.bucketStart);
     else if (highlight.repository) await this.changeQuery({ repository: highlight.repository });
@@ -268,14 +285,13 @@ export class BoardController {
   async retry(): Promise<void> {
     this.setState({ error: null, notice: null });
     if (!this.connected) { await this.start(); return; }
+    if (!this.state.snapshot) { await this.requestReopen(); return; }
     await this.refresh();
-    if (this.state.snapshot) {
-      if (this.state.view === "people" && this.state.people.length) {
-        if (this.state.peopleNextCursor) await this.loadPeople(true);
-        await this.loadEvidence();
-      } else await this.loadView();
-      await this.shareSelection();
-    }
+    if (this.state.view === "people" && this.state.people.length) {
+      if (this.state.peopleNextCursor) await this.loadPeople(true);
+      await this.loadEvidence();
+    } else await this.loadView();
+    await this.shareSelection();
   }
 
   async changeQuery(patch: Partial<BoardQuery>): Promise<void> {
@@ -420,6 +436,7 @@ export class BoardController {
     this.peopleSequence += 1;
     this.contextSequence += 1;
     if (this.poll) clearInterval(this.poll);
+    if (this.openingTimer) clearTimeout(this.openingTimer);
     this.listeners.clear();
     if (closeBridge) await this.bridge.close();
   }

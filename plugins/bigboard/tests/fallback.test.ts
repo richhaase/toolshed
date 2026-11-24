@@ -11,7 +11,7 @@ import { BoardStore } from "../src/core";
 import { embedPanelData, MAX_PANEL_DATA_LENGTH, panelDataFromHtml } from "../src/panel-data";
 import { BOARD_RESOURCE_URI, PERIOD_DAYS, type ActivityRecord, type BoardSnapshot, type ConfiguredRepository, type EvidenceResult, type PanelWorkspace, type PeopleResult, type SelectionContext } from "../src/shared";
 import { FallbackBridge, LocalBoard } from "../src/ui/fallback";
-import type { BoardBridge, ToolResult } from "../src/ui/controller";
+import { BoardController, OPENING_WAIT_MILLISECONDS, type BoardBridge, type ToolResult } from "../src/ui/controller";
 
 const DAY = 86_400_000;
 const NOW = new Date("2026-11-17T12:00:00.000Z");
@@ -172,7 +172,7 @@ test("a stale panel reloads newer data and otherwise explains how to reopen", as
   await assert.rejects(absent.callTool("read_board", {}), /Method not found/);
 });
 
-async function refusingPanel(html: string, opened: BoardSnapshot, resource: () => Promise<string>) {
+async function refusingPanel(html: string, opened: BoardSnapshot, resource: () => Promise<string>, options: { withholdResult?: boolean } = {}) {
   const host = new JSDOM("<!doctype html><body></body>");
   const contexts: SelectionContext[] = [];
   const messages: string[] = [];
@@ -192,13 +192,18 @@ async function refusingPanel(html: string, opened: BoardSnapshot, resource: () =
     return {};
   };
   bridge.onmessage = async params => { messages.push(params.content.map(item => item.type === "text" ? item.text : "").join("")); return {}; };
-  bridge.oninitialized = () => { void bridge.sendToolInput({ arguments: {} }).then(() => bridge.sendToolResult({ content: [], structuredContent: { ...opened, initialView: "activity" } })); };
+  const sendResult = () => bridge.sendToolResult({ content: [], structuredContent: { ...opened, initialView: "activity" } });
+  bridge.oninitialized = () => { void bridge.sendToolInput({ arguments: {} }).then(() => options.withholdResult ? undefined : sendResult()); };
   await bridge.connect(transport);
   guest = new JSDOM(html, { url: "https://bigboard.test/", runScripts: "dangerously", pretendToBeVisual: true, virtualConsole: new VirtualConsole(), beforeParse(window) {
     Object.defineProperty(window, "parent", { value: host.window });
     Object.defineProperty(window, "structuredClone", { value: structuredClone });
     for (const name of ["TextEncoder", "TextDecoder"] as const) Object.defineProperty(window, name, { value: globalThis[name] });
     Object.defineProperty(window, "ResizeObserver", { value: class { observe() {} unobserve() {} disconnect() {} } });
+    if (options.withholdResult) {
+      const schedule = window.setTimeout.bind(window) as (handler: () => void, delay?: number) => number;
+      Object.defineProperty(window, "setTimeout", { value: (handler: () => void, delay?: number) => schedule(handler, delay === OPENING_WAIT_MILLISECONDS ? 50 : delay) });
+    }
     window.addEventListener("error", event => errors.push(String(event.error ?? event.message)));
   } });
   const document = guest.window.document;
@@ -208,7 +213,7 @@ async function refusingPanel(html: string, opened: BoardSnapshot, resource: () =
     found.click();
   };
   const close = async () => { guest!.window.dispatchEvent(new guest!.window.Event("pagehide")); closed = true; await bridge.close(); guest!.window.close(); host.window.close(); };
-  return { document, window: guest.window, contexts, messages, errors, click, close };
+  return { document, window: guest.window, contexts, messages, errors, click, close, sendResult };
 }
 
 test("the built panel stays interactive and shares its view in a host that refuses tool calls", async t => {
@@ -269,4 +274,90 @@ test("the built panel replaces cached data by rereading its own page", async t =
   panel.click("14 days");
   await waitFor(() => panel.document.querySelectorAll(".day-column").length === 14, "14 days from reloaded data");
   assert.deepEqual(panel.errors, []);
+});
+
+test("the built panel offers to reopen when a host that refuses tool calls never delivers its board", async t => {
+  const store = await collected(t);
+  const opened = await store.open();
+  const html = embedPanelData(await shell(), store.panelWorkspace());
+  const panel = await refusingPanel(html, opened, async () => html, { withholdResult: true });
+  t.after(panel.close);
+  const { document } = panel;
+  const reopen = () => [...document.querySelectorAll<HTMLButtonElement>("button")].find(item => item.textContent === "Ask to reopen");
+  await waitFor(() => reopen() !== undefined, "reopen request");
+  assert.match(document.querySelector(".waiting")!.textContent!, /has not arrived/);
+  assert.equal(panel.messages.length, 0);
+  panel.click("Ask to reopen");
+  await waitFor(() => document.querySelector(".message.success") !== null, "reopen confirmation");
+  assert.equal(panel.messages.length, 1);
+  assert.match(panel.messages[0], /reopen/i);
+  await panel.sendResult();
+  await waitFor(() => document.querySelector(".local-mode") !== null, "late board in local mode");
+  assert.equal(document.querySelector(".waiting"), null);
+  assert.equal(document.querySelector(".message"), null);
+  panel.click("30 days");
+  await waitFor(() => document.querySelectorAll(".day-column").length === 30, "30 days from a late board");
+  assert.deepEqual(panel.errors, []);
+});
+
+async function undelivered(t: TestContext, openingWait: number, sendMessage: BoardBridge["sendMessage"] = async () => {}) {
+  const store = await collected(t);
+  const opened = await store.open();
+  let deliver: (result: ToolResult) => void = () => {};
+  const bridge: BoardBridge = { ...bridgeFor(opened, async () => ({ structuredContent: opened })), connect: async onResult => { deliver = onResult; }, sendMessage };
+  const controller = new BoardController(bridge, 0, openingWait);
+  t.after(() => controller.destroy());
+  await controller.start();
+  return { controller, opened, deliver: (result: ToolResult) => deliver(result) };
+}
+
+test("a board that arrives within the wait or after teardown never asks to reopen", async t => {
+  const prompt = await undelivered(t, 20);
+  prompt.deliver({ structuredContent: prompt.opened });
+  const closed = await undelivered(t, 20);
+  await closed.controller.destroy();
+  await new Promise(resolve => setTimeout(resolve, 60));
+  assert.equal(prompt.controller.getState().phase, "ready");
+  assert.equal(closed.controller.getState().phase, "waiting");
+  await prompt.controller.requestReopen();
+  assert.equal(prompt.controller.getState().notice, null);
+});
+
+test("a failed reopen request explains what to do, can be repeated, and yields to a late board", async t => {
+  let attempts = 0;
+  const { controller, opened, deliver } = await undelivered(t, 5, async () => { attempts += 1; throw new Error("MCP error -32601: Method not found"); });
+  await waitFor(() => controller.getState().phase === "overdue", "overdue board");
+  await controller.requestReopen();
+  assert.match(controller.getState().error!, /Ask your agent to reopen BigBoard/);
+  await controller.retry();
+  assert.equal(attempts, 2);
+  assert.equal(controller.getState().busy, false);
+  deliver({ structuredContent: opened });
+  assert.equal(controller.getState().phase, "ready");
+  assert.equal(controller.getState().error, null);
+});
+
+test("a reopen request still in flight when the board arrives leaves no message behind", async t => {
+  for (const settle of ["resolve", "reject"] as const) {
+    let settleRequest!: () => void;
+    const pending = new Promise<void>((resolve, reject) => { settleRequest = settle === "resolve" ? resolve : () => reject(new Error("closed")); });
+    const { controller, opened, deliver } = await undelivered(t, 5, () => pending);
+    await waitFor(() => controller.getState().phase === "overdue", "overdue board");
+    const request = controller.requestReopen();
+    deliver({ structuredContent: opened });
+    settleRequest();
+    await request;
+    const { notice, error, busy } = controller.getState();
+    assert.deepEqual({ notice, error, busy }, { notice: null, error: null, busy: false });
+  }
+});
+
+test("retrying a failed opening result asks the conversation to reopen the board", async t => {
+  const messages: string[] = [];
+  const { controller, deliver } = await undelivered(t, 60_000, async text => { messages.push(text); });
+  deliver({ isError: true, content: [{ type: "text", text: "Board not found." }] });
+  assert.equal(controller.getState().error, "Board not found.");
+  await controller.retry();
+  assert.equal(messages.length, 1);
+  assert.equal(controller.getState().notice, "Reopen requested in the conversation.");
 });

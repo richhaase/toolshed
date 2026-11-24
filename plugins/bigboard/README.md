@@ -5,7 +5,7 @@ chart interval or a person to inspect the underlying records with your agent.
 
 ## Install or update
 
-BigBoard v0.6.0 is distributed from toolshed. The original native macOS app is
+BigBoard v0.6.1 is distributed from toolshed. The original native macOS app is
 [archived](https://github.com/richhaase/bigboard); future development lives here.
 
 Requires Node.js 24 or later, Git, and existing local clones with a github.com remote.
@@ -60,6 +60,12 @@ changes. Repository totals filter the board.
 **People** ranks contributors by commit count for the selected period and
 repositories, with each person's share of commits and, with comparison on, the
 change from the previous period. Select a contributor to see their commits.
+
+### Panels that do not receive their board
+
+If a panel connects but its board does not arrive within ten seconds, it says so
+and offers **Ask to reopen**, which sends a chat message. This does not depend on
+panel tool calls. A board that arrives later still opens in that panel.
 
 ### Hosts that do not run panel tool calls
 
