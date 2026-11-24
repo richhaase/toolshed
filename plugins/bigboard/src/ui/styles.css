@@ -150,6 +150,7 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .waiting { padding: 60px 10px; text-align: center; }
 .waiting h2 { margin-top: 15px; font-size: 16px; }
 .waiting p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.waiting button { background: var(--surface); border: 1px solid var(--line); padding: 7px 9px; font-size: 11px; }
 .loading-mark { display: inline-block; width: 23px; height: 23px; border: 2px solid var(--line); border-top-color: var(--blue); border-radius: 50%; }
 @media (max-width: 850px) { .workspace-layout.has-details { grid-template-columns: minmax(0, 1fr); gap: 4px; } .detail-pane { margin-top: 15px; } }
 @media (max-width: 650px) {

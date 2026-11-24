@@ -61,6 +61,12 @@ changes. Repository totals filter the board.
 repositories, with each person's share of commits and, with comparison on, the
 change from the previous period. Select a contributor to see their commits.
 
+### Panels that do not receive their board
+
+If a panel connects but its board does not arrive within ten seconds, it says so
+and offers **Ask to reopen**, which sends a chat message. This does not depend on
+panel tool calls. A board that arrives later still opens in that panel.
+
 ### Hosts that do not run panel tool calls
 
 Some MCP Apps hosts display the panel without letting it call the server. The
