@@ -5,7 +5,7 @@ chart interval or a person to inspect the underlying records with your agent.
 
 ## Install or update
 
-BigBoard v0.6.0 is distributed from toolshed. The original native macOS app is
+BigBoard v0.6.1 is distributed from toolshed. The original native macOS app is
 [archived](https://github.com/richhaase/bigboard); future development lives here.
 
 Requires Node.js 24 or later, Git, and existing local clones with a github.com remote.
