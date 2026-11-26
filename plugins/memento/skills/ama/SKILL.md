@@ -31,7 +31,7 @@ are relative to `MEMENTO_ROOT`.
 
 ## Arguments
 
-Arguments are passed as: $ARGUMENTS
+Arguments are whatever follows the skill name in the user's request.
 
 - No arguments → broad survey across the hot set and `wiki/INDEX.md`.
 - `<topic>` → narrow to one entity. Match against `wiki/INDEX.md` page
@@ -62,8 +62,8 @@ Arguments are passed as: $ARGUMENTS
 
 ## Step 0: Read Entity Types registry
 
-Read the `## Entity Types` section from canonical `AGENTS.md`. Legacy
-repos may have it in `CLAUDE.md`; fall back there. Note which entity
+Read the `## Entity Types` section from canonical `AGENTS.md`. If it is
+missing, stop and point the user to `memento-config`. Note which entity
 types have `private_notes: yes` — observations about those entities
 route to `private/` instead of `sources/` in Step 5.
 

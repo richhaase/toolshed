@@ -85,16 +85,21 @@ contracts, not optional background:
 
 Before scaffolding, check whether `MEMENTO_ROOT` already looks like a
 configured Memento. The signal is a canonical `AGENTS.md` containing an
-`## Entity Types` section (legacy repos may have it in `CLAUDE.md`).
+`## Entity Types` section.
 
 ```bash
-if grep -q '^## Entity Types' "$MEMENTO_ROOT/AGENTS.md" 2>/dev/null \
-   || grep -q '^## Entity Types' "$MEMENTO_ROOT/CLAUDE.md" 2>/dev/null; then
+if grep -q '^## Entity Types' "$MEMENTO_ROOT/AGENTS.md" 2>/dev/null; then
   MODE=update
+elif grep -q '^## Entity Types' "$MEMENTO_ROOT/CLAUDE.md" 2>/dev/null; then
+  echo "memento-config: the registry is in CLAUDE.md; move that file's content into AGENTS.md, leave only @AGENTS.md in CLAUDE.md, then rerun" >&2
+  exit 1
 else
   MODE=new
 fi
 ```
+
+A registry held only in `CLAUDE.md` is an unsupported older layout. Relay that
+message and stop; do not move the content yourself.
 
 - **`MODE=new`** → run Phase 1 (scaffold) followed by Phase 2 (full
   interview). This is the original setup flow.
@@ -140,11 +145,6 @@ Write `CLAUDE.md` only as a thin harness entrypoint whose first content is the
 bare `@AGENTS.md` import. Do not merely tell a future agent to read the file;
 the import is what makes Claude Code load it deterministically. Do not duplicate the Memento operating model, Entity Types
 registry, or hot set into that file.
-
-If setting up a legacy repo that already has a full `CLAUDE.md` but no
-`AGENTS.md`, preserve the full Memento context by moving or copying it into
-`AGENTS.md`, then replace `CLAUDE.md` with the thin entrypoint only after the
-canonical content is safely present in `AGENTS.md`.
 
 Use the starter scaffolds in `references/agents-md-template.md` for the
 canonical `AGENTS.md` and the thin `CLAUDE.md` pointer. Read that file and
