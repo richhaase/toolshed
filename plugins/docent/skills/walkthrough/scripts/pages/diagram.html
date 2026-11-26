@@ -1,0 +1,198 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Diagram</title>
+<style>
+  :root { --bg: #0b1020; --fg: #f8fafc; --accent: #6366f1; --muted: #94a3b8; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(90vw 70vh at 12% 0%, color-mix(in srgb, var(--accent) 30%, var(--bg)), transparent 65%),
+      var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { position: absolute; left: 6vw; top: 5.5vh; margin: 0; font-size: 2.7vw; letter-spacing: -.02em; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .edge { fill: none; stroke: var(--muted); stroke-width: 2.5; transition: opacity .45s, stroke .3s, stroke-width .3s; }
+  .edge.hot { stroke: var(--accent); stroke-width: 4; filter: brightness(1.5); }
+  .node {
+    position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: .5vw .9vw; text-align: center; border-radius: 14px;
+    background: color-mix(in srgb, var(--fg) 9%, var(--bg)); border: 2px solid color-mix(in srgb, var(--fg) 26%, var(--bg));
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .35);
+    transition: opacity .45s, transform .45s cubic-bezier(.2, .7, .2, 1), border-color .3s, box-shadow .3s;
+  }
+  .node b { font-size: 1.5vw; font-weight: 650; line-height: 1.2; text-wrap: balance; }
+  .node small { margin-top: .3em; font-size: 1.05vw; line-height: 1.25; color: var(--muted); text-wrap: balance; }
+  .node.queue { border-radius: 999px; }
+  .node.store { border-radius: 50% / 16%; }
+  .node.external { border-style: dashed; background: transparent; box-shadow: none; }
+  .node.lit { border-color: var(--accent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent), 0 14px 34px rgba(0, 0, 0, .35); }
+  .tag {
+    position: absolute; transform: translate(-50%, -50%); padding: .15em .6em; border-radius: 6px; white-space: nowrap;
+    background: var(--bg); color: var(--muted); font-size: 1vw; font-weight: 600; transition: opacity .45s;
+  }
+  .off { opacity: 0 !important; }
+  .node.off { transform: scale(.9); }
+  .dim { opacity: .28; }
+  .dot { fill: var(--fg); filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)); }
+</style>
+<svg id="svg"><defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse">
+    <path d="M0 0L10 5L0 10z" fill="context-stroke"/>
+  </marker>
+</defs></svg>
+<h1 id="title"></h1>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const nodes = new Map(); // id -> { el, x, y, w, h, visible }
+  let edges = []; // { from, to, path, tag }
+  let run = 0; // bumps on every step so a looping flow from the previous step stops
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  window.setup = ({ title, nodes: defs, edges: edgeDefs, ranks, direction = 'right', reveal, theme = {} }) => {
+    const css = document.documentElement.style;
+    for (const [k, v] of Object.entries({ background: '--bg', foreground: '--fg', accent: '--accent', muted: '--muted' })) {
+      if (theme[k]) css.setProperty(v, theme[k]);
+    }
+    document.getElementById('title').textContent = title || '';
+    const W = innerWidth, H = innerHeight;
+    const area = { x: W * 0.05, y: H * (title ? 0.2 : 0.08), w: W * 0.9, h: H * (title ? 0.72 : 0.84) };
+    const down = direction === 'down';
+    const R = ranks.length;
+    const widest = Math.max(...ranks.map((r) => r.length));
+    // Along the flow axis nodes share the space with the arrows; across it they share with gaps.
+    const w = Math.min(W * 0.22, down ? (area.w / widest) * 0.72 : (area.w / R) * 0.6);
+    const h = Math.min(H * 0.15, down ? (area.h / R) * 0.52 : (area.h / widest) * 0.62);
+    const byId = new Map(defs.map((d) => [d.id, d]));
+    ranks.forEach((ids, r) => ids.forEach((id, j) => {
+      const along = (r + 0.5) / R, across = (j + 0.5) / ids.length;
+      const x = area.x + area.w * (down ? across : along);
+      const y = area.y + area.h * (down ? along : across);
+      const d = byId.get(id);
+      const el = document.createElement('div');
+      el.className = `node ${d.kind || ''}${reveal ? ' off' : ''}`;
+      el.style.cssText = `left:${x - w / 2}px;top:${y - h / 2}px;width:${w}px;height:${h}px`;
+      el.appendChild(Object.assign(document.createElement('b'), { textContent: d.label }));
+      if (d.sub) el.appendChild(Object.assign(document.createElement('small'), { textContent: d.sub }));
+      document.body.appendChild(el);
+      // Shrink a label whose longest word (a file or table name, say) is wider than its box.
+      const b = el.firstChild;
+      const pen = Object.assign(document.createElement('canvas').getContext('2d'), { font: getComputedStyle(b).font });
+      const longest = Math.max(...String(d.label).split(/\s+/).map((word) => pen.measureText(word).width));
+      const room = w - W * 0.024;
+      if (longest > room) b.style.fontSize = `${Math.max(0.55, room / longest) * parseFloat(getComputedStyle(b).fontSize)}px`;
+      nodes.set(id, { el, x, y, w, h, r, visible: !reveal });
+    }));
+
+    const svg = document.getElementById('svg');
+    edges = edgeDefs.map((e) => {
+      const a = nodes.get(e.from), b = nodes.get(e.to);
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('class', `edge${reveal ? ' off' : ''}`);
+      path.setAttribute('marker-end', 'url(#arrow)');
+      path.setAttribute('d', route(a, b, down, H));
+      svg.appendChild(path);
+      let tag = null;
+      if (e.label) {
+        const p = path.getPointAtLength(path.getTotalLength() / 2);
+        tag = document.createElement('div');
+        tag.className = `tag${reveal ? ' off' : ''}`;
+        tag.textContent = e.label;
+        tag.style.cssText = `left:${p.x}px;top:${p.y}px`;
+        document.body.appendChild(tag);
+      }
+      return { ...e, path, tag };
+    });
+  };
+
+  /** Forward edges curve between facing sides; same-rank edges run straight; back edges arc around. */
+  function route(a, b, down, H) {
+    const G = 7; // gap so arrowheads stop short of the border
+    if (a === b) return '';
+    const fwd = b.r > a.r, same = b.r === a.r;
+    if (!down) {
+      if (fwd) { const x1 = a.x + a.w / 2, x2 = b.x - b.w / 2 - G, m = (x2 - x1) / 2; return `M${x1} ${a.y}C${x1 + m} ${a.y} ${x2 - m} ${b.y} ${x2} ${b.y}`; }
+      if (same) { const s = Math.sign(b.y - a.y); return `M${a.x} ${a.y + s * a.h / 2}L${b.x} ${b.y - s * (b.h / 2 + G)}`; }
+      const y1 = a.y + a.h / 2, y2 = b.y + b.h / 2 + G, lift = H * 0.11;
+      return `M${a.x} ${y1}C${a.x} ${y1 + lift} ${b.x} ${y2 + lift} ${b.x} ${y2}`;
+    }
+    if (fwd) { const y1 = a.y + a.h / 2, y2 = b.y - b.h / 2 - G, m = (y2 - y1) / 2; return `M${a.x} ${y1}C${a.x} ${y1 + m} ${b.x} ${y2 - m} ${b.x} ${y2}`; }
+    if (same) { const s = Math.sign(b.x - a.x); return `M${a.x + s * a.w / 2} ${a.y}L${b.x - s * (b.w / 2 + G)} ${b.y}`; }
+    const x1 = a.x + a.w / 2, x2 = b.x + b.w / 2 + G, lift = a.w * 0.5;
+    return `M${x1} ${a.y}C${x1 + lift} ${a.y} ${x2 + lift} ${b.y} ${x2} ${b.y}`;
+  }
+
+  const findEdge = (a, b) => {
+    const fwd = edges.find((e) => e.from === a && e.to === b);
+    if (fwd) return { edge: fwd, reverse: false };
+    return { edge: edges.find((e) => e.from === b && e.to === a), reverse: true };
+  };
+
+  /** Move a glowing dot along one edge. */
+  function travel(edge, reverse, ms) {
+    return new Promise((resolve) => {
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('r', 8);
+      dot.setAttribute('class', 'dot');
+      document.getElementById('svg').appendChild(dot);
+      const len = edge.path.getTotalLength();
+      const t0 = performance.now();
+      const tick = (now) => {
+        const t = Math.min(1, (now - t0) / ms);
+        const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const p = edge.path.getPointAtLength(len * (reverse ? 1 - e : e));
+        dot.setAttribute('cx', p.x);
+        dot.setAttribute('cy', p.y);
+        if (t < 1) requestAnimationFrame(tick);
+        else { dot.remove(); resolve(); }
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  async function playFlow(paths, mine) {
+    await Promise.all(paths.map(async (p) => {
+      for (let i = 1; i < p.length && mine === run; i++) {
+        const { edge, reverse } = findEdge(p[i - 1], p[i]);
+        await travel(edge, reverse, 750);
+      }
+    }));
+  }
+
+  /** One storyboard step: reveal nodes, put the focus somewhere, and send data along a path. */
+  window.step = async ({ show = [], focus = [], flow = [] }) => {
+    const mine = ++run;
+    for (const id of show) {
+      const n = nodes.get(id);
+      n.visible = true;
+      n.el.classList.remove('off');
+    }
+    for (const e of edges) {
+      const on = nodes.get(e.from).visible && nodes.get(e.to).visible;
+      e.path.classList.toggle('off', !on);
+      e.tag?.classList.toggle('off', !on);
+    }
+    const hot = new Set();
+    for (const p of flow) for (let i = 1; i < p.length; i++) hot.add(findEdge(p[i - 1], p[i]).edge);
+    const lit = new Set(focus.length ? focus : flow.flat());
+    for (const [id, n] of nodes) {
+      n.el.classList.toggle('lit', lit.has(id));
+      n.el.classList.toggle('dim', lit.size > 0 && !lit.has(id));
+    }
+    for (const e of edges) {
+      const keep = !lit.size || hot.has(e) || (lit.has(e.from) && lit.has(e.to));
+      e.path.classList.toggle('hot', hot.has(e));
+      e.path.classList.toggle('dim', !keep);
+      e.tag?.classList.toggle('dim', !keep);
+    }
+    await wait(show.length ? 550 : 350);
+    if (flow.length) {
+      await playFlow(flow, mine);
+      // Keep the data moving while the narration finishes; the next step stops it.
+      (async () => { while (mine === run) { await wait(700); if (mine === run) await playFlow(flow, mine); } })();
+    }
+  };
+</script>

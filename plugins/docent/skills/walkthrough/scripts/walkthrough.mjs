@@ -5,6 +5,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildClip, finalize, reviewFrames } from './lib/assemble.mjs';
+import { resolveCodeScene } from './lib/code.mjs';
+import { resolveDiagramScene } from './lib/diagram.mjs';
 import { synthesize } from './lib/tts.mjs';
 import { exists, fmtTime, requireDep, run, sha, slug } from './lib/util.mjs';
 
@@ -39,7 +41,13 @@ const DEFAULTS = {
   contextOptions: {},
 };
 const THEME = { accent: '#6366f1', background: '#0b1020', foreground: '#f8fafc', muted: '#94a3b8' };
-const SCENE_TYPES = ['title', 'browser', 'terminal'];
+const SCENE_TYPES = ['title', 'browser', 'terminal', 'code', 'diagram'];
+// Fields that make a step do something, and the scene type each belongs to.
+const STEP_FIELDS = {
+  do: 'browser', run: 'terminal', clear: 'terminal',
+  file: 'code', lines: 'code', find: 'code', note: 'code',
+  show: 'diagram', focus: 'diagram', flow: 'diagram',
+};
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -78,14 +86,15 @@ function normalize(sb) {
       steps = scene.steps.map((step, j) => {
         const at = `${where} step ${j + 1}`;
         if (step.say != null && typeof step.say !== 'string') throw new Error(`${at}: \`say\` must be a string`);
-        if (scene.type === 'browser') {
-          if (step.do != null && typeof step.do !== 'function') throw new Error(`${at}: \`do\` must be an async function`);
-          if (step.run != null) throw new Error(`${at}: \`run\` belongs in terminal scenes; browser steps use \`do\``);
-        } else {
-          if (step.run != null && typeof step.run !== 'string') throw new Error(`${at}: \`run\` must be a shell command string`);
-          if (step.do != null) throw new Error(`${at}: \`do\` belongs in browser scenes; terminal steps use \`run\``);
+        for (const [field, type] of Object.entries(STEP_FIELDS)) {
+          // `show` is also a terminal step option (the text typed in place of `run`).
+          if (step[field] == null || type === scene.type || (field === 'show' && scene.type === 'terminal')) continue;
+          throw new Error(`${at}: \`${field}\` belongs in ${type} scenes, not ${scene.type} scenes`);
         }
-        if (!step.say && !step.do && !step.run && !step.hold && !step.clear) throw new Error(`${at}: step does nothing (add say, do/run, or hold)`);
+        if (step.do != null && typeof step.do !== 'function') throw new Error(`${at}: \`do\` must be an async function`);
+        if (step.run != null && typeof step.run !== 'string') throw new Error(`${at}: \`run\` must be a shell command string`);
+        const acts = Object.keys(STEP_FIELDS).some((f) => step[f] != null && step[f] !== false);
+        if (!step.say && !step.hold && !acts) throw new Error(`${at}: step does nothing (add say, an action, or hold)`);
         return { ...step };
       });
     }
@@ -96,7 +105,7 @@ function normalize(sb) {
 const fingerprint = (scene, cfg) =>
   sha(JSON.stringify(
     [scene, cfg.viewport, cfg.deviceScaleFactor, cfg.size, cfg.quality, cfg.theme, cfg.colorScheme, cfg.baseURL, cfg.gap, cfg.lead, cfg.tail, cfg.contextOptions],
-    (_, v) => (typeof v === 'function' ? v.toString() : v),
+    (_, v) => (typeof v === 'function' || v instanceof RegExp ? v.toString() : v),
   ));
 
 async function main() {
@@ -111,6 +120,10 @@ async function main() {
   let sb = (await import(`${pathToFileURL(sbPath).href}?t=${Date.now()}`)).default;
   if (typeof sb === 'function') sb = await sb();
   const scenes = normalize(sb);
+  for (const [i, s] of scenes.entries()) {
+    if (s.type === 'code') await resolveCodeScene(s, root, `scene ${i + 1}`);
+    if (s.type === 'diagram') resolveDiagramScene(s, `scene ${i + 1}`);
+  }
 
   const { scenes: _s, setup, teardown, theme, ...overrides } = sb;
   const cfg = { ...DEFAULTS, ...overrides, theme: { ...THEME, ...theme } };

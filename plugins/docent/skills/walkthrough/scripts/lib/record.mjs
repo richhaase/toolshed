@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { highlightLines, languageFor, readSource } from './code.mjs';
+import { diagramStep } from './diagram.mjs';
 import { DEPS, exists, sleep } from './util.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -280,7 +282,43 @@ async function terminalDriver(page, cfg, scene, root) {
   };
 }
 
-const DRIVERS = { browser: browserDriver, title: titleDriver, terminal: terminalDriver };
+async function codeDriver(page, cfg, scene) {
+  await page.goto(pageUrl('code.html'));
+  await page.evaluate((o) => window.setup(o), { fontSize: scene.fontSize ?? 17, theme: cfg.theme });
+  const cache = new Map();
+  const html = async (file) => {
+    if (!cache.has(file)) {
+      const abs = path.resolve(scene._base, file);
+      cache.set(file, highlightLines(await readSource(abs), languageFor(abs, scene.language)));
+    }
+    return cache.get(file);
+  };
+  const open = async (step, animate) =>
+    page.evaluate((d) => window.load(d), { path: step._file, lines: await html(step._file), ranges: step._ranges, animate });
+  // Start on the first step's file, already scrolled to where that step will point.
+  let current = scene.steps[0]._file;
+  await open(scene.steps[0], false);
+  return {
+    async runStep(step) {
+      if (step._file !== current) {
+        current = step._file;
+        await open(step, true);
+      }
+      await page.evaluate((d) => window.focus(d), { ranges: step._ranges, note: step.note });
+    },
+  };
+}
+
+async function diagramDriver(page, cfg, scene) {
+  await page.goto(pageUrl('diagram.html'));
+  await page.evaluate((o) => window.setup(o), {
+    title: scene.title, nodes: scene.nodes, edges: scene._edges, ranks: scene._ranks,
+    direction: scene.direction, reveal: scene._reveal, theme: cfg.theme,
+  });
+  return { runStep: (step) => page.evaluate((d) => window.step(d), diagramStep(step)) };
+}
+
+const DRIVERS = { browser: browserDriver, title: titleDriver, terminal: terminalDriver, code: codeDriver, diagram: diagramDriver };
 
 /* ------------------------------------------------------------------ */
 /* Recorder                                                             */

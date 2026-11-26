@@ -1,7 +1,7 @@
 {
   "name": "docent",
-  "version": "0.1.1",
-  "description": "Explain a change with a short narrated walkthrough video: real browser and terminal recordings of the running software, local voice narration, captions and chapters.",
+  "version": "0.2.0",
+  "description": "Explain software with a short narrated video: change walkthroughs with before and after, tours of web apps and command-line tools, and deep dives into backends and data pipelines with diagrams and highlighted source. Local voice narration, captions and chapters.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
@@ -14,6 +14,9 @@
     "narration",
     "demo",
     "pull-request",
+    "tour",
+    "deep-dive",
+    "code-walkthrough",
     "playwright",
     "ffmpeg"
   ],

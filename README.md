@@ -111,12 +111,15 @@ inspect the commits for an interval or person. Use `bigboard:configure` to
 choose sources and viewing filters.
 The original native app repository is archived. Future development lives here.
 
-### <img src="plugins/docent/assets/icon.png" width="48" height="48" align="middle" alt=""> [Docent](plugins/docent/) — Narrated Walkthroughs of a Change
+### <img src="plugins/docent/assets/icon.png" width="48" height="48" align="middle" alt=""> [Docent](plugins/docent/) — Narrated Walkthrough Videos
 
-The `walkthrough` skill explains a branch, pull request or release with a short
-narrated video. Docent reads the change, runs the real software locally,
-records browser and terminal scenes with Playwright, narrates with a local
-voice model, and assembles a captioned 1080p MP4 with ffmpeg. It needs Node.js,
+The `walkthrough` skill explains software with a short narrated video, in three
+modes: a change walkthrough of a branch, pull request or release (with before
+and after), a tour of a whole web app or command-line tool, and a deep dive
+into a backend codebase or data pipeline using animated diagrams and
+highlighted source. Docent runs the real software locally, records with
+Playwright, narrates with a local voice model, and assembles a captioned 1080p
+MP4 with ffmpeg. It needs Node.js,
 ffmpeg, Python 3 and uv; see the [plugin guide](plugins/docent/README.md) for
 setup.
 

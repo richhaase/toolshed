@@ -158,9 +158,11 @@ the explicit validation and privacy commands required by the workflow above.
   discusses boards, and `configure` changes sources and per-board filters.
   See the [plugin guide](plugins/bigboard/README.md) and
   [plugin instructions](plugins/bigboard/AGENTS.md).
-- **docent** — Narrated walkthrough videos that explain a change
-  (`walkthrough`). Reads a branch, pull request or release, runs the software
-  locally, records browser, terminal and title-card scenes with Playwright,
+- **docent** — Narrated walkthrough videos that explain software
+  (`walkthrough`). Three modes: a change walkthrough of a branch, pull request
+  or release (before and after), a tour of a whole web app or CLI, and a deep
+  dive into a backend or data pipeline. Runs the software locally, records
+  browser, terminal, code, diagram and title-card scenes with Playwright,
   narrates with a local Kokoro voice, and assembles a captioned MP4 with
   ffmpeg. Node dependencies and voice models live in `~/.cache/docent`, not in
   the plugin folder. See the [plugin guide](plugins/docent/README.md).
