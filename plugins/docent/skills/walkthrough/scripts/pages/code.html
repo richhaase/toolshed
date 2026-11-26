@@ -1,0 +1,137 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Code</title>
+<style>
+  :root { --bg: #0b1020; --accent: #6366f1; --pane: #0f172a; --fs: 17px; --lh: 27px; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background:
+      radial-gradient(90vw 70vh at 12% 0%, color-mix(in srgb, var(--accent) 30%, var(--bg)), transparent 65%),
+      var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .win {
+    width: 88vw; height: 84vh; display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 14px; background: var(--pane);
+    border: 1px solid rgba(255, 255, 255, .09);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+  }
+  .bar { position: relative; flex: none; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: rgba(255, 255, 255, .06); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .name { position: absolute; left: 0; right: 0; text-align: center; color: #cbd5e1; font: 500 13px/1 "SF Mono", Menlo, Monaco, "DejaVu Sans Mono", monospace; }
+  #view { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  #lines {
+    position: absolute; left: 0; right: 0; top: 0; padding: 14px 0;
+    font: var(--fs)/var(--lh) "SF Mono", Menlo, Monaco, "DejaVu Sans Mono", monospace;
+    color: #e2e8f0; tab-size: 4;
+    transition: transform .6s cubic-bezier(.3, .7, .2, 1), opacity .22s;
+  }
+  #lines.jump { transition: none; }
+  .line { display: flex; height: var(--lh); white-space: pre; transition: opacity .35s, background-color .35s; box-shadow: inset 0 0 0 transparent; }
+  .no { flex: none; width: 4.2em; padding-right: 1.3em; text-align: right; color: #475569; user-select: none; }
+  #lines.focus .line { opacity: .3; }
+  #lines.focus .line.hl { opacity: 1; background: color-mix(in srgb, var(--accent) 20%, transparent); box-shadow: inset 4px 0 0 var(--accent); }
+  #lines.focus .line.hl .no { color: #cbd5e1; }
+  #note {
+    position: absolute; right: 26px; max-width: 34vw; padding: 9px 16px; border-radius: 10px;
+    background: rgba(2, 6, 23, .96); color: #f8fafc; border-left: 4px solid var(--accent);
+    font: 600 16px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .45); opacity: 0; transform: translateY(6px);
+    transition: opacity .3s, transform .3s, top .6s cubic-bezier(.3, .7, .2, 1);
+  }
+  #note.on { opacity: 1; transform: none; }
+  /* Syntax colors (highlight.js class names). */
+  .hljs-comment, .hljs-quote { color: #64748b; font-style: italic; }
+  .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-doctag { color: #c4b5fd; }
+  .hljs-string, .hljs-regexp, .hljs-addition, .hljs-meta .hljs-string { color: #86efac; }
+  .hljs-number, .hljs-symbol, .hljs-bullet { color: #fdba74; }
+  .hljs-title, .hljs-title.function_, .hljs-section { color: #7dd3fc; }
+  .hljs-title.class_, .hljs-type, .hljs-built_in { color: #fcd34d; }
+  .hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable, .hljs-template-variable { color: #f9a8d4; }
+  .hljs-meta, .hljs-tag, .hljs-name { color: #93c5fd; }
+  .hljs-deletion { color: #fca5a5; }
+  .hljs-emphasis { font-style: italic; }
+  .hljs-strong { font-weight: 700; }
+</style>
+<div class="win">
+  <div class="bar">
+    <span class="dot" style="background:#ff5f57"></span>
+    <span class="dot" style="background:#febc2e"></span>
+    <span class="dot" style="background:#28c840"></span>
+    <span class="name" id="name"></span>
+  </div>
+  <div id="view"><div id="lines"></div><div id="note"></div></div>
+</div>
+<script>
+  const PAD = 14;
+  let lh = 27;
+  let count = 0;
+  let offset = 0;
+  const $ = (id) => document.getElementById(id);
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  window.setup = ({ fontSize = 17, theme = {} }) => {
+    lh = Math.round(fontSize * 1.6);
+    const root = document.documentElement.style;
+    root.setProperty('--fs', `${fontSize}px`);
+    root.setProperty('--lh', `${lh}px`);
+    if (theme.background) root.setProperty('--bg', theme.background);
+    if (theme.accent) root.setProperty('--accent', theme.accent);
+  };
+
+  /** Scroll so the given ranges sit in the middle of the pane (or at its top when too tall to fit). */
+  function scrollTo(ranges) {
+    const viewH = $('view').clientHeight;
+    const total = count * lh + PAD * 2;
+    let y = 0;
+    if (ranges.length) {
+      const a = Math.min(...ranges.map((r) => r[0]));
+      const b = Math.max(...ranges.map((r) => r[1]));
+      const top = PAD + (a - 1) * lh;
+      const height = (b - a + 1) * lh;
+      y = height > viewH - 4 * lh ? top - 2 * lh : top + height / 2 - viewH / 2;
+    }
+    offset = Math.max(0, Math.min(y, total - viewH));
+    $('lines').style.transform = `translateY(${-offset}px)`;
+  }
+
+  /** Replace the file on screen. `ranges` only sets the starting scroll position. */
+  window.load = async ({ path, lines, ranges = [], animate = false }) => {
+    const box = $('lines');
+    $('note').classList.remove('on');
+    if (animate) { box.style.opacity = 0; await wait(240); }
+    box.classList.add('jump');
+    box.classList.remove('focus');
+    box.innerHTML = lines.map((h, i) => `<div class="line"><span class="no">${i + 1}</span><span>${h || ' '}</span></div>`).join('');
+    count = lines.length;
+    $('name').textContent = path;
+    scrollTo(ranges);
+    box.getBoundingClientRect(); // apply the jump before transitions come back
+    box.classList.remove('jump');
+    if (animate) { box.style.opacity = 1; await wait(260); }
+  };
+
+  /** Highlight line ranges (dimming the rest), scroll them into view, and show an optional note. */
+  window.focus = async ({ ranges = [], note }) => {
+    const box = $('lines');
+    const rows = box.children;
+    for (let i = 0; i < rows.length; i++) {
+      rows[i].classList.toggle('hl', ranges.some(([a, b]) => i + 1 >= a && i + 1 <= b));
+    }
+    box.classList.toggle('focus', ranges.length > 0);
+    if (ranges.length) scrollTo(ranges);
+    const n = $('note');
+    if (note && ranges.length) {
+      n.textContent = note;
+      const first = Math.min(...ranges.map((r) => r[0]));
+      const y = PAD + (first - 1) * lh - offset;
+      // Sit just above the highlighted block, or below its first line when there is no room.
+      n.style.top = `${y - n.offsetHeight - 8 >= 6 ? y - n.offsetHeight - 8 : y + lh + 6}px`;
+      n.classList.add('on');
+    } else {
+      n.classList.remove('on');
+    }
+    await wait(650);
+  };
+</script>

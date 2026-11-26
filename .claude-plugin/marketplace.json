@@ -34,7 +34,7 @@
     {
       "name": "docent",
       "source": "./plugins/docent",
-      "description": "Explain a change with a short narrated walkthrough video of the running software.",
+      "description": "Explain software with a short narrated video: change walkthroughs, app and CLI tours, and deep dives into backends and data pipelines.",
       "category": "Developer Tools"
     }
   ]

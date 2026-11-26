@@ -1,7 +1,7 @@
 {
   "name": "docent",
-  "version": "0.1.1",
-  "description": "Explain a change with a short narrated walkthrough video: real browser and terminal recordings of the running software, local voice narration, captions and chapters.",
+  "version": "0.2.0",
+  "description": "Explain software with a short narrated video: change walkthroughs with before and after, tours of web apps and command-line tools, and deep dives into backends and data pipelines with diagrams and highlighted source. Local voice narration, captions and chapters.",
   "author": {
     "name": "Rich Haase",
     "url": "https://github.com/richhaase"
@@ -14,6 +14,9 @@
     "narration",
     "demo",
     "pull-request",
+    "tour",
+    "deep-dive",
+    "code-walkthrough",
     "playwright",
     "ffmpeg"
   ],
@@ -22,8 +25,8 @@
     "composerIcon": "./assets/icon.png",
     "logo": "./assets/icon.png",
     "displayName": "Docent",
-    "shortDescription": "Explain a change with a narrated video",
-    "longDescription": "Turn a branch, pull request or release into a short narrated walkthrough that shows what changed and why. Docent reads the change, runs the real software locally, records browser and terminal scenes with a visible pointer, narrates with a local voice, and assembles a captioned 1080p MP4 with chapters. It can also give a narrated tour of a whole repository.",
+    "shortDescription": "Explain software with a narrated video",
+    "longDescription": "Turn a change, an app or a codebase into a short narrated video. Change mode explains a branch, pull request or release, with before and after. Tour mode introduces a whole web app or command-line tool. Deep-dive mode explains how a backend or data pipeline works with animated diagrams and highlighted source. Docent runs the real software locally, records with a visible pointer, narrates with a local voice, and assembles a captioned 1080p MP4 with chapters.",
     "developerName": "Rich Haase",
     "category": "Developer Tools",
     "capabilities": [
@@ -34,8 +37,8 @@
     "websiteURL": "https://github.com/richhaase/toolshed",
     "defaultPrompt": [
       "Make a walkthrough of this branch.",
-      "Explain this pull request in a short narrated video.",
-      "Give me a narrated tour of this repo."
+      "Give me a narrated tour of this app.",
+      "Make a deep-dive video on how this pipeline works."
     ]
   }
 }
