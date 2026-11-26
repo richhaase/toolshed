@@ -1,6 +1,6 @@
 ---
 name: compile
-description: Use when the user says "compile", "update the wiki", "build wiki", "compile wiki", or wants to refresh the memory base. Reads sources/**/*.md and synthesizes into wiki/ organized by topic/entity, then refreshes the AGENTS.md hot set. First run builds full wiki; subsequent runs do incremental updates. Not for browsing open items (see `followups`), closing a session (see `save`), or filling gaps (see `ama`).
+description: Compile a Memento memory base by reading its sources/**/*.md, synthesizing them into wiki/ pages organized by topic/entity, and refreshing the AGENTS.md hot set. Use when the user asks to compile the Memento, update or build the Memento wiki, or refresh the memory base. First run builds the full wiki; subsequent runs do incremental updates. Not for compiling or building code, and not for browsing open items (see `followups`), closing a session (see `save`), or filling gaps (see `ama`).
 compatibility: Requires Bash and Node.js; Git is required for commit-backed change detection and local commits, while non-Git Mementos use mtime detection.
 argument-hint: "[full|<topic>]"
 user-invocable: true
@@ -22,6 +22,9 @@ have evidence.
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
 ```
+
+Script paths in this skill are shown relative to this `SKILL.md`; if your shell
+is in another directory, invoke the same scripts by absolute path.
 
 See `../_shared/references/memento-root.md` for the full resolution contract.
 All Memento paths below (`sources/`, `wiki/`, `AGENTS.md`) are relative to
@@ -275,11 +278,8 @@ index over a known-stale citation graph.
 ## Step 5.6: Build connection graph (fail-open)
 
 Read `references/index-hot-set.md` now and follow its Steps 5.6–7 contract.
-Recompute the read-only graph after reconciliation:
-
-```bash
-node ../_shared/scripts/build-graph --root "$MEMENTO_ROOT" --json > /tmp/memento-graph.$$.json
-```
+Recompute the read-only graph after reconciliation with the reference's
+`build-graph` command, and retain the output path it prints for Step 7.
 
 On failure, warn, omit rediscovery, and continue. Unlike Gate-0, this graph
 guards no hard invariant.
@@ -312,8 +312,10 @@ Read `references/eval-gate.md` now and follow its fail-closed contract. Run the
 deterministic scorer before Step 8:
 
 ```bash
-node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --gate --json > /tmp/memento-eval.$$.json
+EVAL_JSON="$(mktemp "${TMPDIR:-/tmp}/memento-eval.XXXXXX")"
+node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --gate --json > "$EVAL_JSON"
 rc=$?
+echo "eval: rc=$rc json=$EVAL_JSON"
 ```
 
 Exit `0` (`pass`, `advisory`, or `ungated`) may proceed, with warnings required

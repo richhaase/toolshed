@@ -46,8 +46,8 @@ done)
 [ -n "$GH" ] || { echo "gh not found"; exit 1; }
 ```
 
-Fetch the current agentskills HEAD and blob SHA for every path in evidence.md.
-Also list `docs/skill-creation/` so newly added authoring guidance is visible.
+Fetch the current agentskills HEAD and a blob SHA for every path evidence.md
+pins (match the loop to it). Also list `docs/skill-creation/` for new guidance.
 
 ```bash
 HEAD=$($GH api repos/agentskills/agentskills/commits/main --jq .sha)
@@ -67,13 +67,14 @@ $GH api repos/anthropics/skills/contents/skills/skill-creator/SKILL.md --jq .sha
 
 ### 2. Inspect changed pinned files
 
-For each changed blob, fetch both versions and diff them. Use unique temporary
-paths so concurrent runs do not collide:
+For each changed blob, fetch both versions and diff them in one command. Set
+`GH`, `HEAD`, `PINNED_REF`, and `path` first; shell variables may not persist:
 
 ```bash
-$GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD" --jq .content | base64 -d > "/tmp/actuary-new.$$.mdx"
-$GH api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF" --jq .content | base64 -d > "/tmp/actuary-pinned.$$.mdx"
-diff -u "/tmp/actuary-pinned.$$.mdx" "/tmp/actuary-new.$$.mdx"
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/actuary-refresh.XXXXXX")"
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$HEAD" --jq .content | base64 -d > "$tmp/new.mdx"
+$GH api "repos/agentskills/agentskills/contents/$path?ref=$PINNED_REF" --jq .content | base64 -d > "$tmp/pinned.mdx"
+diff -u "$tmp/pinned.mdx" "$tmp/new.mdx"; rm -rf "$tmp"
 ```
 
 Classify each change:

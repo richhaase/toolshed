@@ -19,6 +19,9 @@ projections over L3 sources, not authority.
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
 ```
 
+Script paths in this skill are shown relative to this `SKILL.md`; if your shell
+is in another directory, invoke the same scripts by absolute path.
+
 See `../_shared/references/memento-root.md` for the full resolution contract.
 All Memento paths below (`sources/`, `wiki/`, `AGENTS.md`, `data/`) are
 relative to `MEMENTO_ROOT`.
@@ -30,7 +33,7 @@ Arguments are passed as: $ARGUMENTS
 - No arguments or `doctor` -> run the core read-only doctor checks.
 - `privacy` -> focus on public-surface privacy lint and forbidden-path leakage.
 - `eval` -> run the deterministic scorer read-only, report the verdict, and surface the last gate outcome.
-- `fixtures` -> assess fixture coverage and help draft missing fixtures (authoring side; does not run the gate).
+- `fixtures` -> assess fixture coverage and draft missing fixtures in the reply (authoring side; does not run the gate or write files).
 - `full` -> run all applicable checks.
 
 ## Non-negotiable rules
@@ -238,84 +241,41 @@ Report:
   `[[wikilinks]]`/`related:` slugs with no backing page (P3 — rot or intentional
   forward-reference; this is the current-state-scoped companion to `doctor.sh`'s
   `check_wikilink_targets`, which does not exclude historical sections).
-- **Rediscovery state** (once the Phase 2 ambient block ships) — `rediscovery_recent`
+- **Rediscovery state** — `rediscovery_recent`
   slugs in `wiki/INDEX.md` frontmatter that no longer resolve to a page (P2); and
   `<!-- REDISCOVERY START/END -->` markers in `AGENTS.md` that are unbalanced or
   outside the hot-set region (P1 — the eval gate will fail-closed on these).
 
 Read-only; graph results must not quote private content.
 
-## Golden-query eval design
-
-`eval` runs the deterministic scorer when fixtures exist, and helps draft them when they
-don't. **Run the scorer first:**
+## Eval and fixtures modes
 
 Before an `eval`, `fixtures`, connection-graph, or `full` branch that invokes a
 Node helper, verify `command -v node >/dev/null 2>&1`. If it is unavailable,
 report that Node.js is required for those diagnostics; do not imply that the
 harness guarantees it.
 
+`eval` runs the deterministic scorer first:
+
 ```bash
 node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --json --no-log  # report current verdict, read-only
 node ../_shared/scripts/eval-score --self-test                     # prove it fails a poisoned hot set
-ls -t sources/eval/runs/*.jsonl 2>/dev/null | head -1 | xargs tail -n 1 2>/dev/null  # last recorded gate verdict
+ls -t "$MEMENTO_ROOT"/sources/eval/runs/*.jsonl 2>/dev/null | head -1 | xargs tail -n 1 2>/dev/null  # last recorded gate verdict
 ```
 
 The runs-ledger line surfaces the **last gate outcome** so a recent compile
 rollback isn't invisible — a `fail` there means the last compile rolled back the
-hot set rather than committing a regression.
+hot set rather than committing a regression. If no regression fixture is scored,
+the verdict is **`ungated`**: offer to draft fixtures.
 
-`eval-score` (node, `_shared/scripts/`) reads
-`sources/eval/fixtures/{regression,capability}.json` and
-`verdict-contract.json`, validates that `required_evidence_paths` exist, and checks each
-fixture's `required_answer_atoms` against the compiled answer surface (`AGENTS.md` plus
-explicit `answer_surface_paths` / `compiled_evidence_paths`, with legacy `wiki/...`
-evidence paths included). Answer-surface paths must be compiled surfaces
-(`AGENTS.md`, `CLAUDE.md`, or `wiki/...`). Raw `sources/...` evidence proves
-provenance but does not satisfy answer atoms. Compile runs the same scorer at Step 7.5 with logging enabled (default
-`enforce` — auto-rollback on a regression fail). If no regression fixture is scored, the
-verdict is **`ungated`**: offer to draft fixtures. Do not capture real user queries automatically.
+`fixtures` does not run the gate. Read `sources/eval/fixtures/` and report which
+layers and failure modes have no fixture. Then draft the missing fixtures as
+JSON in the reply for the user to review and place; this skill writes no fixture
+files. Do not capture real user queries automatically.
 
-Fixtures are stored as JSON (node-native; the scorer is dependency-free):
-
-```json
-{
-  "id": "Q001",
-  "question": "What is the latest rowing YTD total?",
-  "expected_layer": "L3",
-  "failure_mode": "freshness",
-  "required_evidence_paths": ["sources/notes/YYYY-MM-DD-rowing-report.md"],
-  "answer_surface_paths": ["wiki/topics/rowing.md"],
-  "forbidden_paths": ["private/"],
-  "required_answer_atoms": ["287,875"],
-  "forbidden_answer_atoms": ["282,875"],
-  "freshness_date": "2026-05-04",
-  "abstain_required": false
-}
-```
-
-Suggested labels:
-
-- Layers: `L1`, `L2`, `L3`, `domain`, `private`, `abstain`.
-- Failure modes: `freshness`, `provenance`, `privacy`, `routing`, `task-state`, `integrity`.
-
-Scoring split — what the gate can and cannot verify:
-
-- **Static gate (`eval-score`, every compile):** `required_evidence_paths` exist; every
-  `required_answer_atom` present (case-insensitive) in the compiled answer surface —
-  `AGENTS.md` plus explicit wiki answer-surface paths. Source paths establish provenance
-  only; they cannot satisfy an answer atom.
-- **Answer-level (on-demand LLM eval only):** `forbidden_answer_atoms` absent,
-  fixture-specific `forbidden_paths` respected, and `abstain` questions don't guess. A
-  private path may be valid local context for a query; mark it forbidden only when
-  that query specifically must not use it. These checks need an actual answer —
-  a corpus substring scan false-positives (the hot set mentions every entity; pages keep old
-  values in history). The static gate does not enforce them; they live in the fixtures for the
-  answering eval.
-
-Anchor fixtures to **human-asserted ground truth**, not the wiki they police — where they
-disagree, the wiki is what's wrong (authoring them doubles as a staleness audit). Public memory
-benchmarks inform the taxonomy; local qrels decide whether this Memento is working.
+Read `references/eval-fixtures.md` before interpreting a verdict or drafting a
+fixture. It defines what the scorer reads, the fixture shape and labels, and
+which checks the static gate can and cannot verify.
 
 ## Output format
 

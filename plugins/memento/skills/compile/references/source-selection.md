@@ -38,9 +38,12 @@ Before filtering changed sources by status, scan the current source and wiki
 trees for invalidated page references:
 
 ```bash
-node scripts/source-impact --root "$MEMENTO_ROOT" --json \
-  > /tmp/memento-source-impact.$$.json
+IMPACT_JSON="$(mktemp "${TMPDIR:-/tmp}/memento-source-impact.XXXXXX")"
+node scripts/source-impact --root "$MEMENTO_ROOT" --json > "$IMPACT_JSON"
+echo "impact: rc=$? json=$IMPACT_JSON"
 ```
+
+Retain the printed path and read the report from that file.
 
 The helper treats canonical wiki `sources:` frontmatter as the source-to-page
 relation. It reports every page that cites an archived, superseded, or missing

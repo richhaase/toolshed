@@ -25,6 +25,9 @@ dismiss the follow-up.
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
 ```
 
+Script paths in this skill are shown relative to this `SKILL.md`; if your shell
+is in another directory, invoke the same scripts by absolute path.
+
 See `../_shared/references/memento-root.md` for the full resolution
 contract. All `sources/` and `private/` paths below are relative to
 `MEMENTO_ROOT`.
