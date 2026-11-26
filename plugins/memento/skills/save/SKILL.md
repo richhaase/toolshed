@@ -71,7 +71,7 @@ All `sources/`, `private/`, and context files below are relative to
 
 ## Arguments
 
-Arguments are passed as: $ARGUMENTS
+Arguments are whatever follows the skill name in the user's request.
 
 Mode modifier (optional):
 
@@ -82,7 +82,7 @@ Examples: `save`, `save ask`.
 
 ## Step 0: Determine the mode
 
-Parse `$ARGUMENTS`: the mode is `ask` if the tokens contain `ask`; otherwise
+Parse the arguments: the mode is `ask` if the tokens contain `ask`; otherwise
 `approve` (default). Remember the mode for Step 4.
 
 ## Step 1: Gather session content

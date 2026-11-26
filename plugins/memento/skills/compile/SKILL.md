@@ -31,7 +31,7 @@ All Memento paths below (`sources/`, `wiki/`, `AGENTS.md`) are relative to
 
 ## Arguments
 
-Arguments are passed as: $ARGUMENTS
+Arguments are whatever follows the skill name in the user's request.
 
 - No arguments → incremental update (compile changes since last run)
 - `full` → full rebuild (recompile everything from scratch)

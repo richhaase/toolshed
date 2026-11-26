@@ -28,7 +28,7 @@ relative to `MEMENTO_ROOT`.
 
 ## Arguments
 
-Arguments are passed as: $ARGUMENTS
+Arguments are whatever follows the skill name in the user's request.
 
 - No arguments or `doctor` -> run the core read-only doctor checks.
 - `privacy` -> focus on public-surface privacy lint and forbidden-path leakage.

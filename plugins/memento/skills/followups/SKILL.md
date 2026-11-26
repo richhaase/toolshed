@@ -34,7 +34,7 @@ contract. All `sources/` and `private/` paths below are relative to
 
 ## Arguments
 
-Arguments are passed as: $ARGUMENTS
+Arguments are whatever follows the skill name in the user's request.
 
 Shape:
 

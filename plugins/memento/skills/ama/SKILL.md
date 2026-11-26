@@ -31,7 +31,7 @@ are relative to `MEMENTO_ROOT`.
 
 ## Arguments
 
-Arguments are passed as: $ARGUMENTS
+Arguments are whatever follows the skill name in the user's request.
 
 - No arguments → broad survey across the hot set and `wiki/INDEX.md`.
 - `<topic>` → narrow to one entity. Match against `wiki/INDEX.md` page
