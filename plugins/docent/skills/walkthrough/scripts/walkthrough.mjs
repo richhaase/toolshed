@@ -98,13 +98,39 @@ function normalize(sb) {
         return { ...step };
       });
     }
+    if (scene.cleanup != null && (scene.type !== 'browser' || typeof scene.cleanup !== 'function')) {
+      throw new Error(`${where}: \`cleanup\` must be an async function on a browser scene`);
+    }
     return { ...scene, id, name, steps, chapter: scene.chapter ?? scene.title ?? name };
   });
 }
 
+/**
+ * Identify the code being filmed: the commit of the repo at `dir` plus a hash of its uncommitted
+ * changes, ignoring Docent's own files. Returns null when `dir` is not in a git repository.
+ * Contents of untracked files are not hashed, only their names.
+ */
+async function sourceState(dir, ignore) {
+  try {
+    const git = (...a) => run('git', ['-C', dir, ...a]);
+    const top = (await git('rev-parse', '--show-toplevel')).trim();
+    const head = (await git('rev-parse', 'HEAD')).trim();
+    const excludes = ignore
+      .map((p) => path.relative(top, p))
+      .filter((rel) => rel && !rel.startsWith('..') && !path.isAbsolute(rel))
+      .map((rel) => `:(exclude,top,literal)${rel}`);
+    const spec = ['--', ':(top)', ...excludes];
+    const status = await git('status', '--porcelain', ...spec);
+    const dirty = status.trim() ? sha(status + (await git('diff', 'HEAD', ...spec))) : null;
+    return `${head.slice(0, 12)}${dirty ? `+${dirty.slice(0, 8)}` : ''}`;
+  } catch {
+    return null;
+  }
+}
+
 const fingerprint = (scene, cfg) =>
   sha(JSON.stringify(
-    [scene, cfg.viewport, cfg.deviceScaleFactor, cfg.size, cfg.quality, cfg.theme, cfg.colorScheme, cfg.baseURL, cfg.gap, cfg.lead, cfg.tail, cfg.contextOptions],
+    [scene, cfg.source, cfg.viewport, cfg.deviceScaleFactor, cfg.size, cfg.quality, cfg.theme, cfg.colorScheme, cfg.baseURL, cfg.gap, cfg.lead, cfg.tail, cfg.contextOptions],
     (_, v) => (typeof v === 'function' || v instanceof RegExp ? v.toString() : v),
   ));
 
@@ -158,16 +184,24 @@ async function main() {
       total += cfg.lead + cfg.tail;
     }
     console.log(`\nestimated length: at least ${fmtTime(total)} (actions that outlast their narration add to this)`);
+    if (total > 120) console.log('warning:  over the two-minute target; cut scope or trim narration before recording');
     return;
   }
 
-  // 2. Decide what to record.
+  // 2. Decide what to record. The cache key includes the filmed repo's commit and uncommitted
+  //    changes, so footage of an older code state is never silently reused.
+  const output = path.resolve(root, cfg.output);
+  const repoDir = path.resolve(root, cfg.repo ?? '.');
+  const ours = [sbPath, work, output, output.replace(/\.[^.]+$/, '') + '.srt'];
+  cfg.source = await sourceState(repoDir, ours);
+  console.log(cfg.source ? `source:   ${repoDir} @ ${cfg.source}` : `source:   ${repoDir} is not a git repository; code changes will not invalidate cached scenes`);
   const only = args.only?.split(',').map((x) => x.trim()).filter(Boolean);
   const picked = (s, i) => only?.some((o) => o === s.id || o === s.name || o === String(i + 1) || s.id.slice(3) === o);
   if (only) {
     const unknown = only.filter((o) => !scenes.some((s, i) => o === s.id || o === s.name || o === String(i + 1) || s.id.slice(3) === o));
     if (unknown.length) throw new Error(`--only: no scene matches ${unknown.join(', ')} (scenes: ${scenes.map((s) => s.id).join(', ')})`);
   }
+  const stale = [];
   for (const [i, s] of scenes.entries()) {
     s.dir = path.join(work, 'scenes', s.id);
     s.video = path.join(s.dir, 'video.webm');
@@ -181,19 +215,44 @@ async function main() {
     } else {
       s.record = args.force || !cached || saved.key !== s.key;
     }
-    if (!s.record) Object.assign(s, { timeline: saved.timeline, clipDuration: saved.clipDuration });
+    if (!s.record) {
+      Object.assign(s, { timeline: saved.timeline, clipDuration: saved.clipDuration });
+      if ((saved.source ?? null) !== cfg.source) stale.push(s.id);
+    }
   }
 
   // 3. Record.
   const toRecord = scenes.filter((s) => s.record);
   if (toRecord.length) {
     const { chromium } = requireDep('playwright');
-    if (setup) await setup();
     const browser = await chromium.launch({
       headless: !args.headed,
       args: [`--force-device-scale-factor=${cfg.deviceScaleFactor}`],
     });
+    // setup/teardown get `openPage()`: an unrecorded page sharing the scenes' cookies and storage.
+    const statePath = path.join(work, 'state.json');
+    const hook = async (fn) => {
+      const contexts = [];
+      const openPage = async () => {
+        const context = await browser.newContext({
+          viewport: cfg.viewport, baseURL: cfg.baseURL, colorScheme: cfg.colorScheme,
+          storageState: (await exists(statePath)) ? statePath : undefined,
+          ...cfg.contextOptions,
+        });
+        contexts.push(context);
+        return context.newPage();
+      };
+      try {
+        await fn({ openPage });
+      } finally {
+        for (const context of contexts) {
+          await context.storageState({ path: statePath }).catch(() => {});
+          await context.close();
+        }
+      }
+    };
     try {
+      if (setup) await hook(setup);
       for (const s of toRecord) {
         process.stdout.write(`recording ${s.id} ... `);
         await fs.rm(s.dir, { recursive: true, force: true });
@@ -206,24 +265,33 @@ async function main() {
         });
         await fs.writeFile(
           path.join(s.dir, 'timeline.json'),
-          JSON.stringify({ key: s.key, clipDuration: s.clipDuration, timeline: s.timeline }, null, 2),
+          JSON.stringify({ key: s.key, source: cfg.source, clipDuration: s.clipDuration, timeline: s.timeline }, null, 2),
         );
       }
     } finally {
-      await browser.close();
-      if (teardown) await teardown();
+      try {
+        if (teardown) await hook(teardown);
+      } finally {
+        await browser.close();
+      }
     }
   }
   const reused = scenes.length - toRecord.length;
   if (reused) console.log(`reused ${reused} cached scene(s); pass --force to re-record everything`);
 
   // 4. Assemble.
-  const output = path.resolve(root, cfg.output);
   const { duration, srt } = await finalize({ scenes, cfg, work, output, title: sb.title });
-  const frames = await reviewFrames({ scenes, output, dir: path.join(work, 'review') });
+  const { frames, sheets } = await reviewFrames({ scenes, output, dir: path.join(work, 'review') });
 
   // 5. Report, including pacing problems worth fixing.
   const warnings = [];
+  if (stale.length) {
+    warnings.push(`reused footage recorded from different code (${stale.join(', ')}); re-record those scenes or rebuild with --force`);
+  }
+  const sourceNow = await sourceState(repoDir, ours);
+  if (toRecord.length && sourceNow !== cfg.source) {
+    warnings.push(`the filmed repo changed during this build (${cfg.source} -> ${sourceNow}); scenes may show different code states. Check the branch, then rebuild with --force`);
+  }
   for (const s of scenes) {
     for (const [i, st] of s.timeline.steps.entries()) {
       const silent = st.end - st.start - (st.audioDuration ?? 0);
@@ -232,7 +300,8 @@ async function main() {
   }
   console.log(`\nvideo:    ${output}  (${fmtTime(duration)}, ${cfg.size.width}x${cfg.size.height})`);
   if (srt) console.log(`captions: ${srt}  (also embedded as a subtitle track)`);
-  console.log(`review:   ${path.join(work, 'review')}  (${frames.length} stills, one per step: look at them before calling it done)`);
+  console.log(`review:   ${path.join(work, 'review')}  (${frames.length} stills: one per step, plus one per highlight or callout)`);
+  console.log(`          start with the contact sheet${sheets.length > 1 ? 's' : ''}: ${sheets.map((f) => path.basename(f)).join(', ')}`);
   for (const w of warnings) console.log(`warning:  ${w}`);
 }
 

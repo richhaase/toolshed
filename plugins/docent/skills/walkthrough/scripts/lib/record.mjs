@@ -63,9 +63,15 @@ function installBadge({ text, accent }) {
 }
 
 function showHighlight({ box, pad, ms, accent, dim }) {
+  // Keep the ring inside the viewport so full-width or edge-hugging targets still get a visible outline.
+  const inset = 5;
+  const left = Math.max(inset, box.x - pad);
+  const top = Math.max(inset, box.y - pad);
+  const right = Math.min(innerWidth - inset, box.x + box.width + pad);
+  const bottom = Math.min(innerHeight - inset, box.y + box.height + pad);
   const d = document.createElement('div');
   d.style.cssText =
-    `position:fixed;left:${box.x - pad}px;top:${box.y - pad}px;width:${box.width + pad * 2}px;height:${box.height + pad * 2}px;` +
+    `position:fixed;left:${left}px;top:${top}px;width:${Math.max(0, right - left)}px;height:${Math.max(0, bottom - top)}px;` +
     `border:3px solid ${accent};border-radius:10px;box-sizing:border-box;z-index:2147483645;pointer-events:none;` +
     `box-shadow:0 0 0 6px ${accent}33${dim ? ',0 0 0 9999px rgba(8,10,20,.32)' : ''}`;
   document.documentElement.appendChild(d);
@@ -76,10 +82,21 @@ function showHighlight({ box, pad, ms, accent, dim }) {
 }
 
 function showCallout({ text, ms, accent, position }) {
+  // Sit clear of any fixed or sticky bar (bottom navigation, sticky header) at that edge.
+  const edge = position === 'top' ? 'top' : 'bottom';
+  let offset = 36;
+  const probeY = edge === 'top' ? 30 : innerHeight - 30;
+  for (const el of document.elementsFromPoint(innerWidth / 2, probeY)) {
+    const pos = getComputedStyle(el).position;
+    if (pos !== 'fixed' && pos !== 'sticky') continue;
+    const r = el.getBoundingClientRect();
+    if (r.height > innerHeight * 0.4) continue;
+    offset = Math.max(offset, (edge === 'top' ? r.bottom : innerHeight - r.top) + 16);
+  }
   const d = document.createElement('div');
   d.textContent = text;
   d.style.cssText =
-    `position:fixed;left:50%;${position === 'top' ? 'top' : 'bottom'}:36px;max-width:76vw;padding:12px 22px;border-radius:12px;` +
+    `position:fixed;left:50%;${edge}:${offset}px;max-width:76vw;padding:12px 22px;border-radius:12px;` +
     `background:rgba(15,23,42,.94);color:#f8fafc;border-left:5px solid ${accent};` +
     'font:600 20px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
     'box-shadow:0 12px 32px rgba(0,0,0,.35);z-index:2147483645;pointer-events:none;transform:translateX(-50%)';
@@ -98,7 +115,7 @@ function showCallout({ text, ms, accent, position }) {
 /* `ui` helpers: human-paced, visible interactions for browser scenes   */
 /* ------------------------------------------------------------------ */
 
-function makeUi(page, cfg) {
+function makeUi(page, cfg, clock) {
   const accent = cfg.theme.accent;
   let pos = { x: cfg.viewport.width * 0.5, y: cfg.viewport.height * 0.62 };
   const loc = (t) => (typeof t === 'string' ? page.locator(t) : t);
@@ -123,6 +140,11 @@ function makeUi(page, cfg) {
     const l = loc(target);
     await l.waitFor({ state: 'visible' });
     await l.evaluate((el) => {
+      // Elements inside a fixed or sticky bar are already where they will stay; scrolling would only move the page.
+      for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+        const pos = getComputedStyle(n).position;
+        if (pos === 'fixed' || pos === 'sticky') return;
+      }
       const r = el.getBoundingClientRect();
       if (r.top < 90 || r.bottom > innerHeight - 90) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
@@ -167,12 +189,14 @@ function makeUi(page, cfg) {
     async highlight(target, { ms = 1800, pad = 6, dim = true, wait = true } = {}) {
       const { box } = await settle(target);
       await page.evaluate(showHighlight, { box, pad, ms, accent, dim });
-      if (wait) await sleep(ms + 240);
+      clock.mark?.('highlight');
+      if (wait) await sleep(ms + 450);
     },
     /** Show a short caption banner over the page. Does not block by default. */
     async callout(text, { ms = 2600, position = 'bottom', wait = false } = {}) {
       await page.evaluate(showCallout, { text, ms, accent, position });
-      if (wait) await sleep(ms + 280);
+      clock.mark?.('callout');
+      if (wait) await sleep(ms + 450);
     },
     /** Smooth-scroll the page by `dy` pixels (or to an element if given a target). */
     async scroll(dyOrTarget, { ms = 700 } = {}) {
@@ -198,16 +222,16 @@ function makeUi(page, cfg) {
 /* Scene drivers: prepare the page, then run one step at a time         */
 /* ------------------------------------------------------------------ */
 
-async function browserDriver(page, cfg, scene) {
+async function browserDriver(page, cfg, scene, root, clock) {
   await page.addInitScript(installCursor, { accent: cfg.theme.accent });
   if (scene.badge) await page.addInitScript(installBadge, { text: scene.badge, accent: cfg.theme.accent });
-  const ui = makeUi(page, cfg);
+  const ui = makeUi(page, cfg, clock);
   page.on('domcontentloaded', () => ui._restore().catch(() => {}));
   const api = { page, ui, context: page.context() };
   if (scene.url) await page.goto(scene.url, { waitUntil: 'load' });
   if (scene.prepare) await scene.prepare(api);
   await ui._restore();
-  return { runStep: (step) => step.do?.(api) };
+  return { runStep: (step) => step.do?.(api), cleanup: scene.cleanup ? () => scene.cleanup(api) : null };
 }
 
 async function titleDriver(page, cfg, scene) {
@@ -344,9 +368,14 @@ export async function recordScene(browser, cfg, scene, { root, videoFile, stateP
   });
   const page = await context.newPage();
   page.setDefaultTimeout(cfg.actionTimeout);
+  const clock = { mark: null }; // set per step so overlays can note when they appeared
   let stepNo = 0;
+  let driver;
+  let result;
+  let failed;
+  let cleanupError;
   try {
-    const driver = await DRIVERS[scene.type](page, cfg, scene, root);
+    driver = await DRIVERS[scene.type](page, cfg, scene, root, clock);
     await page.screencast.start({ path: videoFile, size: cfg.size, quality: cfg.quality });
     const t0 = performance.now();
     const now = () => (performance.now() - t0) / 1000;
@@ -356,25 +385,42 @@ export async function recordScene(browser, cfg, scene, { root, videoFile, stateP
     for (const step of scene.steps) {
       stepNo++;
       const start = now();
+      const marks = [];
+      clock.mark = (label) => marks.push({ t: now(), label });
       await driver.runStep(step);
+      clock.mark = null;
       const actionEnd = now();
       const spoken = step.audio ? step.audio.duration + cfg.gap : 0;
       await sleep((start + Math.max(spoken, step.hold ?? 0) - now()) * 1000);
       steps.push({
-        start, end: now(), actionEnd,
+        start, end: now(), actionEnd, marks,
         say: step.say, audio: step.audio?.file, audioDuration: step.audio?.duration,
       });
     }
     await sleep(cfg.tail * 1000);
     const duration = now();
     await page.screencast.stop();
-    if (scene.type === 'browser') await context.storageState({ path: statePath });
-    return { duration, steps };
+    result = { duration, steps };
   } catch (err) {
+    failed = err;
+    clock.mark = null;
     await page.screenshot({ path: failShot }).catch(() => {});
     err.message = `scene "${scene.id}"${stepNo ? ` step ${stepNo}` : ' (prepare)'}: ${err.message}\n  screenshot at failure: ${failShot}`;
-    throw err;
   } finally {
+    // Unrecorded cleanup runs whether or not the scene succeeded, so on-camera changes get undone.
+    try {
+      if (driver?.cleanup) await driver.cleanup();
+    } catch (err) {
+      if (failed) failed.message += `\n  cleanup also failed: ${err.message}`;
+      else cleanupError = err;
+    }
+    if (!failed && scene.type === 'browser') await context.storageState({ path: statePath }).catch(() => {});
     await context.close();
   }
+  if (failed) throw failed;
+  if (cleanupError) {
+    cleanupError.message = `scene "${scene.id}" cleanup: ${cleanupError.message}`;
+    throw cleanupError;
+  }
+  return result;
 }

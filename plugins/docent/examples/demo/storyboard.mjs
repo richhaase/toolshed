@@ -19,6 +19,7 @@ export default {
       name: 'add-and-complete',
       url: '/',
       freshState: true,
+      cleanup: async ({ page }) => { await page.evaluate(() => localStorage.clear()); },
       prepare: async ({ page }) => {
         await page.evaluate(() => localStorage.clear());
         await page.reload();

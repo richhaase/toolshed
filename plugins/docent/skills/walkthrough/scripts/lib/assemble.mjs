@@ -116,18 +116,42 @@ export async function finalize({ scenes, cfg, work, output, title }) {
   return { duration: offset, srt: hasCaptions ? srt : null };
 }
 
-/** Save one still per step (taken just before the step ends) so the result can be inspected. */
+/**
+ * Save stills for inspection: one just before each step ends, plus one shortly after each
+ * highlight or callout appeared (those fade out, so the end-of-step still would miss them).
+ * Also writes contact sheets of the stills in order.
+ */
 export async function reviewFrames({ scenes, output, dir }) {
   await fs.rm(dir, { recursive: true, force: true });
   await fs.mkdir(dir, { recursive: true });
   const frames = [];
+  const grab = async (at, file, info) => {
+    await ffmpeg(['-ss', Math.max(0, at).toFixed(3), '-i', output, '-frames:v', '1', '-vf', 'scale=1280:-2', '-q:v', '4', file]);
+    frames.push({ file, at, ...info });
+  };
   for (const s of scenes) {
     for (const [i, step] of s.timeline.steps.entries()) {
-      const at = s.offset + Math.max(step.start, step.end - 0.25);
-      const file = path.join(dir, `${s.id}-step${i + 1}.jpg`);
-      await ffmpeg(['-ss', at.toFixed(3), '-i', output, '-frames:v', '1', '-vf', 'scale=1280:-2', '-q:v', '4', file]);
-      frames.push({ file, at, scene: s.id, step: i + 1, say: step.say });
+      const base = path.join(dir, `${s.id}-step${String(i + 1).padStart(2, '0')}`);
+      for (const [k, mark] of (step.marks ?? []).entries()) {
+        await grab(s.offset + mark.t + 0.5, `${base}-${k + 1}-${mark.label}.jpg`, { scene: s.id, step: i + 1, mark: mark.label });
+      }
+      await grab(s.offset + Math.max(step.start, step.end - 0.25), `${base}.jpg`, { scene: s.id, step: i + 1 });
     }
   }
-  return frames;
+  frames.sort((a, b) => a.at - b.at);
+  const sheets = [];
+  for (let n = 0; n * 12 < frames.length; n++) {
+    const batch = frames.slice(n * 12, n * 12 + 12);
+    const sheet = path.join(dir, `sheet-${n + 1}.jpg`);
+    const cols = Math.min(4, batch.length);
+    await ffmpeg([
+      ...batch.flatMap((f) => ['-i', f.file]),
+      '-filter_complex',
+      `${batch.map((_, k) => `[${k}:v]scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2[t${k}]`).join(';')};` +
+        `${batch.map((_, k) => `[t${k}]`).join('')}concat=n=${batch.length}:v=1:a=0,tile=${cols}x${Math.ceil(batch.length / cols)}:padding=6:color=white[o]`,
+      '-map', '[o]', '-frames:v', '1', '-q:v', '4', sheet,
+    ]);
+    sheets.push(sheet);
+  }
+  return { frames, sheets };
 }

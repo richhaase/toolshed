@@ -23,6 +23,8 @@ export async function synthesize(texts, cfg, audioDir) {
   await fs.mkdir(audioDir, { recursive: true });
   const result = new Map();
   const todo = [];
+  const unused = Object.keys(cfg.pronounce ?? {}).filter((from) => ![...texts].some((t) => spoken(t, { [from]: '\u0000' }) !== t));
+  if (unused.length) console.log(`warning:  pronounce entries that match no narration: ${unused.join(', ')}`);
   for (const text of new Set(texts)) {
     const say = spoken(text, cfg.pronounce);
     const file = path.join(audioDir, `${sha([cfg.engine, cfg.voice, cfg.speed, say].join('|'))}.wav`);

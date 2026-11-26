@@ -19,7 +19,12 @@ if pid == 0:
         fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
     except OSError:
         pass
-    shell = os.environ.get("SHELL") or "/bin/sh"
+    # Use a shell that supports pipefail so a failing command is not hidden by a later pipe stage.
+    shell = os.environ.get("SHELL") or ""
+    if os.path.basename(shell) not in ("bash", "zsh"):
+        shell = "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh"
+    if os.path.basename(shell) in ("bash", "zsh"):
+        command = "set -o pipefail\n" + command
     os.execvp(shell, [shell, "-c", command])
 
 out = sys.stdout.buffer
