@@ -97,8 +97,8 @@ them from the discussion.
 
 ## Step 2: Read Entity Types registry
 
-Read the `## Entity Types` section from canonical `AGENTS.md`. In legacy repos
-without `AGENTS.md`, fall back to `CLAUDE.md`. Use it to understand:
+Read the `## Entity Types` section from canonical `AGENTS.md`. If it is
+missing, stop and point the user to `memento-config`. Use it to understand:
 - Which entity types have `private_notes: yes` — observations about these entities
   route to `private/` instead of `sources/`.
 - The filename pattern for private notes (e.g., `private/firstname-lastname.md`).

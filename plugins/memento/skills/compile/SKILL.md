@@ -11,9 +11,8 @@ allowed-tools: Read Write Edit Glob Grep Bash Agent
 
 Compile all sources into a topic-organized wiki. Each wiki page covers one entity,
 organized by entity type as defined in the canonical `AGENTS.md` Entity Types
-registry. Repos with only a full `CLAUDE.md` Memento context must be migrated
-with `memento-config` before compile runs; `CLAUDE.md` should be only a thin
-Claude Code entrypoint that imports `AGENTS.md`. Ordinary compilation
+registry. `CLAUDE.md` is only a thin Claude Code entrypoint that imports
+`AGENTS.md`; compile never reads a registry from it. Ordinary compilation
 accumulates knowledge; lifecycle invalidation withdraws claims that no longer
 have evidence.
 
@@ -185,9 +184,9 @@ Read `AGENTS.md` and parse the `## Entity Types` section. This tells you:
 - What sections each type's wiki pages should have (`sections`)
 
 If `AGENTS.md` is missing or lacks an Entity Types registry, stop and tell the
-user to run `memento-config` to migrate or repair the Memento root. Do not
-compile from a legacy `CLAUDE.md` registry; `CLAUDE.md` is a thin harness
-entrypoint, not the canonical cache surface.
+user to run `memento-config` to set up or repair the Memento root. Do not
+compile from a registry in `CLAUDE.md`; it is a thin harness entrypoint, not
+the canonical cache surface.
 
 ## Step 1: Determine scope
 
