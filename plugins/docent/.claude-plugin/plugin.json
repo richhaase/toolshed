@@ -1,0 +1,21 @@
+{
+  "name": "docent",
+  "version": "0.1.0",
+  "description": "Explain a change with a short narrated walkthrough video: real browser and terminal recordings of the running software, local voice narration, captions and chapters.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": [
+    "walkthrough",
+    "video",
+    "narration",
+    "demo",
+    "pull-request",
+    "playwright",
+    "ffmpeg"
+  ],
+  "skills": "./skills/"
+}

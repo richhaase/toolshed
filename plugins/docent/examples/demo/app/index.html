@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tiny Tasks</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: #f1f5f9; color: #0f172a; margin: 0; }
+  main { max-width: 560px; margin: 56px auto; background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 10px 30px rgba(15,23,42,.08); }
+  h1 { margin: 0 0 4px; } p { color: #64748b; margin: 0 0 20px; }
+  form { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; font-size: 16px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+  button { font-size: 16px; padding: 10px 16px; border: 0; border-radius: 10px; background: #4f46e5; color: #fff; cursor: pointer; }
+  ul { list-style: none; padding: 0; margin: 20px 0 0; }
+  li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #e2e8f0; font-size: 17px; }
+  li.done span { text-decoration: line-through; color: #94a3b8; }
+  #count { margin-top: 16px; font-size: 14px; color: #64748b; }
+</style>
+<main>
+  <h1>Tiny Tasks</h1>
+  <p>A demo app for Docent walkthroughs.</p>
+  <form id="f"><input type="text" id="new" placeholder="What needs doing?" aria-label="New task"><button>Add task</button></form>
+  <ul id="list"></ul>
+  <div id="count" role="status"></div>
+</main>
+<script>
+  let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+  const list = document.getElementById('list');
+  function render() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    list.replaceChildren(...tasks.map((t, i) => {
+      const li = document.createElement('li');
+      li.className = t.done ? 'done' : '';
+      const cb = Object.assign(document.createElement('input'), { type: 'checkbox', checked: t.done });
+      cb.setAttribute('aria-label', `Complete ${t.text}`);
+      cb.onchange = () => { tasks[i].done = cb.checked; render(); };
+      const span = Object.assign(document.createElement('span'), { textContent: t.text });
+      li.append(cb, span);
+      return li;
+    }));
+    document.getElementById('count').textContent = `${tasks.filter(t => !t.done).length} of ${tasks.length} remaining`;
+  }
+  document.getElementById('f').onsubmit = (e) => {
+    e.preventDefault();
+    const input = document.getElementById('new');
+    if (input.value.trim()) tasks.push({ text: input.value.trim(), done: false });
+    input.value = '';
+    render();
+  };
+  render();
+</script>

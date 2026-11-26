@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Terminal</title>
+<style>
+  :root { --bg: #0b1020; --accent: #6366f1; --term: #0f172a; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background:
+      radial-gradient(90vw 70vh at 12% 0%, color-mix(in srgb, var(--accent) 30%, var(--bg)), transparent 65%),
+      var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .win {
+    width: 88vw; height: 84vh; display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 14px; background: var(--term);
+    border: 1px solid rgba(255, 255, 255, .09);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+  }
+  .bar { position: relative; flex: none; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: rgba(255, 255, 255, .06); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .name { position: absolute; left: 0; right: 0; text-align: center; color: #94a3b8; font-size: 13px; font-weight: 500; }
+  #t { flex: 1; min-height: 0; padding: 14px 6px 14px 18px; }
+  .xterm-viewport { overflow: hidden !important; }
+</style>
+<div class="win">
+  <div class="bar">
+    <span class="dot" style="background:#ff5f57"></span>
+    <span class="dot" style="background:#febc2e"></span>
+    <span class="dot" style="background:#28c840"></span>
+    <span class="name" id="name"></span>
+  </div>
+  <div id="t"></div>
+</div>
+<!-- xterm and its fit addon are injected by the recorder from the Docent dependency cache. -->
+<script>
+  let term;
+  window.setup = ({ title, fontSize, theme = {} }) => {
+    if (theme.background) document.documentElement.style.setProperty('--bg', theme.background);
+    if (theme.accent) document.documentElement.style.setProperty('--accent', theme.accent);
+    document.getElementById('name').textContent = title || '';
+    term = new Terminal({
+      fontSize,
+      lineHeight: 1.25,
+      fontFamily: '"SF Mono", Menlo, Monaco, "DejaVu Sans Mono", monospace',
+      cursorBlink: false,
+      scrollback: 0,
+      theme: { background: '#0f172a', foreground: '#e2e8f0', cursor: '#e2e8f0', selectionBackground: '#334155' },
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById('t'));
+    fit.fit();
+    return { cols: term.cols, rows: term.rows };
+  };
+  window.write = (data) => new Promise((resolve) => term.write(data, resolve));
+</script>

@@ -42,6 +42,7 @@ codex plugin add memento@toolshed
 codex plugin add actuary@toolshed
 codex plugin add ostrich@toolshed
 codex plugin add bigboard@toolshed
+codex plugin add docent@toolshed
 ```
 
 Codex reads `.agents/plugins/marketplace.json` and each plugin's
@@ -109,6 +110,15 @@ contributors by commit count. Use `bigboard:explore` to open a board and
 inspect the commits for an interval or person. Use `bigboard:configure` to
 choose sources and viewing filters.
 The original native app repository is archived. Future development lives here.
+
+### <img src="plugins/docent/assets/icon.png" width="48" height="48" align="middle" alt=""> [Docent](plugins/docent/) — Narrated Walkthroughs of a Change
+
+The `walkthrough` skill explains a branch, pull request or release with a short
+narrated video. Docent reads the change, runs the real software locally,
+records browser and terminal scenes with Playwright, narrates with a local
+voice model, and assembles a captioned 1080p MP4 with ffmpeg. It needs Node.js,
+ffmpeg, Python 3 and uv; see the [plugin guide](plugins/docent/README.md) for
+setup.
 
 ## Distribution layout
 

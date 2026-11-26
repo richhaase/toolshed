@@ -1,0 +1,41 @@
+{
+  "name": "docent",
+  "version": "0.1.0",
+  "description": "Explain a change with a short narrated walkthrough video: real browser and terminal recordings of the running software, local voice narration, captions and chapters.",
+  "author": {
+    "name": "Rich Haase",
+    "url": "https://github.com/richhaase"
+  },
+  "repository": "https://github.com/richhaase/toolshed",
+  "license": "MIT",
+  "keywords": [
+    "walkthrough",
+    "video",
+    "narration",
+    "demo",
+    "pull-request",
+    "playwright",
+    "ffmpeg"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
+    "displayName": "Docent",
+    "shortDescription": "Explain a change with a narrated video",
+    "longDescription": "Turn a branch, pull request or release into a short narrated walkthrough that shows what changed and why. Docent reads the change, runs the real software locally, records browser and terminal scenes with a visible pointer, narrates with a local voice, and assembles a captioned 1080p MP4 with chapters. It can also give a narrated tour of a whole repository.",
+    "developerName": "Rich Haase",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/richhaase/toolshed",
+    "defaultPrompt": [
+      "Make a walkthrough of this branch.",
+      "Explain this pull request in a short narrated video.",
+      "Give me a narrated tour of this repo."
+    ]
+  }
+}
