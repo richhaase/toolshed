@@ -3,6 +3,13 @@
 A storyboard is an ES module whose default export is an object (or an async function returning
 one). It needs no imports. Paths in it are relative to the storyboard file.
 
+## Contents
+
+- [Top level](#top-level)
+- [Scenes](#scenes)
+- [Build output](#build-output)
+- [Recipes](#recipes)
+
 ## Top level
 
 | Key | Default | Meaning |

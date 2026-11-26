@@ -20,10 +20,13 @@ was not protected.
 From the compile skill directory, run:
 
 ```bash
-node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --gate --json \
-  > /tmp/memento-eval.$$.json
+EVAL_JSON="$(mktemp "${TMPDIR:-/tmp}/memento-eval.XXXXXX")"
+node ../_shared/scripts/eval-score --root "$MEMENTO_ROOT" --gate --json > "$EVAL_JSON"
 rc=$?
+echo "eval: rc=$rc json=$EVAL_JSON"
 ```
+
+Retain the printed exit code and path; read the verdict from that file.
 
 Step -1 has already checked Node because neither Claude Code nor Codex
 guarantees it. The scorer reads:

@@ -33,6 +33,10 @@ fi
 MEMENTO_TOUCHED+=("$rel")
 ```
 
+Shell variables may not survive between separate commands. Track the touched
+paths yourself as you go; the array above shows the bookkeeping, not where the
+list must live.
+
 Do this once per intended file. Do not add directories merely created with
 `mkdir -p`; Git does not track empty directories. Do not add an optional project
 repo's `.memento-root` pointer to the Memento repo's list—it belongs to its own
@@ -40,9 +44,12 @@ repository and confirmation boundary.
 
 ## Stage and verify
 
-If the list is empty, skip the commit. Otherwise stage exactly those files:
+Run staging, verification, and the commit as one command, redeclaring the list
+with the explicit paths you tracked. If the list is empty, skip the commit.
+Otherwise stage exactly those files:
 
 ```bash
+MEMENTO_TOUCHED=(AGENTS.md wiki/INDEX.md) # replace with the exact paths written
 if [[ ${#MEMENTO_TOUCHED[@]} -eq 0 ]]; then
   echo "commit: skipped (no files written)"
   exit 0

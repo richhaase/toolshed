@@ -110,7 +110,9 @@ amend what the user changes — never replace the file wholesale.
 Before the first write, read `references/commit-safety.md`, initialize Git if
 needed, preflight the index and intended paths, and start the exact
 `MEMENTO_TOUCHED` list. Add a path to that list immediately before each Write or
-Edit. If an intended existing path is already dirty, stop and let the user
+Edit. Keep the list yourself rather than relying on a shell variable: it may not
+survive between commands, so redeclare it with the explicit paths in the same
+command that stages, verifies, and commits. If an intended existing path is already dirty, stop and let the user
 preserve or commit it; do not fold pre-existing work into the configuration commit.
 
 ## Phase 1: Scaffold

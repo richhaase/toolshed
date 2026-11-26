@@ -1,6 +1,6 @@
 {
   "name": "docent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Explain a change with a short narrated walkthrough video: real browser and terminal recordings of the running software, local voice narration, captions and chapters.",
   "author": {
     "name": "Rich Haase",

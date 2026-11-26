@@ -1,6 +1,6 @@
 ---
 name: ama
-description: Read the wiki and interview the user to fill gaps, resolve contradictions, and capture context the LLM is curious about. Use when the user says "ama", "ask me anything", "what do you want to know", "interview me", "fill in gaps", "tell me what's missing", or otherwise wants the agent to actively pull knowledge into the Memento. Captures answers as a session source so /compile can fold them into the wiki. Not `save`, which extracts what already happened in a session, and not `compile`, which synthesizes existing sources into the wiki.
+description: Interview the user to fill gaps in a Memento by reading its wiki, finding missing reasoning, contradictions, and thin pages, and asking about them one question at a time. Use when the user says "ama" or "ask me anything", or asks the agent to interview them, say what it wants to know, or tell them what's missing in the Memento. Captures answers as a session source so /compile can fold them into the wiki. Not `save`, which extracts what already happened in a session, and not `compile`, which synthesizes existing sources into the wiki. Do not trigger on generic interview or question requests without Memento context.
 argument-hint: "[<topic>]"
 user-invocable: true
 allowed-tools: Read Write Edit Glob Grep Bash AskUserQuestion
@@ -21,6 +21,9 @@ written down.
 ```bash
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
 ```
+
+Script paths in this skill are shown relative to this `SKILL.md`; if your shell
+is in another directory, invoke the same scripts by absolute path.
 
 See `../_shared/references/memento-root.md` for the full resolution
 contract. All `sources/`, `wiki/`, `private/`, and context paths below

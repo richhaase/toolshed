@@ -62,6 +62,9 @@ is no separate out-of-band handle to debrief.
 MEMENTO_ROOT="$(../_shared/scripts/memento-root)"
 ```
 
+Script paths in this skill are shown relative to this `SKILL.md`; if your shell
+is in another directory, invoke the same scripts by absolute path.
+
 See `../_shared/references/memento-root.md` for the full resolution contract.
 All `sources/`, `private/`, and context files below are relative to
 `MEMENTO_ROOT`.

@@ -17,9 +17,12 @@ After evidence reconciliation, recompute reverse edges and per-page in-degree
 from current `[[wikilinks]]` and `related:` fields. The helper writes nothing:
 
 ```bash
-node ../_shared/scripts/build-graph --root "$MEMENTO_ROOT" --json \
-  > /tmp/memento-graph.$$.json
+GRAPH_JSON="$(mktemp "${TMPDIR:-/tmp}/memento-graph.XXXXXX")"
+node ../_shared/scripts/build-graph --root "$MEMENTO_ROOT" --json > "$GRAPH_JSON"
+echo "graph: rc=$? json=$GRAPH_JSON"
 ```
+
+Retain the printed path for Step 7; a later command cannot recompute it.
 
 This step is fail-open because the graph protects no hard invariant. On nonzero
 exit, warn, omit rediscovery in Step 7, and continue compiling and committing.

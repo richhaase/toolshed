@@ -9,6 +9,7 @@ Invoke `bigboard:configure`, or ask naturally to change BigBoard settings.
 Inspect current state, apply the requested change when its choices are clear,
 and keep unrelated settings intact. For a general request, explain the current
 settings and clarify the desired change. Skip saves that would change nothing.
+Every tool named below belongs to the `bigboard` MCP server.
 
 ## Shared history sources
 

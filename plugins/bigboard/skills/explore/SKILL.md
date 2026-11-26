@@ -6,7 +6,8 @@ description: Open BigBoard Activity and People, compare repository activity, and
 # BigBoard exploration
 
 Invoke `bigboard:explore`, or ask naturally to open or discuss BigBoard.
-Use the bundled tools to inspect activity in the configured repositories.
+Use the `bigboard` MCP server's tools, named below, to inspect activity in the
+configured repositories.
 For settings changes, use [`bigboard:configure`](../configure/SKILL.md).
 
 ## Open a board
