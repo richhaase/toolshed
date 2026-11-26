@@ -86,7 +86,11 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .line-total > span:last-child { grid-column: 1 / -1; color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 10px; }
 .additions { color: var(--green); }
 .deletions { color: var(--red); }
-.comparison-total { margin-left: auto; color: var(--muted); font-size: 10px; text-align: right; }
+.comparison-total { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; margin: 0 0 0 auto; color: var(--muted); font-size: 10px; text-align: right; }
+.comparison-total strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.comparison-total strong > span:last-child { margin-left: 4px; font-size: 11px; font-weight: 500; }
+.comparison-total.up strong, .delta.up, .delta-label.up { color: var(--green); }
+.comparison-total.down strong, .delta.down, .delta-label.down { color: var(--red); }
 .activity-chart { padding-bottom: 7px; }
 .chart-heading { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 12px; }
 .chart-heading h2 { color: var(--muted); font-size: 11px; font-weight: 500; }
@@ -95,8 +99,10 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .legend i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; }
 .current-key { background: var(--blue); }
 .previous-key { background: var(--previous); }
+.change-key { background: linear-gradient(to bottom, var(--green) 50%, var(--red) 50%); }
 .chart-frame { position: relative; padding-left: 25px; }
 .chart-scale { position: absolute; inset: 25px auto 33px 0; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.comparing .chart-scale { bottom: 79px; }
 .chart-columns { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .chart-columns.dense, .chart-columns.many { gap: 2px; }
 .many .day-column { padding: 6px 0 0; }
@@ -112,6 +118,15 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .selected .current-bar, .day-column:hover .current-bar { opacity: 1; }
 .previous-bar { background: var(--previous); }
 .empty-bar { min-height: 2px; background: var(--line); }
+.delta-track { position: relative; width: 100%; height: 40px; margin-top: 6px; }
+.delta-track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--line); }
+.delta-bar { position: absolute; left: 50%; width: 60%; max-width: 37px; transform: translateX(-50%); opacity: .75; }
+.delta-bar.up { bottom: 50%; background: var(--green); border-radius: 2px 2px 0 0; }
+.delta-bar.down { top: 50%; background: var(--red); border-radius: 0 0 2px 2px; }
+.selected .delta-bar, .day-column:hover .delta-bar { opacity: 1; }
+.delta-label { position: absolute; left: 0; right: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; line-height: 12px; text-align: center; }
+.delta-label.up { top: calc(50% + 2px); }
+.delta-label.down { bottom: calc(50% + 2px); }
 .day-label { font-size: 10px; color: var(--muted); white-space: nowrap; margin-top: 9px; }
 .dense .day-label { font-size: 9px; }
 .selection-tick { margin-top: 7px; width: 17px; height: 2px; background: transparent; border-radius: 2px; }
@@ -165,11 +180,12 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
   .toolbar { gap: 10px; }
   .compare-control { margin-left: 0; }
   .activity-summary { flex-wrap: wrap; gap: 16px; }
-  .comparison-total { margin: -4px 0 0; width: 100%; text-align: left; }
+  .comparison-total { margin: -4px 0 0; width: 100%; align-items: flex-start; text-align: left; }
   .day-column { padding-left: 3px; padding-right: 3px; }
   .dense .day-label, .many .day-label { writing-mode: vertical-rl; font-size: 9px; height: 46px; }
   .bar-track { height: 136px; gap: 2px; }
   .chart-scale { bottom: 53px; }
+  .comparing .chart-scale { bottom: 99px; }
   .legend { font-size: 8px; gap: 7px; }
   .load-more { flex-wrap: wrap; }
 }
@@ -207,5 +223,7 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .breakdown-row:hover, .breakdown-row[aria-pressed="true"] { background: var(--blue-soft); }
 .breakdown-row > span { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .breakdown-row em { margin-left: 10px; color: var(--muted); font-style: normal; }
+.breakdown-row .delta { display: inline-block; min-width: 92px; text-align: right; }
+.delta > span { margin-left: 3px; opacity: .8; }
 .breakdown-more { margin: 8px 10px 0; color: var(--muted); font-size: 10px; }
 .person-rank { flex: 0 0 22px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
