@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Title card</title>
+<style>
+  :root { --bg: #0b1020; --fg: #f8fafc; --accent: #6366f1; --muted: #94a3b8; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background:
+      radial-gradient(90vw 70vh at 12% 0%, color-mix(in srgb, var(--accent) 30%, var(--bg)), transparent 65%),
+      var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    display: flex; align-items: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { padding: 0 9vw; max-width: 82vw; }
+  .kicker { font-size: 1.5vw; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); filter: brightness(1.5); }
+  h1 { font-size: 6vw; line-height: 1.05; letter-spacing: -.025em; margin: .25em 0 .2em; text-wrap: balance; }
+  h1.small { font-size: 4.2vw; }
+  .sub { font-size: 2.2vw; line-height: 1.35; color: var(--muted); margin: 0; text-wrap: balance; }
+  ul { list-style: none; padding: 0; margin: 1.4em 0 0; font-size: 2.1vw; line-height: 1.35; }
+  li { display: flex; gap: .7em; margin: .65em 0; }
+  li::before { content: ""; flex: none; width: .45em; height: .45em; margin-top: .45em; border-radius: 50%; background: var(--accent); filter: brightness(1.4); }
+  .in { opacity: 0; transform: translateY(1.6vw); animation: in .7s cubic-bezier(.2, .7, .2, 1) forwards; animation-delay: calc(var(--i) * var(--stagger, 160ms)); }
+  @keyframes in { to { opacity: 1; transform: none; } }
+</style>
+<main id="m"></main>
+<script>
+  const VARS = { background: '--bg', foreground: '--fg', accent: '--accent', muted: '--muted' };
+  window.theme = (t = {}) => {
+    for (const [k, v] of Object.entries(t)) if (VARS[k]) document.documentElement.style.setProperty(VARS[k], v);
+  };
+  window.render = ({ kicker, title, subtitle, bullets = [], stagger }) => {
+    const m = document.getElementById('m');
+    m.replaceChildren();
+    if (stagger) m.style.setProperty('--stagger', `${stagger}ms`);
+    let i = 0;
+    const add = (parent, tag, cls, text) => {
+      const el = document.createElement(tag);
+      el.className = `${cls} in`;
+      el.style.setProperty('--i', i++);
+      el.textContent = text;
+      parent.appendChild(el);
+      return el;
+    };
+    if (kicker) add(m, 'div', 'kicker', kicker);
+    if (title) add(m, 'h1', bullets.length ? 'small' : '', title);
+    if (subtitle) add(m, 'p', 'sub', subtitle);
+    if (bullets.length) {
+      const ul = document.createElement('ul');
+      m.appendChild(ul);
+      for (const b of bullets) add(ul, 'li', '', b);
+    }
+  };
+</script>

@@ -63,3 +63,16 @@ an activity easel.
 Use case: logo-brand / style-transfer. Create one BigBoard plugin icon by replacing the subject of the supplied reference icons while matching their established Toolshed illustration style. The two input images are STYLE REFERENCES ONLY, not subjects to combine. Match their chunky friendly illustrated enamel-badge character, thick consistent rounded dark-brown outlines, restrained warm cream and gold, muted teal, rust-colored wood, subtle tactile shading, optical weight, and slightly handmade rounded geometry. This is a sibling in the same icon family, not a new branding style.
 Asset type: square plugin icon, one centered coherent physical object, filling about 68–72 percent of the canvas with generous even transparent padding. Keep the complete silhouette inside the canvas. The final icon must stay recognizable at 32 pixels. True transparent alpha background outside the symbol; no black, white, colored, or checkerboard background painted behind it. No enclosing app tile, border around the canvas, glow, cast shadow, photorealism, shiny 3D, scenery, people, words, letters, numbers, labels, watermark, decorative sparkles, tiny UI elements, or presentation sheet. Output one actual high-resolution transparent icon asset only.
 Subject: one compact freestanding briefing board on a sturdy simple rust-wood easel. A broad landscape warm-cream board face in a substantial muted-teal rounded frame, with just three large simple rising activity bars: teal, warm gold, and rust. Use strong simple bar silhouettes and no axes or gridlines. The rust-wood easel has two clear visible legs and a short central upright behind the board, mechanically plausible, no extra objects. One small gold joint or knob is sufficient. Near front view with a tiny hint of perspective. The board itself should dominate, while the easel gives a distinct workshop-object silhouette. Communicate a big visual overview of repository activity.
+
+## Docent
+
+Placeholder. The current `plugins/docent/assets/icon.png` was drawn by hand as
+an SVG in the house style (a framed picture showing a play triangle, with a
+docent's pointer touching it) and rendered to PNG. It was not made
+with the image generation tool. To replace it with a generated sibling of the
+other icons, use the Memento and Actuary icons as style references with a
+prompt along these lines:
+
+Use case: logo-brand / style-transfer. Create one Docent plugin icon matching the established Toolshed illustration style of the supplied reference icons. The input images are STYLE REFERENCES ONLY. Match their chunky friendly illustrated badge style, bold rounded dark-brown outlines, simple shapes, and warm restrained solid colors.
+Asset type: square plugin icon, one centered coherent subject, filling about 68–72 percent of the canvas with generous even transparent padding. The final icon must stay recognizable at 32 pixels. True transparent alpha background.
+Subject: a museum picture in a warm wooden frame, hanging from a single nail, whose canvas shows one large rust-red play triangle. A slim sage-green pointer stick reaches in from the lower right to touch the picture. No lettering, no people, no extra props.
