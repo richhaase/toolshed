@@ -45,12 +45,6 @@ function CommitRow({ record, timezone }: { record: ActivityRecord; timezone: str
   </article>;
 }
 
-function change(commits: number, previous: number | null | undefined): string {
-  if (previous === null || previous === undefined) return "";
-  const difference = commits - previous;
-  return `${difference > 0 ? "+" : difference < 0 ? "−" : ""}${count.format(Math.abs(difference))} vs previous`;
-}
-
 type Trend = "up" | "down" | "flat";
 
 function trend(difference: number): Trend {
@@ -181,7 +175,7 @@ export function BoardView({ controller }: { controller: BoardController }) {
                 <span className="person-main"><strong>{person.name}</strong><span className="person-identity">{person.identity}</span><span className="person-bar" aria-hidden="true"><span style={{ width: `${person.commits / peopleMax * 100}%` }} /></span></span>
                 <span className="person-numbers">
                   <strong>{count.format(person.commits)}{historyComplete ? "" : "+"} commits</strong>
-                  <span>{board.totals.commits > 0 && `${Math.round(person.commits / board.totals.commits * 100)}% of commits`}{board.query.compare && person.previousCommits !== null && person.previousCommits !== undefined && ` · ${change(person.commits, person.previousCommits)}`}</span>
+                  <span>{board.totals.commits > 0 && `${Math.round(person.commits / board.totals.commits * 100)}% of commits`}{board.query.compare && person.previousCommits !== null && person.previousCommits !== undefined && <> · <Delta commits={person.commits} previous={person.previousCommits} /></>}</span>
                   <span><span className="additions">+{count.format(person.additions)}</span> <span className="deletions">−{count.format(person.deletions)}</span>{person.unknownLineCommits > 0 ? " known lines" : " lines"}</span>
                   <span>{person.repositories.length} {person.repositories.length === 1 ? "repository" : "repositories"}</span>
                 </span>

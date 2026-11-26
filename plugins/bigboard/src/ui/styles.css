@@ -199,6 +199,7 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 .person-bar > span { display: block; height: 100%; background: var(--blue); }
 .person-numbers { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; gap: 5px; font-size: 10px; color: var(--muted); }
 .person-numbers strong { font-size: 12px; font-weight: 600; color: var(--ink); }
+.person-numbers .delta { font-style: normal; }
 .person-detail-identity { font-size: 11px; overflow-wrap: anywhere; }
 .refresh-progress { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .refresh-progress-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 11px; }

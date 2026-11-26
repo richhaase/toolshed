@@ -61,8 +61,8 @@ shows how much that interval rose or fell. Highlights point to the busiest
 interval and the largest changes. Repository totals filter the board and, with
 comparison on, show each repository's change.
 **People** ranks contributors by commit count for the selected period and
-repositories, with each person's share of commits and, with comparison on, the
-change from the previous period. Select a contributor to see their commits.
+repositories, with each person's share of commits and, with comparison on, a
+colored signed change and percent from the previous period. Select a contributor to see their commits.
 
 ### Panels that do not receive their board
 
