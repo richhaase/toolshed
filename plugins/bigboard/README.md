@@ -55,11 +55,14 @@ updated. An add/remove save includes all retained paths.
 
 **Activity** opens with a commit chart and compact summary. Selecting an interval
 reveals its supporting commits; closing details returns to the overview.
-Highlights point to the busiest interval and, with comparison on, the largest
-changes. Repository totals filter the board.
+With comparison on, the previous period's bars sit beside this period's, the
+total shows the signed change and percent, and a change row under each bar
+shows how much that interval rose or fell. Highlights point to the busiest
+interval and the largest changes. Repository totals filter the board and, with
+comparison on, show each repository's change.
 **People** ranks contributors by commit count for the selected period and
-repositories, with each person's share of commits and, with comparison on, the
-change from the previous period. Select a contributor to see their commits.
+repositories, with each person's share of commits and, with comparison on, a
+colored signed change and percent from the previous period. Select a contributor to see their commits.
 
 ### Panels that do not receive their board
 

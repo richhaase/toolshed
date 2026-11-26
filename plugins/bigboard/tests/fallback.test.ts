@@ -247,7 +247,8 @@ test("the built panel stays interactive and shares its view in a host that refus
   panel.click("People");
   await waitFor(() => document.querySelectorAll(".person-row").length === 25, "leaderboard");
   assert.equal(document.querySelector(".person-rank")!.textContent, "1");
-  assert.match(document.querySelector(".person-numbers")!.textContent!, /% of commits · .*vs previous/);
+  assert.match(document.querySelector(".person-numbers")!.textContent!, /% of commits · [+−±]\d/);
+  assert.ok(document.querySelector(".person-numbers .delta"));
   await waitFor(() => (panel.contexts.at(-1)?.summary?.people.length ?? 0) === 5, "shared leaderboard");
   panel.click("Load more people");
   await waitFor(() => document.querySelectorAll(".person-row").length > 25, "more people");
