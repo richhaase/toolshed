@@ -27,14 +27,21 @@ one). It needs no imports. Paths in it are relative to the storyboard file.
 | `pronounce` | `{}` | `{ written: 'spoken' }` whole-word replacements applied to the voice only. |
 | `engine` | `'kokoro'` | `'kokoro'` or `'say'` (macOS-only draft voice; `sayVoice` picks the voice). |
 | `gap` / `lead` / `tail` | `0.35` / `0.4` / `0.45` | Seconds of quiet after each narrated step, and at the start and end of each scene. |
-| `setup` / `teardown` | none | Async functions run once before and after recording (seed or reset data here). They run only when at least one scene is recorded. |
+| `repo` | storyboard folder | Path to the repo being filmed. Its commit and uncommitted changes are part of every scene's cache key. Set it when the storyboard lives outside the repo. |
+| `setup` / `teardown` | none | Async functions run once before and after recording: `async ({ openPage }) => {}`. `openPage()` returns an unrecorded Playwright page that shares the scenes' cookies and storage. They run only when at least one scene is recorded, so do not rely on `teardown` alone to undo on-camera changes; use a scene's `cleanup`. |
 | `contextOptions` | `{}` | Extra Playwright `browser.newContext` options (locale, timezone, permissions, `httpCredentials`). |
 | `actionTimeout` | `15000` | Default Playwright timeout in ms. |
 
 ## Scenes
 
 Every scene accepts `name` (used for its id, `--only`, and the chapter), `chapter` (chapter title
-override) and `fade` (fade in and out; defaults to true for title scenes only).
+override) and `fade` (fade in and out; defaults to true for title scenes only). The chapter
+title is `chapter` if set, otherwise a title scene's `title`, otherwise `name`, so give browser
+and terminal scenes a readable `chapter`:
+
+```js
+{ type: 'browser', name: 'save-a-search', chapter: 'Saving a search', /* ... */ }
+```
 
 ### `type: 'title'`
 
@@ -56,6 +63,7 @@ A recorded browser session. Each scene gets a fresh page.
 { type: 'browser', name: 'checkout',
   url: '/cart',                            // opened before recording starts
   prepare: async ({ page, ui, context }) => {}, // unrecorded setup: log in, dismiss banners, wait for data
+  cleanup: async ({ page, ui, context }) => {}, // unrecorded; runs after the scene even if it failed: undo on-camera changes
   freshState: false,                       // true = ignore cookies/storage saved by earlier scenes
   badge: 'Before',                         // optional persistent corner label, e.g. 'Before' / 'After'
   contextOptions: {},                      // per-scene Playwright context options
@@ -70,7 +78,9 @@ Step fields:
 - `hold`: minimum seconds the step stays on screen. Use it on steps without narration.
 
 Cookies and local storage carry from one browser scene to the next (saved in
-`.docent/state.json`), so a login performed in one scene's `prepare` holds for later scenes.
+`.docent/state.json`), so a login performed in one scene's `prepare` holds for later scenes. The
+file also persists between builds, including `--force`; delete it for a truly signed-out start,
+or give the first scene `freshState: true`.
 
 #### The `ui` helpers
 
@@ -87,6 +97,14 @@ a visible pointer. Targets are a selector string or a Playwright `Locator`.
 | `ui.callout(text, { ms = 2600, position = 'bottom', wait = false })` | A caption banner over the page. |
 | `ui.scroll(pixelsOrTarget, { ms = 700 })` | Smooth scroll by an amount or to an element. |
 | `ui.pause(ms)` | Wait. |
+
+How the helpers treat page layout:
+
+- A target near the top or bottom edge (within 90 px) is smooth-scrolled to the middle first.
+  Targets inside a fixed or sticky bar are left where they are.
+- A highlight ring is clamped to the viewport, so a full-width bar still gets a visible outline.
+- A callout moves clear of a fixed or sticky bar at its edge. If it still covers something the
+  viewer needs, use `position: 'top'`.
 
 Use plain `page` calls for things that should not be shown as pointer movement, such as
 `await page.waitForResponse(...)` or `await expect(...)`-style waits (`locator.waitFor()`).
@@ -112,6 +130,7 @@ Step fields:
   paths that would distract (keep it honest: same command, tidier spelling).
 - `clear`: clear the screen before this step.
 - `allowFail`: by default a non-zero exit stops the build; set this when the failure is the point.
+  Commands run with `pipefail`, so `npm test | grep PASS` still fails the build when the tests fail.
 - `timeout`: ms before the command is killed (default 120000).
 
 Avoid interactive programs and pagers (`git --no-pager log`, `--no-watch`, `CI=1`).
@@ -190,7 +209,7 @@ larger system into an overview diagram and one per part.
 
 Next to the storyboard, `.docent/` holds cached narration (`audio/`), per-scene recordings
 and timelines (`scenes/`), browser state (`state.json`), failure screenshots (`failure-*.png`),
-and per-step stills of the final video (`review/`). It is safe to delete.
+and stills and contact sheets of the final video (`review/`). It is safe to delete.
 
 The MP4 is H.264 with AAC audio normalized to -16 LUFS, an embedded English subtitle track, and
 one chapter per scene.
@@ -210,11 +229,62 @@ one chapter per scene.
   steps: [ /* recording starts on the dashboard */ ] }
 ```
 
-**Sign in with an emailed code, off camera**: when local sign-in sends a code to a local mail
-viewer (Mailpit, Inbucket, MailHog), request the code in `prepare`, poll the viewer's HTTP API
-with `fetch` for a message to that address newer than when you asked, and type the code in. Put
-this in a small `signIn(page, email)` function at the top of the storyboard and call it from each
-scene that needs a different person, with `freshState: true` so the previous person is signed out.
+**Sign in with an emailed code, off camera**: when local sign-in emails a code to a local mail
+viewer, request it in `prepare` and read it back over the viewer's HTTP API. This version is for
+Mailpit (which recent Supabase CLI versions bundle); adapt the two URLs for other viewers and the
+selectors for your app.
+
+```js
+const MAIL = 'http://127.0.0.1:54324/api/v1';
+
+async function signIn(page, email) {
+  await page.goto('/account');                          // any page only a signed-in person sees
+  if (!page.url().includes('/sign-in')) return;         // already signed in: send no email
+  const since = Date.now();
+  await page.getByLabel('Email').fill(email);
+  await page.getByRole('button', { name: /send|continue|sign in/i }).click();
+  let code;
+  for (let i = 0; i < 40 && !code; i++) {
+    const { messages } = await (await fetch(`${MAIL}/messages`)).json();
+    const hit = messages.find((m) => m.To[0].Address === email && Date.parse(m.Created) >= since - 1000);
+    if (hit) {
+      // The list's Snippet can be cut short; read the full text of the message.
+      const { Text } = await (await fetch(`${MAIL}/message/${hit.ID}`)).json();
+      code = Text.match(/\b\d{6}\b/)?.[0];
+      if (!code) throw new Error(`the sign-in email to ${email} has no 6-digit code:\n${Text.slice(0, 400)}`);
+    } else await page.waitForTimeout(300);
+  }
+  if (!code) throw new Error(`no sign-in email arrived for ${email}`);
+  await page.getByLabel(/code/i).fill(code);
+  await page.getByRole('button', { name: /verify|sign in/i }).click();
+  await page.waitForURL((u) => !u.pathname.includes('/sign-in'));
+}
+```
+
+- One person for the whole video: call `signIn` in the first scene's `prepare` and let later
+  scenes inherit the session. Because it returns early when already signed in, rebuilding sends
+  no further emails, which matters when the local auth service rate-limits them.
+- A different person per scene: give each scene `freshState: true` and call `signIn` in its
+  `prepare`.
+- If the email has a link but no code, the local mail templates are probably not loaded (a
+  freshly restarted auth service can take a few seconds). Wait and request another before
+  working around it.
+
+**Change something on camera, then put it back**
+
+```js
+{ type: 'browser', name: 'turn-off-classes', url: '/settings',
+  steps: [ { say: 'She switches classes off and saves.', do: async ({ page, ui }) => {
+    await ui.click(page.getByLabel('Classes'));
+    await ui.click(page.getByRole('button', { name: 'Save' }));
+  } } ],
+  cleanup: async ({ page }) => {            // off camera, even if a step above failed
+    await page.goto('/settings');
+    await page.getByLabel('Classes').check();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Saved').waitFor();
+  } }
+```
 
 **Say it, then do it**
 

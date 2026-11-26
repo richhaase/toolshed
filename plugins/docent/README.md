@@ -66,9 +66,10 @@ then builds the video.
 3. **Assembly.** ffmpeg places each narration clip at the start of its step,
    joins the scenes, evens out the loudness, and adds captions and chapters.
 
-Scenes are cached, so fixing one scene re-records only that scene. Each build
-also saves a still image per step, which the agent checks against the narration
-before calling the video done. The agent cannot listen to the result, so give
+Scenes are cached, so fixing one scene re-records only that scene, and a scene
+is re-recorded automatically when the code being filmed changes. Each build
+also saves still images of every step, highlight and caption, which the agent
+checks against the narration before calling the video done. The agent cannot listen to the result, so give
 the narration a listen yourself, especially unusual names.
 
 ## Requirements

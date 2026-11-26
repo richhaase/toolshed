@@ -75,9 +75,17 @@ different videos.
 - Otherwise start the project's dev server the way the repo documents it, in the background,
   and wait until it answers. Seed whatever data makes the screens look real: empty states make
   poor video.
-- Walk the intended path yourself first, with the browser tools you have or a throwaway
-  Playwright script, and note the locators that work. Prefer `getByRole`, `getByLabel` and
-  `getByText` over CSS selectors.
+- Note the commit you are filming (`git rev-parse HEAD`) and whether the tree is clean. If
+  someone else may be working in the repo, film a copy that cannot move: a `git worktree` of the
+  ref, served on its own port.
+- Look at the screens you plan to film before writing anything:
+  `node SCRIPTS/rehearse.mjs <url> [<url> ...]` saves a screenshot of each page and prints its
+  accessibility outline, which is where locators come from. Prefer `getByRole`, `getByLabel` and
+  `getByText` over CSS selectors. For a longer rehearsal, write a throwaway script that loads
+  Playwright the way `rehearse.mjs` does.
+- If showing the change means changing data on camera, decide now how it gets put back, and
+  record the state beforehand so you can compare afterward. Undo it in the scene's `cleanup`
+  hook, which runs off camera even when the scene fails.
 - For anything that does not live in a browser, check the command's output and runtime by
   running it once. Commands slower than about ten seconds need a faster variant or narration
   long enough to cover them.
@@ -89,7 +97,9 @@ different videos.
 Create `walkthrough/storyboard.mjs` in the target repo (or wherever the user wants it). If the
 repo's working tree is busy (uncommitted changes you did not make, or another session working in
 it), keep the storyboard in a folder outside the repo instead and point terminal scenes at the
-repo with an absolute `cwd`.
+repo with an absolute `cwd`, and set the storyboard's `repo` option to the repo's path so the
+build can tell which code it filmed. Every path the build reads or writes (`output`, the
+`.docent/` folder) is relative to the storyboard's folder.
 
 The full format, every option, and the `ui` helper API are in
 [references/storyboard.md](references/storyboard.md). Read it before writing your first
@@ -179,17 +189,26 @@ The first narration run downloads the Kokoro voice model (about 350 MB) to
 `~/.cache/docent/models`. On macOS, `--engine say` uses the instant system voice for quick
 picture-only iterations; do the final build without it.
 
-Scenes are cached. Unchanged scenes are reused; `--only <scene>` re-records just the named
-scenes; `--force` re-records everything. Use `--force` for the final build if scenes depend on
-state left by earlier scenes.
+Scenes are cached. A scene is re-recorded when its storyboard entry changes or when the filmed
+repo's commit or uncommitted changes differ from when it was recorded; the build prints the
+source it is filming. `--only <scene>` re-records just the named scenes and reuses the rest
+regardless, warning if any reused footage came from different code. `--force` re-records
+everything.
+
+Heed every `warning:` line in the build output: stale footage, a repo that changed mid-build,
+dead air, unused `pronounce` entries. Do the final build with `--force` when scenes depend on
+state left by earlier scenes, and do not use `--only` on a scene whose effects a later scene is
+supposed to undo.
 
 If a scene fails, the error names the scene and step and saves a screenshot of the page at the
 moment of failure. Look at the screenshot before changing the storyboard.
 
 ### 6. Review before you call it done
 
-The build writes one still per step to `walkthrough/.docent/review/`. **Open them** and check
-each against its narration:
+The build writes stills to `.docent/review/` next to the storyboard: one just before each step
+ends, plus one shortly after each highlight or callout appears. Start with the contact sheets
+(`sheet-1.jpg`, ...), which show them in order, then **open any still that needs a closer look**.
+Check each against its narration:
 
 - Does the frame show what the sentence is talking about?
 - Is the interesting thing on screen, large enough to read, and not cut off or covered?
@@ -200,8 +219,10 @@ each against its narration:
 - In a code scene, are the highlighted lines the ones the sentence is about?
 - In a diagram, does every label fit its box, and do the arrows read in the direction of flow?
 
-The stills are taken at the end of each step, so highlights and callouts, which fade out, will
-usually not appear in them. That is expected.
+- Is every highlight and callout actually visible, and clear of buttons and bars?
+
+For anything else that happens mid-step, pull a frame yourself:
+`ffmpeg -ss <seconds> -i <video> -frames:v 1 frame.jpg`.
 
 Fix what you find and rebuild the affected scenes. Then tell the user where the MP4 and the
 `.srt` captions are, how long the video runs, and anything you could not verify. You cannot
@@ -220,7 +241,9 @@ listen to the audio, so say so, and suggest they check the pronunciation of unus
   the frame. Never use a larger one.
 - **Clean state.** Reset data in `setup` or a scene's `prepare` so rebuilding gives the same
   video. Hide dev-only overlays and cookie banners in `prepare`.
-- **Real commands, real output** in terminal scenes. Never fake output with `echo`.
+- **Real commands, real output** in terminal scenes. Never fake output with `echo`. Trimming
+  noisy output with a filter such as `grep` is fine when the narration does not claim more than
+  what is shown.
 - **Real source** in code scenes. They read the file from disk; never show a tidied copy.
 
 ## Boundaries
@@ -229,4 +252,8 @@ listen to the audio, so say so, and suggest they check the pronunciation of unus
   before committing the storyboard or the video.
 - Record only local or explicitly user-approved environments. Do not sign in to third-party
   services or enter real credentials to make a video; use the project's seed or test accounts.
-- Stop any dev server you started when you are done, and remove any worktree you added.
+- Leave things as you found them: stop any dev server you started, remove any worktree you
+  added, and confirm that data you changed on camera is back to its earlier state. Tell the user
+  what you changed and restored.
+- The `.docent/state.json` file holds the filmed browser's cookies and storage, which can include
+  a signed-in session. Do not share or commit it.

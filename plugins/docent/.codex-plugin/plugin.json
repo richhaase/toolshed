@@ -1,6 +1,6 @@
 {
   "name": "docent",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Explain software with a short narrated video: change walkthroughs with before and after, tours of web apps and command-line tools, and deep dives into backends and data pipelines with diagrams and highlighted source. Local voice narration, captions and chapters.",
   "author": {
     "name": "Rich Haase",
